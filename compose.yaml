@@ -44,9 +44,11 @@ services:
       PGUSER: ${POSTGRES_USER:-pl_timetable}
       PGPASSWORD: ${POSTGRES_PASSWORD:-local-only-change-me}
       DATA_DIR: /workspace/data/database
+      NORMALIZATION_SQL: /workspace/normalization/normalize_academic_units.sql
     entrypoint: ["/bin/sh", "/workspace/scripts/ingest-academic-data.sh"]
     volumes:
       - ./data/database:/workspace/data/database:ro
+      - ./backend/src/main/resources/db/normalization:/workspace/normalization:ro
       - ./scripts:/workspace/scripts:ro
     depends_on:
       migrate:

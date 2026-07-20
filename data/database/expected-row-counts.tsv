@@ -11,6 +11,10 @@ historical_term_datasets	28
 historical_course_offerings	20031
 historical_curriculum_datasets	7
 historical_curriculum_departments	1197
+academic_colleges	9
+academic_units	259
+academic_unit_aliases	901
+section_academic_units	929
 historical_relation_datasets	1
 historical_course_relations	1325
 requirement_datasets	17

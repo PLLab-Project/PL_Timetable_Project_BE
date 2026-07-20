@@ -31,11 +31,29 @@ docker compose run --rm --no-deps ingest
 2. `reference_data_imports.package_id`로 기준 데이터 패키지의 기존 적재 여부 확인
 3. `data_imports.checksum`으로 현재 학기 카탈로그의 기존 적재 여부 확인
 4. 미적재 패키지만 트랜잭션으로 적재
-5. `expected-row-counts.tsv`에 정의된 35개 기준·적재관리 테이블의 행 수 확인
-6. 핵심 참조 무결성과 Flyway 실패 이력 확인
+5. 학과·전공 코드, 연도별 별칭, 현재 분반 연결 정규화
+6. `expected-row-counts.tsv`에 정의된 39개 기준·적재관리 테이블의 행 수 확인
+7. 핵심 참조 무결성과 Flyway 실패 이력 확인
 
 동일 패키지를 다시 실행하면 적재 단계는 건너뛰고 검증만 수행합니다. 따라서 같은
 패키지의 재실행은 `users`, `course_reviews`, `completed_courses`를 변경하지 않습니다.
+학과 정규화는 매번 같은 원천에서 다시 계산하며 중복 행을 만들지 않습니다.
+
+## 학과·전공 정규화
+
+- `academic_colleges`: 단과대 코드와 최신 명칭
+- `academic_units`: 공식 학과·전공 코드와 공식 코드가 없는 과거 요건용 결정적 파생 코드
+- `academic_unit_aliases`: 교육과정·졸업요건에서 사용된 연도별 표기
+- `section_academic_units`: 현재 분반과 명시적으로 제공된 학과 코드의 다대다 관계
+
+`academic_units.is_current`는 최신 교육과정 데이터셋에 코드가 존재한다는 의미이며,
+신입생 모집 또는 행정조직 운영 상태를 보장하지 않습니다. 학과 코드가 없는 교양·공통
+강의는 `section_academic_units`에 임의 학과를 배정하지 않습니다.
+
+공식 학과 코드가 없는 과거 교육과정·졸업요건의 학과 키는 `REQ-` 접두사의 결정적 코드로
+분리합니다. 이 코드는 현재 학과라고 추정하거나 기존 공식 코드에 임의 통합하지 않으면서도
+모든 요건 행이 `academic_units`를 FK로 참조할 수 있게 합니다. 학과 목록 API의 기본값은
+`code_source = 'OFFICIAL_CURRICULUM' AND is_current = true` 범위가 적절합니다.
 
 ## 실제 DB 저장 위치
 

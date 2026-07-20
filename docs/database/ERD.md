@@ -15,6 +15,10 @@ erDiagram
     COURSES ||--o{ SECTIONS : offers
     SECTIONS ||--o{ SESSIONS : schedules
     ROOMS ||--o{ SESSIONS : hosts
+    ACADEMIC_COLLEGES ||--o{ ACADEMIC_UNITS : contains
+    ACADEMIC_UNITS ||--o{ ACADEMIC_UNIT_ALIASES : resolves
+    SECTIONS ||--o{ SECTION_ACADEMIC_UNITS : classified_as
+    ACADEMIC_UNITS ||--o{ SECTION_ACADEMIC_UNITS : offers
 
     HISTORICAL_TERM_DATASETS ||--o{ HISTORICAL_COURSE_OFFERINGS : contains
     HISTORICAL_CURRICULUM_DATASETS ||--o{ HISTORICAL_CURRICULUM_DEPARTMENTS : contains
@@ -39,6 +43,10 @@ erDiagram
   OAuth 토큰·로그인 세션·Spring Security 구현은 포함하지 않습니다.
 - **현재 강의 카탈로그**: 2026-1 학기의 강의·분반·수업시간·강의실을 정규화합니다.
   여기서 `sessions`는 로그인 세션이 아니라 요일·시작시간·종료시간을 가진 **수업시간**입니다.
+- **학과·전공 기준정보**: 단과대와 학과·전공의 안정적인 코드를 기준으로 최신 명칭과
+  연도별 별칭을 분리하고, 원천에 명시된 현재 분반의 학과 문맥만 다대다로 연결합니다.
+  공식 코드가 없는 과거 요건 키는 별도의 결정적 파생 코드로 보존해 현재 학과로 임의
+  통합하지 않습니다.
 - **과거 학사 원장**: 2020~2026 강의 개설 이력과 같은 기간의 DREAMS 교육과정 자료를
   보존합니다.
 - **졸업요건**: 2016~2026 교육과정 필수과목과 2020~2026 졸업 학점, 교양,

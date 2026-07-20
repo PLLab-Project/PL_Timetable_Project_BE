@@ -3,6 +3,7 @@ set -eu
 
 DATA_DIR=${DATA_DIR:-/workspace/data/database}
 EXPECTED_COUNTS=${EXPECTED_COUNTS:-$DATA_DIR/expected-row-counts.tsv}
+NORMALIZATION_SQL=${NORMALIZATION_SQL:-/workspace/normalization/normalize_academic_units.sql}
 REFERENCE_PACKAGE_ID=academic-reference-2026-07-18-v1
 REFERENCE_ARCHIVE_SHA256=78a388b2e8a2b014c0ea0fc38788428520019051c8de71a2d3004e3e45a57de8
 CURRENT_CATALOG_CHECKSUM=bd78610cf34ac3c87111fa7d90e6ce26e6df83794e7b1e631a0c8fbc2b4deb81
@@ -13,6 +14,11 @@ for command_name in psql gzip sha256sum; do
         exit 1
     }
 done
+
+if [ ! -f "$NORMALIZATION_SQL" ]; then
+    echo "missing academic-unit normalization SQL: $NORMALIZATION_SQL" >&2
+    exit 1
+fi
 
 cd "$DATA_DIR"
 
@@ -54,5 +60,8 @@ else
     echo "Loading the current normalized course catalog..."
     gzip -dc current-catalog.sql.gz | psql -X -q -v ON_ERROR_STOP=1
 fi
+
+echo "Normalizing colleges, academic units, aliases, and section mappings..."
+psql -X -q -v ON_ERROR_STOP=1 --single-transaction -f "$NORMALIZATION_SQL"
 
 EXPECTED_COUNTS="$EXPECTED_COUNTS" /workspace/scripts/verify-database.sh
