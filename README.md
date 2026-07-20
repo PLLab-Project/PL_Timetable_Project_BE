@@ -48,7 +48,8 @@ docker compose down -v
 
 - [구현 완료·미구현 상태](docs/database/STATUS.md)
 - [DB 구조와 실행 방법](docs/database/README.md)
-- [핵심 ERD](docs/database/ERD.md)
+- [전체 ERD 시각화](docs/database/ERD.html)
+- [핵심 관계 개요](docs/database/ERD.md)
 - [DB 규칙과 변경 절차](docs/database/CONVENTIONS.md)
 - [데이터 범위·출처·완전성](docs/database/DATASET.md)
 - [도메인 소유권](docs/database/OWNERSHIP.md)
