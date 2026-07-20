@@ -35,3 +35,12 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Local database runtime ###
+.env
+*.local
+postgres-data/
+
+### Locally provisioned academic data ###
+/data/database/*.sql.gz
+/data/database/*.sql.gz.part-*
