@@ -63,7 +63,7 @@
 
       .erd {
         position: relative;
-        width: 1680px;
+        width: 1560px;
         min-height: 1100px;
         padding: 30px;
         background-color: #ffffff;
@@ -85,12 +85,15 @@
 
       .relation {
         fill: none;
-        stroke: #6b7280;
-        stroke-width: 1.5;
+        stroke: #4f67c8;
+        stroke-width: 2;
         stroke-linecap: round;
         stroke-linejoin: round;
-        opacity: 0.52;
+        opacity: 0;
+        transition: opacity 120ms ease;
       }
+
+      .relation.active { opacity: 0.88; }
 
       .domains {
         position: relative;
@@ -141,12 +144,22 @@
         border: 1px solid #9ca3af;
         border-radius: 6px;
         background: #ffffff;
+        transition: border-color 120ms ease, box-shadow 120ms ease;
       }
+
+      .entity.selected,
+      .entity.related {
+        border-color: #4f67c8;
+        box-shadow: 0 0 0 2px rgba(79, 103, 200, 0.12);
+      }
+
+      .entity.related { border-style: dashed; }
 
       .entity > header {
         padding: 9px 11px;
         border-bottom: 1px solid #d1d5db;
         background: #f3f4f6;
+        cursor: pointer;
       }
 
       .entity h3 {
@@ -269,6 +282,12 @@
         line-height: 1.55;
       }
 
+      .selection-note {
+        min-width: 230px;
+        color: #4f67c8;
+        font-weight: 700;
+      }
+
       @media (max-width: 700px) {
         body { padding: 12px; }
         h1 { font-size: 20px; }
@@ -299,7 +318,8 @@
         <span><b>UK</b> 고유키</span>
         <span><b>GEN</b> 생성 컬럼</span>
         <span><b>?</b> NULL 허용</span>
-        <span>실선은 실제 외래키 관계</span>
+        <span>테이블 제목 클릭: 직접 연결된 FK만 표시</span>
+        <span class="selection-note" id="selection-note">선택된 테이블 없음</span>
       </div>
 
       <div class="erd-scroll">
@@ -518,10 +538,51 @@
           const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
           path.setAttribute("class", "relation");
           path.setAttribute("d", pathData);
+          path.dataset.source = foreignKey.table;
+          path.dataset.target = foreignKey.referencedTable;
           const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
           title.textContent = `${foreignKey.table}.${foreignKey.columns.join(", ")} → ${foreignKey.referencedTable}.${foreignKey.referencedColumns.join(", ")}`;
           path.appendChild(title);
           svg.appendChild(path);
+        });
+
+        applySelection();
+      }
+
+      let selectedTable = null;
+
+      function applySelection() {
+        const connected = new Set();
+        if (selectedTable) {
+          connected.add(selectedTable);
+          schema.foreignKeys.forEach((foreignKey) => {
+            if (foreignKey.table === selectedTable) connected.add(foreignKey.referencedTable);
+            if (foreignKey.referencedTable === selectedTable) connected.add(foreignKey.table);
+          });
+        }
+
+        document.querySelectorAll(".entity").forEach((entity) => {
+          entity.classList.toggle("selected", entity.dataset.table === selectedTable);
+          entity.classList.toggle("related", Boolean(selectedTable && entity.dataset.table !== selectedTable && connected.has(entity.dataset.table)));
+        });
+        document.querySelectorAll(".relation").forEach((path) => {
+          path.classList.toggle("active", Boolean(selectedTable && (path.dataset.source === selectedTable || path.dataset.target === selectedTable)));
+        });
+
+        const relationCount = selectedTable
+          ? schema.foreignKeys.filter((foreignKey) => foreignKey.table === selectedTable || foreignKey.referencedTable === selectedTable).length
+          : 0;
+        document.getElementById("selection-note").textContent = selectedTable
+          ? `${selectedTable} · 직접 관계 ${relationCount}개 (다시 클릭하면 해제)`
+          : "선택된 테이블 없음";
+      }
+
+      function bindTableSelection() {
+        document.querySelectorAll(".entity").forEach((entity) => {
+          entity.querySelector(":scope > header").addEventListener("click", () => {
+            selectedTable = selectedTable === entity.dataset.table ? null : entity.dataset.table;
+            applySelection();
+          });
         });
       }
 
@@ -541,6 +602,7 @@
 
       renderSummary();
       renderDomains();
+      bindTableSelection();
       requestAnimationFrame(drawRelations);
       window.addEventListener("resize", () => requestAnimationFrame(drawRelations));
       document.querySelectorAll("details").forEach((details) => {
