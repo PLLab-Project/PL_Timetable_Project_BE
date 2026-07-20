@@ -3,191 +3,80 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PL Timetable Database ERD</title>
+    <title>PL Timetable 전체 ERD</title>
     <style>
-      :root {
-        color-scheme: light;
-        --ink: #172033;
-        --muted: #667085;
-        --line: #d9e0ea;
-        --panel: #ffffff;
-        --canvas: #f5f7fb;
-        --accent: #3157d5;
-        --shadow: 0 12px 32px rgba(30, 42, 70, 0.08);
-      }
-
       * { box-sizing: border-box; }
-
-      html { scroll-behavior: smooth; }
 
       body {
         margin: 0;
-        color: var(--ink);
-        background: #eef2f7;
-        font-family: Inter, Pretendard, "Noto Sans KR", system-ui, -apple-system, sans-serif;
-      }
-
-      button, input, select { font: inherit; }
-
-      a { color: #2949b8; }
-
-      .page-header {
-        padding: 30px clamp(18px, 4vw, 52px) 24px;
-        color: #fff;
-        background:
-          radial-gradient(circle at 86% 14%, rgba(119, 144, 255, 0.48), transparent 26%),
-          linear-gradient(132deg, #172449 0%, #263f91 54%, #3157d5 100%);
-      }
-
-      .eyebrow {
-        margin: 0 0 8px;
-        color: #cbd6ff;
-        font-size: 12px;
-        font-weight: 800;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
+        padding: 24px;
+        color: #111827;
+        background: #ffffff;
+        font-family: Arial, "Noto Sans KR", sans-serif;
       }
 
       h1 {
-        margin: 0;
-        font-size: clamp(28px, 4vw, 44px);
-        letter-spacing: -0.04em;
+        margin: 0 0 16px;
+        font-size: 24px;
       }
 
-      .header-copy {
-        max-width: 900px;
-        margin: 12px 0 0;
-        color: #e4e9ff;
-        line-height: 1.65;
+      .scope-note {
+        max-width: 1100px;
+        margin: -6px 0 10px;
+        color: #4b5563;
+        line-height: 1.55;
       }
 
-      .stats {
+      .scope-note a { color: #374151; }
+
+      .schema-summary {
         display: flex;
         flex-wrap: wrap;
-        gap: 9px;
-        margin-top: 20px;
-      }
-
-      .stat {
-        padding: 8px 12px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.1);
+        gap: 8px 16px;
+        margin: 0 0 16px;
+        color: #6b7280;
         font-size: 12px;
-        font-weight: 750;
-        backdrop-filter: blur(8px);
       }
 
-      .toolbar-wrap {
-        position: sticky;
-        top: 0;
-        z-index: 30;
-        padding: 12px clamp(12px, 3vw, 36px);
-        border-bottom: 1px solid #d7deea;
-        background: rgba(245, 247, 251, 0.94);
-        backdrop-filter: blur(14px);
-      }
-
-      .toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 9px;
-        max-width: 1640px;
-        margin: 0 auto;
-      }
-
-      .control {
-        min-height: 40px;
-        border: 1px solid #cbd4e2;
-        border-radius: 9px;
-        color: var(--ink);
-        background: #fff;
-      }
-
-      .search {
-        flex: 1 1 320px;
-        min-width: 220px;
-        padding: 0 13px;
-      }
-
-      select.control { padding: 0 34px 0 12px; }
-
-      button.control {
-        padding: 0 13px;
-        cursor: pointer;
-        font-weight: 750;
-      }
-
-      button.control:hover,
-      button.control[aria-pressed="true"] {
-        border-color: #6f86d8;
-        color: #233f9f;
-        background: #eef2ff;
-      }
-
-      .content {
-        max-width: 1720px;
-        margin: 0 auto;
-        padding: 18px clamp(12px, 3vw, 36px) 44px;
-      }
-
-      .notice {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 16px;
-        align-items: center;
-        margin-bottom: 14px;
-        padding: 14px 16px;
-        border: 1px solid #d8dfeb;
-        border-radius: 12px;
-        background: #fff;
-        box-shadow: 0 5px 18px rgba(30, 42, 70, 0.04);
-      }
-
-      .notice p { margin: 0; color: #4f5d73; line-height: 1.55; }
-      .notice strong { color: #273b7a; }
-      .notice-links { white-space: nowrap; font-size: 13px; font-weight: 750; }
+      .schema-summary strong { color: #374151; }
 
       .legend {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 12px;
-        color: #59677d;
-        font-size: 11px;
+        gap: 7px;
+        margin: 0 0 10px;
+        color: #4b5563;
+        font-size: 10px;
       }
 
       .legend span {
-        padding: 5px 8px;
-        border: 1px solid #d6deea;
-        border-radius: 6px;
-        background: #fff;
+        padding: 3px 6px;
+        border: 1px solid #d1d5db;
+        border-radius: 3px;
+        background: #f9fafb;
       }
 
-      .viewport {
+      .erd-scroll {
         overflow: auto;
-        min-height: 640px;
-        border: 1px solid #cfd8e6;
-        border-radius: 14px;
-        background: #fff;
-        box-shadow: var(--shadow);
+        border: 1px solid #d1d5db;
       }
 
-      .diagram {
+      .erd {
         position: relative;
-        min-width: 1460px;
-        padding: 22px;
-        background-color: var(--canvas);
+        width: 1680px;
+        min-height: 1100px;
+        padding: 30px;
+        background-color: #ffffff;
         background-image:
-          linear-gradient(rgba(89, 107, 145, 0.06) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(89, 107, 145, 0.06) 1px, transparent 1px);
-        background-size: 24px 24px;
+          linear-gradient(#eef0f2 1px, transparent 1px),
+          linear-gradient(90deg, #eef0f2 1px, transparent 1px);
+        background-size: 20px 20px;
       }
 
       .relations {
         position: absolute;
         inset: 0;
-        z-index: 1;
+        z-index: 2;
         width: 100%;
         height: 100%;
         overflow: visible;
@@ -196,212 +85,199 @@
 
       .relation {
         fill: none;
-        stroke: #75839c;
-        stroke-width: 1.35;
-        opacity: 0.14;
-        transition: opacity 120ms ease, stroke-width 120ms ease, stroke 120ms ease;
-      }
-
-      .relation.active {
-        stroke: #244ed1;
-        stroke-width: 2.5;
-        opacity: 0.92;
+        stroke: #6b7280;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        opacity: 0.52;
       }
 
       .domains {
         position: relative;
-        z-index: 2;
+        z-index: 1;
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 18px;
+        gap: 28px;
         align-items: start;
       }
 
       .domain {
-        --domain-color: #52647f;
-        overflow: hidden;
-        border: 1px solid #d6deea;
-        border-top: 4px solid var(--domain-color);
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.86);
-        box-shadow: 0 7px 20px rgba(36, 51, 84, 0.05);
+        --domain-color: #6b7280;
+        padding: 12px;
+        border: 1px solid #d1d5db;
+        background: rgba(255, 255, 255, 0.94);
       }
-
-      .domain.hidden { display: none; }
 
       .domain-header {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        align-items: baseline;
-        padding: 13px 14px 11px;
-        border-bottom: 1px solid #e1e6ef;
-        background: color-mix(in srgb, var(--domain-color) 8%, white);
+        position: relative;
+        z-index: 3;
+        margin: -12px -12px 14px;
+        padding: 10px 12px;
+        border-bottom: 1px solid #d1d5db;
+        border-left: 4px solid var(--domain-color);
+        background: #f3f4f6;
       }
 
-      .domain-title { margin: 0; font-size: 15px; letter-spacing: -0.02em; }
-      .domain-description { margin: 3px 0 0; color: #6b778b; font-size: 11px; }
-      .domain-count { color: var(--domain-color); font-size: 11px; font-weight: 850; white-space: nowrap; }
-      .table-list { display: grid; gap: 11px; padding: 11px; }
+      .domain-header h2 {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      .domain-header p {
+        margin: 3px 0 0;
+        color: #6b7280;
+        font-size: 10px;
+      }
+
+      .table-list {
+        display: grid;
+        gap: 16px;
+      }
 
       .entity {
         position: relative;
-        border: 1px solid #cfd8e6;
-        border-left: 4px solid var(--domain-color);
-        border-radius: 9px;
-        background: var(--panel);
-        box-shadow: 0 4px 12px rgba(31, 45, 73, 0.05);
-        transition: opacity 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+        z-index: 3;
+        overflow: hidden;
+        border: 1px solid #9ca3af;
+        border-radius: 6px;
+        background: #ffffff;
       }
 
-      .entity:hover,
-      .entity.focused {
-        border-color: var(--domain-color);
-        box-shadow: 0 8px 22px rgba(31, 45, 73, 0.13);
+      .entity > header {
+        padding: 9px 11px;
+        border-bottom: 1px solid #d1d5db;
+        background: #f3f4f6;
       }
 
-      .entity.dimmed { opacity: 0.22; }
-      .entity.hidden { display: none; }
-
-      .entity-header {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 10px;
-        align-items: start;
-        width: 100%;
-        padding: 10px 11px 9px;
-        border: 0;
-        border-bottom: 1px solid #e2e7ef;
-        color: inherit;
-        background: #fbfcfe;
-        text-align: left;
-        cursor: pointer;
-      }
-
-      .entity-name {
+      .entity h3 {
         margin: 0;
-        overflow-wrap: anywhere;
-        font-family: "JetBrains Mono", Consolas, monospace;
+        font-family: Consolas, "Courier New", monospace;
         font-size: 13px;
       }
 
-      .entity-comment {
-        margin: 4px 0 0;
-        color: #66758b;
+      .entity header p {
+        margin: 3px 0 0;
+        color: #4b5563;
         font-size: 10px;
-        line-height: 1.45;
       }
 
-      .entity-meta { color: #718097; font-size: 9px; font-weight: 750; white-space: nowrap; }
-
-      .columns {
+      .fields {
         margin: 0;
-        padding: 5px 0;
+        padding: 6px 0;
         list-style: none;
       }
 
-      .column-row {
+      .field {
         display: grid;
-        grid-template-columns: 73px minmax(0, 1fr) auto;
-        gap: 7px;
+        grid-template-columns: 58px minmax(0, 1fr) auto;
+        gap: 6px;
         align-items: center;
-        min-height: 26px;
-        padding: 3px 9px;
+        min-height: 25px;
+        padding: 3px 10px;
       }
 
-      .column-row:hover { background: #f6f8fc; }
-      .column-row.non-key.key-only { display: none; }
+      .field:hover { background: #f9fafb; }
 
-      .badges { display: flex; gap: 3px; min-height: 17px; }
+      .keys {
+        display: flex;
+        gap: 2px;
+      }
 
-      .badge {
-        display: inline-flex;
+      .key {
+        display: inline-block;
         min-width: 20px;
-        height: 17px;
-        align-items: center;
-        justify-content: center;
-        padding: 0 4px;
-        border: 1px solid #cfd7e5;
-        border-radius: 4px;
-        color: #506077;
-        background: #f7f9fc;
+        padding: 2px 3px;
+        border: 1px solid #d1d5db;
+        border-radius: 3px;
+        color: #374151;
+        background: #f9fafb;
+        text-align: center;
         font-size: 8px;
-        font-weight: 900;
+        font-weight: 700;
       }
 
-      .badge.pk { border-color: #f0bd67; color: #8c5600; background: #fff7e8; }
-      .badge.fk { border-color: #89a3ef; color: #2949a8; background: #edf2ff; }
-      .badge.uk { border-color: #82c6a0; color: #197143; background: #ecfaf2; }
-      .badge.gen { border-color: #bf9bea; color: #6b3299; background: #f6effd; }
-
-      .column-name,
-      .column-type,
+      .column,
+      .type,
       code {
-        font-family: "JetBrains Mono", Consolas, monospace;
+        font-family: Consolas, "Courier New", monospace;
       }
 
-      .column-name { overflow-wrap: anywhere; font-size: 10px; font-weight: 730; }
-      .column-name.nullable::after { content: " ?"; color: #98a2b3; }
-      .column-type { color: #6b778b; font-size: 8.5px; white-space: nowrap; }
+      .column {
+        overflow: hidden;
+        font-size: 10px;
+        font-weight: 700;
+        overflow-wrap: anywhere;
+      }
 
-      .column-extra {
+      .type {
+        color: #6b7280;
+        font-size: 8px;
+        white-space: nowrap;
+      }
+
+      .nullable::after {
+        content: "?";
+        margin-left: 2px;
+        color: #9ca3af;
+      }
+
+      .default {
         grid-column: 2 / -1;
-        margin-top: -2px;
-        color: #8792a4;
-        font-family: "JetBrains Mono", Consolas, monospace;
+        margin-top: -3px;
+        color: #9ca3af;
+        font-family: Consolas, "Courier New", monospace;
         font-size: 8px;
         overflow-wrap: anywhere;
       }
 
-      .technical {
-        border-top: 1px solid #e4e9f1;
-        background: #fafbfd;
+      .entity details {
+        border-top: 1px solid #d1d5db;
+        background: #f9fafb;
       }
 
-      .technical summary {
-        padding: 7px 10px;
-        color: #5e6c81;
+      .entity summary {
+        padding: 6px 10px;
+        color: #4b5563;
         font-size: 9px;
-        font-weight: 800;
+        font-weight: 700;
         cursor: pointer;
       }
 
-      .technical-body { display: grid; gap: 8px; padding: 1px 10px 10px; }
-      .technical h4 { margin: 0 0 4px; color: #46556c; font-size: 9px; }
-      .technical ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
-      .technical li { color: #748095; font-size: 8px; line-height: 1.45; overflow-wrap: anywhere; }
-      .technical code { color: #394860; font-size: 8px; }
-
-      .empty {
-        display: none;
-        position: relative;
-        z-index: 3;
-        padding: 80px 20px;
-        color: #6b778b;
-        text-align: center;
+      .definition-list {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0 10px 10px;
+        list-style: none;
       }
 
-      .empty.visible { display: block; }
-
-      .footer {
-        margin-top: 16px;
-        color: #657287;
-        font-size: 12px;
-        line-height: 1.6;
-        text-align: center;
+      .definition-list li {
+        color: #6b7280;
+        font-size: 8px;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
       }
 
-      @media (max-width: 760px) {
-        .page-header { padding-top: 24px; }
-        .notice { grid-template-columns: 1fr; }
-        .notice-links { white-space: normal; }
-        .toolbar > * { flex: 1 1 auto; }
+      .definition-list b { color: #374151; }
+      .definition-list code { color: #4b5563; font-size: 8px; }
+
+      .footer-note {
+        max-width: 1100px;
+        margin: 12px 0 0;
+        color: #6b7280;
+        font-size: 11px;
+        line-height: 1.55;
+      }
+
+      @media (max-width: 700px) {
+        body { padding: 12px; }
+        h1 { font-size: 20px; }
       }
 
       @media print {
-        .toolbar-wrap { display: none; }
-        .viewport { overflow: visible; border: 0; box-shadow: none; }
-        .diagram { min-width: 0; }
+        body { padding: 0; }
+        .erd-scroll { overflow: visible; border: 0; }
+        .erd { width: 100%; padding: 12px; }
         .relations { display: none; }
         .domains { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .entity { break-inside: avoid; }
@@ -409,58 +285,34 @@
     </style>
   </head>
   <body>
-    <header class="page-header">
-      <p class="eyebrow">Database Reference · PostgreSQL 18</p>
+    <main>
       <h1>PL Timetable 전체 ERD</h1>
-      <p class="header-copy">
-        Flyway <strong>V2026.07.20.005</strong> 적용 후 PostgreSQL 시스템 카탈로그에서 추출한
-        물리 스키마입니다. 모든 애플리케이션 테이블의 컬럼, 키, 외래키, CHECK·UNIQUE 제약과
-        인덱스를 한 파일에서 확인할 수 있습니다.
+      <p class="scope-note">
+        실제 PostgreSQL 18 스키마를 도메인별로 배치한 정적 ERD이다. 모든 애플리케이션
+        테이블과 컬럼, PK·FK·UNIQUE 키를 표시하며, 세부 제약조건과 인덱스는 각 테이블
+        하단을 펼쳐 확인할 수 있다.
       </p>
-      <div class="stats" id="stats" aria-label="스키마 통계"></div>
-    </header>
-
-    <div class="toolbar-wrap">
-      <div class="toolbar" aria-label="ERD 도구">
-        <input class="control search" id="search" type="search" placeholder="테이블 또는 컬럼 검색 (예: academic_unit_code)" />
-        <select class="control" id="domain-filter" aria-label="도메인 필터"></select>
-        <button class="control" id="key-toggle" type="button" aria-pressed="false">키 컬럼만</button>
-        <button class="control" id="relation-toggle" type="button" aria-pressed="true">관계선 표시</button>
-        <button class="control" id="reset" type="button">선택 초기화</button>
-      </div>
-    </div>
-
-    <main class="content">
-      <section class="notice" aria-label="문서 기준">
-        <p>
-          <strong>기준:</strong> <code>backend/src/main/resources/db/migration</code>의 마이그레이션 5개.
-          Flyway 내부 관리 테이블 <code>flyway_schema_history</code>만 ERD에서 제외했습니다.
-        </p>
-        <div class="notice-links"><a href="ERD.md">관계 개요</a> · <a href="README.md">DB 실행 방법</a></div>
-      </section>
-
-      <div class="legend" aria-label="범례">
-        <span><b>PK</b> 기본키</span><span><b>FK</b> 외래키</span><span><b>UK</b> 고유키</span>
-        <span><b>GEN</b> 생성 컬럼</span><span><b>?</b> NULL 허용</span><span>테이블 클릭: 직접 연결 관계 강조</span>
+      <p class="schema-summary" id="schema-summary"></p>
+      <div class="legend">
+        <span><b>PK</b> 기본키</span>
+        <span><b>FK</b> 외래키</span>
+        <span><b>UK</b> 고유키</span>
+        <span><b>GEN</b> 생성 컬럼</span>
+        <span><b>?</b> NULL 허용</span>
+        <span>실선은 실제 외래키 관계</span>
       </div>
 
-      <section class="viewport" id="viewport" aria-label="데이터베이스 ERD">
-        <div class="diagram" id="diagram">
-          <svg class="relations" id="relations" aria-hidden="true">
-            <defs>
-              <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="#75839c"></path>
-              </marker>
-            </defs>
-          </svg>
+      <div class="erd-scroll">
+        <div class="erd" id="erd">
+          <svg class="relations" id="relations" aria-hidden="true"></svg>
           <div class="domains" id="domains"></div>
-          <div class="empty" id="empty">검색 조건과 일치하는 테이블이 없습니다.</div>
         </div>
-      </section>
+      </div>
 
-      <p class="footer">
-        이 문서는 구조 확인용 정적 스냅샷이며 데이터 행이나 비공개 적재 payload를 포함하지 않습니다.
-        스키마 변경 시 Flyway 마이그레이션과 함께 갱신해야 합니다.
+      <p class="footer-note">
+        기준은 <code>backend/src/main/resources/db/migration</code>의 Flyway 마이그레이션이다.
+        Flyway 내부 관리 테이블 <code>flyway_schema_history</code>만 제외했다.
+        <a href="ERD.md">도메인 관계 설명</a> · <a href="README.md">DB 실행 방법</a>
       </p>
     </main>
 
@@ -468,19 +320,18 @@
     <script>
       const schema = JSON.parse(document.getElementById("schema-data").textContent);
 
-      const domainDefinitions = [
-        { id: "identity", title: "인증·사용자", description: "사용자, 소셜 식별자, 프로필, 동의", color: "#4263d8" },
-        { id: "catalog", title: "현재 강의 카탈로그", description: "학기, 과목, 분반, 수업시간, 강의실", color: "#087f8c" },
-        { id: "academic-unit", title: "학과·전공 기준정보", description: "단과대, 학과 코드, 별칭, 분반 연결", color: "#23875d" },
-        { id: "user-academic", title: "사용자 학사 데이터", description: "강의 리뷰와 개인 이수과목", color: "#7356bf" },
-        { id: "history", title: "과거 학사 원장", description: "2020년 이후 개설·교육과정·관계 이력", color: "#a66a16" },
-        { id: "curriculum", title: "교육과정 필수요건", description: "요건 데이터셋, 전공별 필수과목", color: "#b34b46" },
-        { id: "graduation-credit", title: "졸업학점·교양", description: "학번별 졸업학점과 교양 이수 규칙", color: "#c05c18" },
-        { id: "graduation-assessment", title: "졸업인증·과거요건", description: "졸업인증 기준과 구형 요건", color: "#b34878" },
-        { id: "operations", title: "적재 운영", description: "기준 데이터 패키지 반입 이력", color: "#52647f" }
+      const domains = [
+        { id: "identity", title: "인증·사용자", note: "사용자, 소셜 로그인 식별자, 학사 프로필", color: "#4f67c8" },
+        { id: "catalog", title: "현재 강의 카탈로그", note: "학기, 과목, 분반, 수업시간, 강의실", color: "#16808a" },
+        { id: "academic-unit", title: "학과·전공 기준정보", note: "단과대, 학과 코드, 별칭, 분반 연결", color: "#2d8b62" },
+        { id: "user-academic", title: "사용자 학사 데이터", note: "강의 리뷰와 개인 이수과목", color: "#7656ad" },
+        { id: "history", title: "과거 학사 원장", note: "과거 강의·교육과정·과목 관계 이력", color: "#9a6a27" },
+        { id: "curriculum", title: "교육과정 필수요건", note: "학번·학과별 필수과목 기준", color: "#a9504c" },
+        { id: "graduation-credit", title: "졸업학점·교양", note: "졸업학점과 교양 이수 규칙", color: "#b86125" },
+        { id: "graduation-assessment", title: "졸업인증·과거요건", note: "졸업인증 기준과 구형 졸업요건", color: "#a94d78" },
+        { id: "operations", title: "적재 운영", note: "기준 데이터 패키지 반입 이력", color: "#64748b" }
       ];
 
-      const domainOrder = Object.fromEntries(domainDefinitions.map((domain, index) => [domain.id, index]));
       const tableOrder = [
         "users", "social_identities", "student_profiles", "privacy_consents",
         "semesters", "courses", "sections", "sessions", "rooms", "data_imports",
@@ -501,254 +352,201 @@
         "graduation_legacy_requirements", "graduation_legacy_source_refs", "graduation_legacy_cohorts",
         "reference_data_imports"
       ];
+
+      const descriptions = {
+        users: "서비스 사용자",
+        social_identities: "소셜 로그인 공급자 식별자",
+        student_profiles: "학번·학과·입학연도 학사 프로필",
+        privacy_consents: "개인정보 동의 이력",
+        semesters: "학기와 데이터 버전",
+        courses: "학기별 과목 정보",
+        sections: "과목별 분반 정보",
+        sessions: "분반별 수업 시간",
+        rooms: "학기별 강의실 정보",
+        data_imports: "현재 강의 카탈로그 반입 이력",
+        academic_colleges: "단과대 기준정보",
+        academic_units: "학과·전공 기준정보",
+        academic_unit_aliases: "연도별 학과·전공 별칭",
+        section_academic_units: "분반과 학과·전공 연결",
+        course_reviews: "사용자 강의 리뷰",
+        completed_courses: "사용자 이수과목",
+        historical_archive_manifests: "과거 자료 아카이브 목록",
+        historical_term_datasets: "과거 학기 강의 데이터셋",
+        historical_course_offerings: "과거 강의 개설 이력",
+        historical_curriculum_datasets: "연도별 교육과정 데이터셋",
+        historical_curriculum_departments: "연도별 학과 교육과정 원장",
+        historical_relation_datasets: "과목 관계 데이터셋",
+        historical_course_relations: "동일·대체 과목 관계",
+        requirement_datasets: "졸업요건 원천 데이터셋",
+        curriculum_program_requirements: "학번·학과별 교육과정 요건",
+        curriculum_program_aliases: "교육과정 학과명 별칭",
+        curriculum_required_courses: "전공기초·전공필수 과목",
+        graduation_requirement_rules: "정규화된 졸업요건 규칙",
+        graduation_liberal_requirement_sets: "교양 이수요건 묶음",
+        graduation_liberal_required_courses: "교양 필수과목",
+        graduation_liberal_course_aliases: "교양 과목명 별칭",
+        graduation_liberal_course_terms: "교양 과목 적용 학기",
+        graduation_liberal_area_requirements: "교양 영역별 이수기준",
+        graduation_credit_profiles: "학번·학과별 졸업학점",
+        graduation_credit_profile_source_refs: "졸업학점 공식 근거",
+        graduation_credit_profile_academic_unit_aliases: "졸업학점 학과명 별칭",
+        graduation_credit_profile_warnings: "졸업학점 원천 경고",
+        graduation_assessment_profiles: "학과별 졸업인증 기준",
+        graduation_assessment_source_refs: "졸업인증 공식 근거",
+        graduation_assessment_categories: "졸업인증 평가영역",
+        graduation_assessment_credentials: "자격증·어학·수상 요건",
+        graduation_legacy_requirements: "과거 방식 졸업요건",
+        graduation_legacy_source_refs: "과거 졸업요건 공식 근거",
+        graduation_legacy_cohorts: "과거 졸업요건 적용 학번",
+        reference_data_imports: "기준 데이터 패키지 적재 이력"
+      };
+
       const tableOrderIndex = Object.fromEntries(tableOrder.map((name, index) => [name, index]));
-
-      const state = { query: "", domain: "all", keyOnly: false, relations: true, focus: null };
-      const domainsElement = document.getElementById("domains");
-      const relationsElement = document.getElementById("relations");
-      const diagramElement = document.getElementById("diagram");
-      const emptyElement = document.getElementById("empty");
-
       const escapeHtml = (value) => String(value ?? "")
-        .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
 
-      const typeLabels = { p: "PK", f: "FK", u: "UK", c: "CHECK" };
-
-      function badgesFor(table, column) {
-        const types = new Set();
-        table.constraints.forEach((constraint) => {
-          if (constraint.columns.includes(column.name) && ["p", "f", "u"].includes(constraint.type)) {
-            types.add(constraint.type);
-          }
-        });
-        const result = [...types].map((type) => `<span class="badge ${type === "p" ? "pk" : type === "f" ? "fk" : "uk"}">${typeLabels[type]}</span>`);
-        if (column.generated) result.push('<span class="badge gen">GEN</span>');
-        return result.join("");
+      function keyTypes(table, columnName) {
+        const result = [];
+        for (const constraint of table.constraints) {
+          if (!constraint.columns.includes(columnName)) continue;
+          if (constraint.type === "p") result.push("PK");
+          if (constraint.type === "f") result.push("FK");
+          if (constraint.type === "u") result.push("UK");
+        }
+        return [...new Set(result)];
       }
 
-      function renderColumn(table, column) {
-        const badges = badgesFor(table, column);
-        const isKey = badges.includes("PK") || badges.includes("FK") || badges.includes("UK");
-        const extra = [
-          column.generated ? `generated ${column.generated}` : "",
-          column.default && !column.generated ? `default ${column.default}` : ""
-        ].filter(Boolean).join(" · ");
-        return `<li class="column-row ${isKey ? "is-key" : "non-key"} ${state.keyOnly ? "key-only" : ""}" data-column="${escapeHtml(column.name)}">
-          <span class="badges">${badges}</span>
-          <span class="column-name ${column.nullable ? "nullable" : ""}">${escapeHtml(column.name)}</span>
-          <span class="column-type">${escapeHtml(column.type)}</span>
-          ${extra ? `<span class="column-extra">${escapeHtml(extra)}</span>` : ""}
+      function renderField(table, column) {
+        const keys = keyTypes(table, column.name);
+        if (column.generated) keys.push("GEN");
+        const defaultText = column.generated
+          ? `generated ${column.generated}`
+          : column.default
+            ? `default ${column.default}`
+            : "";
+        return `<li class="field" data-column="${escapeHtml(column.name)}">
+          <span class="keys">${keys.map((key) => `<span class="key">${key}</span>`).join("")}</span>
+          <span class="column ${column.nullable ? "nullable" : ""}">${escapeHtml(column.name)}</span>
+          <span class="type">${escapeHtml(column.type)}</span>
+          ${defaultText ? `<span class="default">${escapeHtml(defaultText)}</span>` : ""}
         </li>`;
       }
 
-      function renderTechnical(table) {
-        const constraints = table.constraints.filter((constraint) => constraint.type !== "n");
-        return `<details class="technical">
+      function renderDefinitions(table) {
+        const constraints = table.constraints;
+        const items = [
+          ...constraints.map((constraint) => `<li><b>${escapeHtml(constraint.name)}</b><br><code>${escapeHtml(constraint.definition)}</code></li>`),
+          ...table.indexes.map((index) => `<li><b>${escapeHtml(index.name)}</b><br><code>${escapeHtml(index.definition)}</code></li>`)
+        ];
+        return `<details>
           <summary>제약 ${constraints.length} · 인덱스 ${table.indexes.length}</summary>
-          <div class="technical-body">
-            <section><h4>CONSTRAINTS</h4><ul>${constraints.map((constraint) =>
-              `<li><b>${escapeHtml(typeLabels[constraint.type] || constraint.type)}</b> <code>${escapeHtml(constraint.name)}</code><br>${escapeHtml(constraint.definition)}</li>`
-            ).join("")}</ul></section>
-            <section><h4>INDEXES</h4><ul>${table.indexes.map((index) =>
-              `<li><code>${escapeHtml(index.name)}</code><br>${escapeHtml(index.definition)}</li>`
-            ).join("")}</ul></section>
-          </div>
+          <ul class="definition-list">${items.join("")}</ul>
         </details>`;
       }
 
-      function renderTable(table, color) {
-        const fallbackComment = `${table.domainLabel} 영역의 물리 테이블`;
-        return `<article class="entity" id="table-${escapeHtml(table.name)}" data-table="${escapeHtml(table.name)}" style="--domain-color:${color}">
-          <button class="entity-header" type="button" aria-label="${escapeHtml(table.name)} 관계 강조">
-            <span><h3 class="entity-name">${escapeHtml(table.name)}</h3><p class="entity-comment">${escapeHtml(table.comment || fallbackComment)}</p></span>
-            <span class="entity-meta">${table.columns.length} COL</span>
-          </button>
-          <ul class="columns">${table.columns.map((column) => renderColumn(table, column)).join("")}</ul>
-          ${renderTechnical(table)}
+      function renderTable(table) {
+        return `<article class="entity" id="table-${escapeHtml(table.name)}" data-table="${escapeHtml(table.name)}">
+          <header>
+            <h3>${escapeHtml(table.name)}</h3>
+            <p>${escapeHtml(descriptions[table.name] || table.domainLabel)}</p>
+          </header>
+          <ul class="fields">${table.columns.map((column) => renderField(table, column)).join("")}</ul>
+          ${renderDefinitions(table)}
         </article>`;
       }
 
-      function render() {
-        const query = state.query.trim().toLowerCase();
-        const visibleTables = schema.tables.filter((table) => {
-          if (state.domain !== "all" && table.domain !== state.domain) return false;
-          if (!query) return true;
-          return table.name.toLowerCase().includes(query)
-            || table.columns.some((column) => column.name.toLowerCase().includes(query));
-        });
-        const visibleNames = new Set(visibleTables.map((table) => table.name));
-
-        domainsElement.innerHTML = domainDefinitions.map((domain) => {
-          const tables = visibleTables
+      function renderDomains() {
+        const container = document.getElementById("domains");
+        container.innerHTML = domains.map((domain) => {
+          const tables = schema.tables
             .filter((table) => table.domain === domain.id)
-            .sort((a, b) => (tableOrderIndex[a.name] ?? 999) - (tableOrderIndex[b.name] ?? 999));
-          if (!tables.length) return "";
-          return `<section class="domain" data-domain="${domain.id}" style="--domain-color:${domain.color}">
-            <header class="domain-header">
-              <span><h2 class="domain-title">${domain.title}</h2><p class="domain-description">${domain.description}</p></span>
-              <span class="domain-count">${tables.length} TABLES</span>
-            </header>
-            <div class="table-list">${tables.map((table) => renderTable(table, domain.color)).join("")}</div>
+            .sort((left, right) => (tableOrderIndex[left.name] ?? 999) - (tableOrderIndex[right.name] ?? 999));
+          return `<section class="domain" style="--domain-color:${domain.color}">
+            <header class="domain-header"><h2>${domain.title}</h2><p>${domain.note}</p></header>
+            <div class="table-list">${tables.map(renderTable).join("")}</div>
           </section>`;
         }).join("");
-
-        emptyElement.classList.toggle("visible", visibleTables.length === 0);
-        state.focus = visibleNames.has(state.focus) ? state.focus : null;
-        bindEntityEvents();
-        requestAnimationFrame(drawRelations);
-      }
-
-      function bindEntityEvents() {
-        document.querySelectorAll(".entity").forEach((entity) => {
-          const name = entity.dataset.table;
-          entity.querySelector(".entity-header").addEventListener("click", (event) => {
-            event.stopPropagation();
-            state.focus = state.focus === name ? null : name;
-            applyFocus();
-          });
-          entity.addEventListener("mouseenter", () => applyFocus(name, true));
-          entity.addEventListener("mouseleave", () => applyFocus());
-          entity.querySelector("details").addEventListener("toggle", () => requestAnimationFrame(drawRelations));
-        });
-      }
-
-      function relatedTables(name) {
-        const related = new Set([name]);
-        schema.foreignKeys.forEach((foreignKey) => {
-          if (foreignKey.table === name) related.add(foreignKey.referencedTable);
-          if (foreignKey.referencedTable === name) related.add(foreignKey.table);
-        });
-        return related;
-      }
-
-      function applyFocus(hoverName = null, temporary = false) {
-        const focusName = hoverName || state.focus;
-        const related = focusName ? relatedTables(focusName) : null;
-        document.querySelectorAll(".entity").forEach((entity) => {
-          const isFocus = entity.dataset.table === focusName;
-          entity.classList.toggle("focused", Boolean(isFocus));
-          entity.classList.toggle("dimmed", Boolean(related && !related.has(entity.dataset.table)));
-        });
-        document.querySelectorAll(".relation").forEach((path) => {
-          const active = focusName && (path.dataset.source === focusName || path.dataset.target === focusName);
-          path.classList.toggle("active", Boolean(active));
-        });
-        if (!temporary && !hoverName) state.focus = focusName;
       }
 
       function drawRelations() {
-        const diagramRect = diagramElement.getBoundingClientRect();
-        const width = diagramElement.scrollWidth;
-        const height = diagramElement.scrollHeight;
-        relationsElement.setAttribute("viewBox", `0 0 ${width} ${height}`);
-        relationsElement.setAttribute("width", width);
-        relationsElement.setAttribute("height", height);
+        const erd = document.getElementById("erd");
+        const svg = document.getElementById("relations");
+        const erdRect = erd.getBoundingClientRect();
+        const width = erd.scrollWidth;
+        const height = erd.scrollHeight;
+        svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+        svg.setAttribute("width", width);
+        svg.setAttribute("height", height);
+        svg.replaceChildren();
 
-        [...relationsElement.querySelectorAll(".relation")].forEach((node) => node.remove());
-        if (!state.relations) return;
-
-        schema.foreignKeys.forEach((foreignKey) => {
+        schema.foreignKeys.forEach((foreignKey, index) => {
           const source = document.getElementById(`table-${foreignKey.table}`);
           const target = document.getElementById(`table-${foreignKey.referencedTable}`);
           if (!source || !target) return;
+
           const sourceRect = source.getBoundingClientRect();
           const targetRect = target.getBoundingClientRect();
           const sourceCenter = {
-            x: sourceRect.left - diagramRect.left + sourceRect.width / 2,
-            y: sourceRect.top - diagramRect.top + Math.min(70, sourceRect.height / 2)
+            x: sourceRect.left - erdRect.left + sourceRect.width / 2,
+            y: sourceRect.top - erdRect.top + 55
           };
           const targetCenter = {
-            x: targetRect.left - diagramRect.left + targetRect.width / 2,
-            y: targetRect.top - diagramRect.top + Math.min(70, targetRect.height / 2)
+            x: targetRect.left - erdRect.left + targetRect.width / 2,
+            y: targetRect.top - erdRect.top + 55
           };
           const dx = targetCenter.x - sourceCenter.x;
           const dy = targetCenter.y - sourceCenter.y;
-          let start, end, pathData;
-          if (Math.abs(dx) >= Math.abs(dy)) {
-            start = { x: dx >= 0 ? sourceRect.right - diagramRect.left : sourceRect.left - diagramRect.left, y: sourceCenter.y };
-            end = { x: dx >= 0 ? targetRect.left - diagramRect.left : targetRect.right - diagramRect.left, y: targetCenter.y };
-            const bend = Math.max(42, Math.abs(end.x - start.x) * 0.42);
-            pathData = `M ${start.x} ${start.y} C ${start.x + Math.sign(dx) * bend} ${start.y}, ${end.x - Math.sign(dx) * bend} ${end.y}, ${end.x} ${end.y}`;
+          let pathData;
+
+          if (Math.abs(dx) > 80) {
+            const sourceX = dx > 0 ? sourceRect.right - erdRect.left : sourceRect.left - erdRect.left;
+            const targetX = dx > 0 ? targetRect.left - erdRect.left : targetRect.right - erdRect.left;
+            const middleX = sourceX + (targetX - sourceX) / 2 + ((index % 3) - 1) * 5;
+            pathData = `M ${sourceX} ${sourceCenter.y} H ${middleX} V ${targetCenter.y} H ${targetX}`;
           } else {
-            start = { x: sourceCenter.x, y: dy >= 0 ? sourceRect.bottom - diagramRect.top : sourceRect.top - diagramRect.top };
-            end = { x: targetCenter.x, y: dy >= 0 ? targetRect.top - diagramRect.top : targetRect.bottom - diagramRect.top };
-            const bend = Math.max(42, Math.abs(end.y - start.y) * 0.42);
-            pathData = `M ${start.x} ${start.y} C ${start.x} ${start.y + Math.sign(dy) * bend}, ${end.x} ${end.y - Math.sign(dy) * bend}, ${end.x} ${end.y}`;
+            const side = index % 2 === 0 ? 1 : -1;
+            const sourceX = side > 0 ? sourceRect.right - erdRect.left : sourceRect.left - erdRect.left;
+            const targetX = side > 0 ? targetRect.right - erdRect.left : targetRect.left - erdRect.left;
+            const gutterX = sourceX + side * (16 + (index % 4) * 5);
+            pathData = `M ${sourceX} ${sourceCenter.y} H ${gutterX} V ${targetCenter.y} H ${targetX}`;
           }
+
           const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
           path.setAttribute("class", "relation");
           path.setAttribute("d", pathData);
-          path.setAttribute("marker-end", "url(#arrow)");
-          path.dataset.source = foreignKey.table;
-          path.dataset.target = foreignKey.referencedTable;
           const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
           title.textContent = `${foreignKey.table}.${foreignKey.columns.join(", ")} → ${foreignKey.referencedTable}.${foreignKey.referencedColumns.join(", ")}`;
           path.appendChild(title);
-          relationsElement.appendChild(path);
+          svg.appendChild(path);
         });
-        applyFocus();
       }
 
-      function setupControls() {
-        const filter = document.getElementById("domain-filter");
-        filter.innerHTML = '<option value="all">전체 도메인</option>' + domainDefinitions
-          .sort((a, b) => domainOrder[a.id] - domainOrder[b.id])
-          .map((domain) => `<option value="${domain.id}">${domain.title}</option>`).join("");
-
-        document.getElementById("search").addEventListener("input", (event) => {
-          state.query = event.target.value;
-          render();
-        });
-        filter.addEventListener("change", (event) => {
-          state.domain = event.target.value;
-          render();
-        });
-        document.getElementById("key-toggle").addEventListener("click", (event) => {
-          state.keyOnly = !state.keyOnly;
-          event.currentTarget.setAttribute("aria-pressed", String(state.keyOnly));
-          event.currentTarget.textContent = state.keyOnly ? "전체 컬럼" : "키 컬럼만";
-          document.querySelectorAll(".column-row.non-key").forEach((row) => row.classList.toggle("key-only", state.keyOnly));
-          requestAnimationFrame(drawRelations);
-        });
-        document.getElementById("relation-toggle").addEventListener("click", (event) => {
-          state.relations = !state.relations;
-          event.currentTarget.setAttribute("aria-pressed", String(state.relations));
-          event.currentTarget.textContent = state.relations ? "관계선 표시" : "관계선 숨김";
-          drawRelations();
-        });
-        document.getElementById("reset").addEventListener("click", () => {
-          state.query = ""; state.domain = "all"; state.focus = null; state.keyOnly = false; state.relations = true;
-          document.getElementById("search").value = "";
-          filter.value = "all";
-          document.getElementById("key-toggle").setAttribute("aria-pressed", "false");
-          document.getElementById("key-toggle").textContent = "키 컬럼만";
-          document.getElementById("relation-toggle").setAttribute("aria-pressed", "true");
-          document.getElementById("relation-toggle").textContent = "관계선 표시";
-          render();
-        });
-        diagramElement.addEventListener("click", (event) => {
-          if (!event.target.closest(".entity")) { state.focus = null; applyFocus(); }
-        });
-        window.addEventListener("resize", () => requestAnimationFrame(drawRelations));
-        new ResizeObserver(() => requestAnimationFrame(drawRelations)).observe(domainsElement);
+      function renderSummary() {
+        const columnCount = schema.tables.reduce((sum, table) => sum + table.columns.length, 0);
+        const constraintCount = schema.tables.reduce((sum, table) => sum + table.constraints.length, 0);
+        const indexCount = schema.tables.reduce((sum, table) => sum + table.indexes.length, 0);
+        document.getElementById("schema-summary").innerHTML = [
+          `<span><strong>${schema.tables.length}</strong> tables</span>`,
+          `<span><strong>${columnCount}</strong> columns</span>`,
+          `<span><strong>${schema.foreignKeys.length}</strong> foreign keys</span>`,
+          `<span><strong>${constraintCount}</strong> constraints</span>`,
+          `<span><strong>${indexCount}</strong> indexes</span>`,
+          `<span>Flyway <strong>V${schema.flywayVersion}</strong></span>`
+        ].join("");
       }
 
-      function renderStats() {
-        const visibleConstraints = schema.tables.reduce((sum, table) => sum + table.constraints.filter((constraint) => constraint.type !== "n").length, 0);
-        const values = [
-          `${schema.tables.length} 애플리케이션 테이블`,
-          `${schema.tables.reduce((sum, table) => sum + table.columns.length, 0)} 컬럼`,
-          `${schema.foreignKeys.length} 외래키 관계`,
-          `${visibleConstraints} 명시 제약`,
-          `${schema.tables.reduce((sum, table) => sum + table.indexes.length, 0)} 인덱스`
-        ];
-        document.getElementById("stats").innerHTML = values.map((value) => `<span class="stat">${value}</span>`).join("");
-      }
-
-      renderStats();
-      setupControls();
-      render();
+      renderSummary();
+      renderDomains();
+      requestAnimationFrame(drawRelations);
+      window.addEventListener("resize", () => requestAnimationFrame(drawRelations));
+      document.querySelectorAll("details").forEach((details) => {
+        details.addEventListener("toggle", () => requestAnimationFrame(drawRelations));
+      });
+      new ResizeObserver(() => requestAnimationFrame(drawRelations)).observe(document.getElementById("domains"));
     </script>
   </body>
 </html>
