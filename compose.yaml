@@ -1,0 +1,59 @@
+name: pl-timetable-team-db
+
+services:
+  db:
+    image: postgres:18.4-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pl_timetable}
+      POSTGRES_USER: ${POSTGRES_USER:-pl_timetable}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-only-change-me}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-15432}:5432"
+    volumes:
+      # PostgreSQL 18 keeps the cluster in a version-specific subdirectory.
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pl_timetable} -d ${POSTGRES_DB:-pl_timetable}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    image: flyway/flyway:12.11.0-alpine
+    command: migrate
+    environment:
+      FLYWAY_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-pl_timetable}
+      FLYWAY_USER: ${POSTGRES_USER:-pl_timetable}
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-local-only-change-me}
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+      FLYWAY_CONNECT_RETRIES: 60
+    volumes:
+      - ./backend/src/main/resources/db/migration:/flyway/sql:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  ingest:
+    image: postgres:18.4-alpine
+    environment:
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-pl_timetable}
+      PGUSER: ${POSTGRES_USER:-pl_timetable}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-local-only-change-me}
+      DATA_DIR: /workspace/data/database
+      NORMALIZATION_SQL: /workspace/normalization/normalize_academic_units.sql
+    entrypoint: ["/bin/sh", "/workspace/scripts/ingest-academic-data.sh"]
+    volumes:
+      - ./data/database:/workspace/data/database:ro
+      - ./backend/src/main/resources/db/normalization:/workspace/normalization:ro
+      - ./scripts:/workspace/scripts:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+volumes:
+  postgres_data:
