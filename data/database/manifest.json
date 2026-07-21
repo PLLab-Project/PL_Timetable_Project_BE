@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-18T18:51:00+09:00",
+  "database": {
+    "engine": "PostgreSQL",
+    "sourceVersion": "18.4",
+    "targetVersion": "18.4"
+  },
+  "referenceData": {
+    "description": "Historical offerings, curricula, normalized graduation requirements, and source provenance",
+    "admissionYearRange": [2016, 2026],
+    "completeOfferingYearRange": [2020, 2026],
+    "packageId": "academic-reference-2026-07-18-v1",
+    "reconstructedFile": "reference-data.sql.gz",
+    "reconstructedSha256": "78a388b2e8a2b014c0ea0fc38788428520019051c8de71a2d3004e3e45a57de8",
+    "parts": [
+      "reference-data.sql.gz.part-00",
+      "reference-data.sql.gz.part-01",
+      "reference-data.sql.gz.part-02"
+    ]
+  },
+  "currentCatalog": {
+    "semester": "2026-1",
+    "datasetVersion": "7c89a022ecbb-631a114ce852",
+    "sourceChecksum": "bd78610cf34ac3c87111fa7d90e6ce26e6df83794e7b1e631a0c8fbc2b4deb81",
+    "file": "current-catalog.sql.gz",
+    "sha256": "4069843dff19862b85e8cbc39669a8145807a569818195042d48002e4ba7cae3"
+  },
+  "excludedDomains": [
+    "email OTP and authentication sessions",
+    "optimization jobs",
+    "saved timetables and timetable shares",
+    "runtime user records"
+  ]
+}
