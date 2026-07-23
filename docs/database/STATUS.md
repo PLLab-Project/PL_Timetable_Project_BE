@@ -23,6 +23,9 @@
 - 사용자 UUID와 학사 분반 복합키를 참조하는 시간표·자동 편성 스키마
 - 시간표 CRUD, 분반 충돌 검사, 자동 편성 작업·결과 영속화
 - 학사 원본에서 분반명·교수·학점·수업시간을 조회하는 PostgreSQL 통합 테스트
+- 학과·학기·데이터 버전·강의·분반 Spring MVC 조회 API
+- 강의명·코드·교수 검색, 학과·분류·학점·요일 필터와 페이지네이션
+- 이름·베이지안 평점·리뷰 수 기반 강의 정렬
 
 ## 기능별 구현 상태
 
@@ -30,6 +33,7 @@
 - DB 계약만 준비: `course_reviews`, `completed_courses`
 - API와 DB 영속화 구현: `timetables`, `timetable_courses`, `timetable_course_meetings`
 - 작업 생성·조회·취소와 결과 영속화 구현: `optimization_jobs` 및 관련 조건·결과 테이블
+- 조회 API 구현: `academic_units`, `semesters`, `courses`, `sections`, `sessions`
 
 인증 기능은 아직 main에 통합되지 않아 시간표·자동 편성 API가 `userId` UUID를 임시 요청
 파라미터로 받습니다. 인증 통합 시 이 값은 로그인 주체에서 가져오도록 교체해야 합니다.
@@ -38,7 +42,6 @@
 
 ## 구현되지 않음
 
-- Spring MVC 기반 학사 조회·검색 API
 - Spring Security
 - OAuth2 Client와 Google·Kakao·Naver 등 소셜 공급자 설정
 - 로그인 성공·실패 처리

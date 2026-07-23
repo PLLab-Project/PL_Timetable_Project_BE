@@ -5,6 +5,8 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
 
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "요청 값이 올바르지 않습니다."),
+    INVALID_ACADEMIC_QUERY(HttpStatus.BAD_REQUEST, "학사 데이터 조회 조건이 올바르지 않습니다."),
+    ACADEMIC_RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "학사 데이터를 찾을 수 없습니다."),
     INVALID_TIMETABLE(HttpStatus.BAD_REQUEST, "요청한 시간표 정보가 올바르지 않습니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "해당 시간표에 대한 권한이 없습니다."),
