@@ -4,7 +4,7 @@ import com.example.pl_timetable_project.optimization.dto.request.OptimizationCre
 import com.example.pl_timetable_project.optimization.dto.response.OptimizationJobResponse;
 import com.example.pl_timetable_project.optimization.service.OptimizationService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,33 +17,36 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * userId 는 인증/User 도메인이 아직 구현되지 않아 임시로 요청 파라미터로 받는다.
+ * 인증 기능이 main에 통합되기 전까지 UUID userId를 임시 요청 파라미터로 받는다.
  */
 @RestController
 @RequestMapping("/api/v1/optimizations")
-@RequiredArgsConstructor
 public class OptimizationController {
 
     private final OptimizationService optimizationService;
 
+    public OptimizationController(OptimizationService optimizationService) {
+        this.optimizationService = optimizationService;
+    }
+
     @PostMapping
     public ResponseEntity<OptimizationJobResponse> createJob(
-            @RequestParam Long userId,
+            @RequestParam UUID userId,
             @Valid @RequestBody OptimizationCreateRequest request) {
-        OptimizationJobResponse response = optimizationService.createJob(userId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(optimizationService.createJob(userId, request));
     }
 
     @GetMapping("/{jobId}")
     public ResponseEntity<OptimizationJobResponse> getJob(
-            @RequestParam Long userId,
+            @RequestParam UUID userId,
             @PathVariable Long jobId) {
         return ResponseEntity.ok(optimizationService.getJob(userId, jobId));
     }
 
     @DeleteMapping("/{jobId}")
     public ResponseEntity<Void> cancelJob(
-            @RequestParam Long userId,
+            @RequestParam UUID userId,
             @PathVariable Long jobId) {
         optimizationService.cancelJob(userId, jobId);
         return ResponseEntity.noContent().build();

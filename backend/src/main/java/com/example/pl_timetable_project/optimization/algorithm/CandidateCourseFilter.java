@@ -12,6 +12,7 @@ public class CandidateCourseFilter {
 
     public List<CandidateCourse> filter(List<CandidateCourse> candidates, OptimizationConstraints constraints) {
         return candidates.stream()
+                .filter(course -> !course.timeSlots().isEmpty())
                 .filter(course -> course.timeSlots().stream().noneMatch(slot -> isExcludedDay(slot, constraints)))
                 .filter(course -> course.timeSlots().stream().allMatch(slot -> isWithinAvailableTime(slot, constraints)))
                 .toList();

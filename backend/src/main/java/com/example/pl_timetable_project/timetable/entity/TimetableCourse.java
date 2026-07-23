@@ -1,27 +1,29 @@
 package com.example.pl_timetable_project.timetable.entity;
 
+import com.example.pl_timetable_project.academic.section.AcademicSection;
+import com.example.pl_timetable_project.academic.section.SectionReference;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
-import java.time.DayOfWeek;
-import java.time.LocalTime;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 시간표에 담긴 강의(분반)의 한 요일-시간 슬롯을 나타내는 매핑 엔티티.
- * Course 도메인이 아직 없으므로 courseId 는 외부 참조용 식별자로만 보관하고,
- * 충돌 검사/학점 계산에 필요한 정보는 스냅샷 형태로 함께 저장한다.
- * 한 강의가 주 여러 요일에 걸쳐 있다면 같은 courseId 로 여러 행을 만든다.
+ * 시간표에 선택된 분반 한 건. 수업시간은 학사 원본을 읽은 시점의 스냅샷으로 보관한다.
  */
 @Entity
 @Table(name = "timetable_courses")
@@ -37,36 +39,34 @@ public class TimetableCourse {
     @JoinColumn(name = "timetable_id", nullable = false)
     private Timetable timetable;
 
-    @Column(nullable = false)
-    private Long courseId;
+    @Embedded
+    private SectionReference section;
 
-    @Column(nullable = false)
+    @Column(name = "course_name", nullable = false)
     private String courseName;
 
+    @Column(name = "professor_name")
     private String professorName;
 
-    @Column(nullable = false)
-    private Integer credit;
+    @Column(precision = 5, scale = 2, nullable = false)
+    private BigDecimal credits;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private DayOfWeek dayOfWeek;
+    @ElementCollection
+    @CollectionTable(
+            name = "timetable_course_meetings",
+            joinColumns = @JoinColumn(name = "timetable_course_id"))
+    @OrderColumn(name = "position")
+    private List<TimetableMeeting> meetings = new ArrayList<>();
 
-    @Column(nullable = false)
-    private LocalTime startTime;
-
-    @Column(nullable = false)
-    private LocalTime endTime;
-
-    public TimetableCourse(Long courseId, String courseName, String professorName, Integer credit,
-                            DayOfWeek dayOfWeek, LocalTime startTime, LocalTime endTime) {
-        this.courseId = courseId;
-        this.courseName = courseName;
-        this.professorName = professorName;
-        this.credit = credit;
-        this.dayOfWeek = dayOfWeek;
-        this.startTime = startTime;
-        this.endTime = endTime;
+    public TimetableCourse(AcademicSection academicSection) {
+        section = academicSection.reference();
+        courseName = academicSection.courseName();
+        professorName = academicSection.professorName();
+        credits = academicSection.credits();
+        meetings = new ArrayList<>(academicSection.meetings().stream()
+                .map(meeting -> new TimetableMeeting(
+                        meeting.dayOfWeek(), meeting.startTime(), meeting.endTime()))
+                .toList());
     }
 
     void assignTimetable(Timetable timetable) {
@@ -74,9 +74,10 @@ public class TimetableCourse {
     }
 
     public boolean conflictsWith(TimetableCourse other) {
-        if (this.dayOfWeek != other.dayOfWeek) {
-            return false;
+        if (section.sameCourse(other.section)) {
+            return true;
         }
-        return this.startTime.isBefore(other.endTime) && other.startTime.isBefore(this.endTime);
+        return meetings.stream().anyMatch(meeting ->
+                other.meetings.stream().anyMatch(meeting::overlaps));
     }
 }

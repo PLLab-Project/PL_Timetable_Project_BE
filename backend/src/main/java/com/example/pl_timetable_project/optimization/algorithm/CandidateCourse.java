@@ -1,18 +1,25 @@
 package com.example.pl_timetable_project.optimization.algorithm;
 
+import com.example.pl_timetable_project.academic.section.SectionReference;
 import java.util.List;
 
-public record CandidateCourse(Long courseId, String courseName, String professorName, int credit,
-                               List<CourseTimeSlot> timeSlots) {
+public record CandidateCourse(
+        SectionReference section,
+        String courseName,
+        String professorName,
+        int creditUnits,
+        boolean required,
+        List<CourseTimeSlot> timeSlots) {
+
+    public CandidateCourse {
+        timeSlots = List.copyOf(timeSlots);
+    }
 
     public boolean conflictsWith(CandidateCourse other) {
-        for (CourseTimeSlot slot : timeSlots) {
-            for (CourseTimeSlot otherSlot : other.timeSlots) {
-                if (slot.overlaps(otherSlot)) {
-                    return true;
-                }
-            }
+        if (section.sameCourse(other.section)) {
+            return true;
         }
-        return false;
+        return timeSlots.stream().anyMatch(slot ->
+                other.timeSlots.stream().anyMatch(slot::overlaps));
     }
 }

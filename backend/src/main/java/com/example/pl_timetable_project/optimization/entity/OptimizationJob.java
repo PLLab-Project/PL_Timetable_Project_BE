@@ -1,5 +1,6 @@
 package com.example.pl_timetable_project.optimization.entity;
 
+import com.example.pl_timetable_project.academic.section.SectionReference;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
@@ -15,21 +16,19 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.DayOfWeek;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/**
- * 자동 시간표 편성 작업. 후보 강의 목록은 영속화하지 않고(별도 Course 도메인이 없으므로)
- * 요청 시점에 넘어온 값을 그대로 편성 알고리즘에 흘려보내며, 이 엔티티는 조건과 상태만 관리한다.
- */
 @Entity
 @Table(name = "optimization_jobs")
 @Getter
@@ -40,111 +39,135 @@ public class OptimizationJob {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long userId;
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
 
-    @Column(nullable = false)
+    @Column(name = "timetable_id", nullable = false)
     private Long timetableId;
 
+    @Column(name = "semester_id", length = 20, nullable = false)
+    private String semesterId;
+
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(length = 20, nullable = false)
     private OptimizationJobStatus status;
 
-    @Column(nullable = false)
-    private Integer minCredit;
+    @Column(name = "min_credits", precision = 5, scale = 2, nullable = false)
+    private BigDecimal minCredits;
 
-    @Column(nullable = false)
-    private Integer maxCredit;
+    @Column(name = "max_credits", precision = 5, scale = 2, nullable = false)
+    private BigDecimal maxCredits;
 
-    @Column(nullable = false)
-    private Integer targetCredit;
+    @Column(name = "target_credits", precision = 5, scale = 2, nullable = false)
+    private BigDecimal targetCredits;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "optimization_job_excluded_days", joinColumns = @JoinColumn(name = "job_id"))
+    @CollectionTable(
+            name = "optimization_job_excluded_days",
+            joinColumns = @JoinColumn(name = "job_id"))
     @Enumerated(EnumType.STRING)
-    @Column(name = "day_of_week")
+    @Column(name = "day_of_week", length = 20, nullable = false)
     private Set<DayOfWeek> excludedDays = new HashSet<>();
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "optimization_job_required_courses", joinColumns = @JoinColumn(name = "job_id"))
-    @Column(name = "course_id")
-    private Set<Long> requiredCourseIds = new HashSet<>();
+    @CollectionTable(
+            name = "optimization_job_required_sections",
+            joinColumns = @JoinColumn(name = "job_id"))
+    private Set<SectionReference> requiredSections = new HashSet<>();
 
-    @Column(nullable = false)
-    private LocalTime availableTimeStart;
+    @Column(name = "available_start_minute", nullable = false)
+    private Short availableStartMinute;
 
-    @Column(nullable = false)
-    private LocalTime availableTimeEnd;
+    @Column(name = "available_end_minute", nullable = false)
+    private Short availableEndMinute;
 
-    @Column(nullable = false)
-    private LocalTime lunchTimeStart;
+    @Column(name = "lunch_start_minute", nullable = false)
+    private Short lunchStartMinute;
 
-    @Column(nullable = false)
-    private LocalTime lunchTimeEnd;
+    @Column(name = "lunch_end_minute", nullable = false)
+    private Short lunchEndMinute;
 
-    @Column(nullable = false)
+    @Column(name = "max_daily_class_minutes", nullable = false)
     private Integer maxDailyClassMinutes;
 
+    @Column(name = "failure_reason")
     private String failureReason;
 
     @OneToMany(mappedBy = "job", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OptimizationResult> results = new ArrayList<>();
 
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 
-    public OptimizationJob(Long userId, Long timetableId, Integer minCredit, Integer maxCredit, Integer targetCredit,
-                            Set<DayOfWeek> excludedDays, Set<Long> requiredCourseIds,
-                            LocalTime availableTimeStart, LocalTime availableTimeEnd,
-                            LocalTime lunchTimeStart, LocalTime lunchTimeEnd, Integer maxDailyClassMinutes) {
+    public OptimizationJob(
+            UUID userId,
+            Long timetableId,
+            String semesterId,
+            BigDecimal minCredits,
+            BigDecimal maxCredits,
+            BigDecimal targetCredits,
+            Set<DayOfWeek> excludedDays,
+            Set<SectionReference> requiredSections,
+            LocalTime availableTimeStart,
+            LocalTime availableTimeEnd,
+            LocalTime lunchTimeStart,
+            LocalTime lunchTimeEnd,
+            Integer maxDailyClassMinutes) {
         this.userId = userId;
         this.timetableId = timetableId;
+        this.semesterId = semesterId;
         this.status = OptimizationJobStatus.PENDING;
-        this.minCredit = minCredit;
-        this.maxCredit = maxCredit;
-        this.targetCredit = targetCredit;
-        this.excludedDays = excludedDays == null ? new HashSet<>() : new HashSet<>(excludedDays);
-        this.requiredCourseIds = requiredCourseIds == null ? new HashSet<>() : new HashSet<>(requiredCourseIds);
-        this.availableTimeStart = availableTimeStart;
-        this.availableTimeEnd = availableTimeEnd;
-        this.lunchTimeStart = lunchTimeStart;
-        this.lunchTimeEnd = lunchTimeEnd;
+        this.minCredits = minCredits;
+        this.maxCredits = maxCredits;
+        this.targetCredits = targetCredits;
+        this.excludedDays = excludedDays == null
+                ? new HashSet<>() : new HashSet<>(excludedDays);
+        this.requiredSections = requiredSections == null
+                ? new HashSet<>() : new HashSet<>(requiredSections);
+        this.availableStartMinute = toMinute(availableTimeStart);
+        this.availableEndMinute = toMinute(availableTimeEnd);
+        this.lunchStartMinute = toMinute(lunchTimeStart);
+        this.lunchEndMinute = toMinute(lunchTimeEnd);
         this.maxDailyClassMinutes = maxDailyClassMinutes;
     }
 
     public void markProcessing() {
-        this.status = OptimizationJobStatus.PROCESSING;
+        status = OptimizationJobStatus.PROCESSING;
     }
 
     public void markSuccess(List<OptimizationResult> newResults) {
-        this.results.clear();
+        results.clear();
         for (OptimizationResult result : newResults) {
-            this.results.add(result);
+            results.add(result);
             result.assignJob(this);
         }
-        this.status = OptimizationJobStatus.SUCCESS;
+        status = OptimizationJobStatus.SUCCESS;
     }
 
     public void markFailed(String reason) {
-        this.status = OptimizationJobStatus.FAILED;
-        this.failureReason = reason;
+        status = OptimizationJobStatus.FAILED;
+        failureReason = reason;
     }
 
     public void markTimeout(String reason) {
-        this.status = OptimizationJobStatus.TIMEOUT;
-        this.failureReason = reason;
+        status = OptimizationJobStatus.TIMEOUT;
+        failureReason = reason;
     }
 
     public void markCancelled() {
-        this.status = OptimizationJobStatus.CANCELLED;
+        status = OptimizationJobStatus.CANCELLED;
     }
 
     public boolean isFinished() {
-        return this.status.isFinished();
+        return status.isFinished();
     }
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        createdAt = Instant.now();
+    }
+
+    private static short toMinute(LocalTime time) {
+        return (short) (time.getHour() * 60 + time.getMinute());
     }
 }

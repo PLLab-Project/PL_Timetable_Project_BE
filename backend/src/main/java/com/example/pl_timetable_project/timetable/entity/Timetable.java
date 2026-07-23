@@ -10,9 +10,10 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -27,68 +28,58 @@ public class Timetable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long userId;
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
 
-    @Column(nullable = false)
+    @Column(name = "semester_id", length = 20, nullable = false, updatable = false)
+    private String semesterId;
+
+    @Column(length = 120, nullable = false)
     private String name;
-
-    @Column(nullable = false)
-    private Integer year;
-
-    @Column(nullable = false)
-    private String semester;
 
     @OneToMany(mappedBy = "timetable", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TimetableCourse> timetableCourses = new ArrayList<>();
 
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
 
-    public Timetable(Long userId, String name, Integer year, String semester) {
+    public Timetable(UUID userId, String semesterId, String name) {
         this.userId = userId;
+        this.semesterId = semesterId;
         this.name = name;
-        this.year = year;
-        this.semester = semester;
     }
 
-    public void updateInfo(String name, Integer year, String semester) {
+    public void rename(String name) {
         if (name != null) {
             this.name = name;
-        }
-        if (year != null) {
-            this.year = year;
-        }
-        if (semester != null) {
-            this.semester = semester;
         }
     }
 
     public void addCourse(TimetableCourse course) {
-        this.timetableCourses.add(course);
+        timetableCourses.add(course);
         course.assignTimetable(this);
     }
 
     public void removeCourse(TimetableCourse course) {
-        this.timetableCourses.remove(course);
+        timetableCourses.remove(course);
     }
 
     public void clearCourses() {
-        this.timetableCourses.clear();
+        timetableCourses.clear();
     }
 
     @PrePersist
     protected void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        this.createdAt = now;
-        this.updatedAt = now;
+        Instant now = Instant.now();
+        createdAt = now;
+        updatedAt = now;
     }
 
     @PreUpdate
     protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
+        updatedAt = Instant.now();
     }
 }

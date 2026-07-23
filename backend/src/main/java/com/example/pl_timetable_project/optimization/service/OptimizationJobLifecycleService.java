@@ -12,47 +12,49 @@ import com.example.pl_timetable_project.optimization.entity.OptimizationJobStatu
 import com.example.pl_timetable_project.optimization.entity.OptimizationResult;
 import com.example.pl_timetable_project.optimization.repository.OptimizationJobRepository;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
+import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * OptimizationJob 의 영속화/상태 전이만 담당하는 트랜잭션 경계.
- * 오래 걸리는 알고리즘 실행은 이 클래스 밖(비동기 스레드, 트랜잭션 없음)에서 이루어지고,
- * 그 결과를 짧은 트랜잭션으로 반영하기 위해 OptimizationService 와 분리했다.
- */
 @Service
-@RequiredArgsConstructor
 public class OptimizationJobLifecycleService {
 
     private final OptimizationJobRepository jobRepository;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Transactional
-    public OptimizationJob createPendingJobAndPublish(Long userId, OptimizationCreateRequest request,
-                                                        List<CandidateCourse> candidates,
-                                                        OptimizationConstraints constraints) {
-        if (userId == null) {
-            throw new UnauthorizedException("userId 는 필수입니다.");
-        }
+    public OptimizationJobLifecycleService(
+            OptimizationJobRepository jobRepository,
+            ApplicationEventPublisher eventPublisher) {
+        this.jobRepository = jobRepository;
+        this.eventPublisher = eventPublisher;
+    }
 
+    @Transactional
+    public OptimizationJob createPendingJobAndPublish(
+            UUID userId,
+            String semesterId,
+            OptimizationCreateRequest request,
+            List<CandidateCourse> candidates,
+            OptimizationConstraints constraints) {
+        validateUserId(userId);
         OptimizationJob job = new OptimizationJob(
                 userId,
                 request.getTimetableId(),
-                request.getMinCredit(),
-                request.getMaxCredit(),
-                request.getTargetCredit(),
-                request.getExcludedDays(),
-                request.getRequiredCourseIds(),
+                semesterId,
+                request.getMinCredits(),
+                request.getMaxCredits(),
+                request.getTargetCredits(),
+                constraints.excludedDays(),
+                constraints.requiredSections(),
                 request.getAvailableTime().getStartTime(),
                 request.getAvailableTime().getEndTime(),
                 request.getLunchTime().getStartTime(),
                 request.getLunchTime().getEndTime(),
                 request.getMaxDailyClassMinutes());
-
         OptimizationJob saved = jobRepository.save(job);
-        eventPublisher.publishEvent(new OptimizationJobCreatedEvent(saved.getId(), candidates, constraints));
+        eventPublisher.publishEvent(
+                new OptimizationJobCreatedEvent(saved.getId(), candidates, constraints));
         return saved;
     }
 
@@ -95,7 +97,7 @@ public class OptimizationJobLifecycleService {
     }
 
     @Transactional(readOnly = true)
-    public OptimizationJob getOwnedJob(Long userId, Long jobId) {
+    public OptimizationJob getOwnedJob(UUID userId, Long jobId) {
         OptimizationJob job = jobRepository.findByIdWithResults(jobId)
                 .orElseThrow(() -> new OptimizationJobNotFoundException(jobId));
         validateOwnership(job, userId);
@@ -103,7 +105,7 @@ public class OptimizationJobLifecycleService {
     }
 
     @Transactional
-    public void cancel(Long userId, Long jobId) {
+    public void cancel(UUID userId, Long jobId) {
         OptimizationJob job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new OptimizationJobNotFoundException(jobId));
         validateOwnership(job, userId);
@@ -113,12 +115,16 @@ public class OptimizationJobLifecycleService {
         job.markCancelled();
     }
 
-    private void validateOwnership(OptimizationJob job, Long userId) {
-        if (userId == null) {
-            throw new UnauthorizedException("userId 는 필수입니다.");
-        }
+    private void validateOwnership(OptimizationJob job, UUID userId) {
+        validateUserId(userId);
         if (!job.getUserId().equals(userId)) {
             throw new ForbiddenException("해당 작업에 접근할 권한이 없습니다. id=" + job.getId());
+        }
+    }
+
+    private void validateUserId(UUID userId) {
+        if (userId == null) {
+            throw new UnauthorizedException("userId 는 필수입니다.");
         }
     }
 }

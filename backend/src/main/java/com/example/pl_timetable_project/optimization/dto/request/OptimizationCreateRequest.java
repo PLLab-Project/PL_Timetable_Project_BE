@@ -1,9 +1,11 @@
 package com.example.pl_timetable_project.optimization.dto.request;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.util.List;
 import java.util.Set;
@@ -18,20 +20,18 @@ public class OptimizationCreateRequest {
     private Long timetableId;
 
     @NotNull
-    @Min(0)
-    private Integer minCredit;
+    @DecimalMin("0.00")
+    private BigDecimal minCredits;
 
     @NotNull
-    @Min(0)
-    private Integer maxCredit;
+    @DecimalMin("0.00")
+    private BigDecimal maxCredits;
 
     @NotNull
-    @Min(0)
-    private Integer targetCredit;
+    @DecimalMin("0.00")
+    private BigDecimal targetCredits;
 
     private Set<DayOfWeek> excludedDays = Set.of();
-
-    private Set<Long> requiredCourseIds = Set.of();
 
     @NotNull
     @Valid
@@ -49,16 +49,21 @@ public class OptimizationCreateRequest {
     @Valid
     private List<CourseCandidateRequest> candidateCourses;
 
-    public OptimizationCreateRequest(Long timetableId, Integer minCredit, Integer maxCredit, Integer targetCredit,
-                                      Set<DayOfWeek> excludedDays, Set<Long> requiredCourseIds,
-                                      TimeRangeRequest availableTime, TimeRangeRequest lunchTime,
-                                      Integer maxDailyClassMinutes, List<CourseCandidateRequest> candidateCourses) {
+    public OptimizationCreateRequest(
+            Long timetableId,
+            BigDecimal minCredits,
+            BigDecimal maxCredits,
+            BigDecimal targetCredits,
+            Set<DayOfWeek> excludedDays,
+            TimeRangeRequest availableTime,
+            TimeRangeRequest lunchTime,
+            Integer maxDailyClassMinutes,
+            List<CourseCandidateRequest> candidateCourses) {
         this.timetableId = timetableId;
-        this.minCredit = minCredit;
-        this.maxCredit = maxCredit;
-        this.targetCredit = targetCredit;
-        this.excludedDays = excludedDays == null ? Set.of() : excludedDays;
-        this.requiredCourseIds = requiredCourseIds == null ? Set.of() : requiredCourseIds;
+        this.minCredits = minCredits;
+        this.maxCredits = maxCredits;
+        this.targetCredits = targetCredits;
+        this.excludedDays = excludedDays == null ? Set.of() : Set.copyOf(excludedDays);
         this.availableTime = availableTime;
         this.lunchTime = lunchTime;
         this.maxDailyClassMinutes = maxDailyClassMinutes;

@@ -1,5 +1,6 @@
 package com.example.pl_timetable_project.optimization.algorithm;
 
+import com.example.pl_timetable_project.academic.section.SectionReference;
 import com.example.pl_timetable_project.exception.RequiredCourseConflictException;
 import com.example.pl_timetable_project.exception.RequiredCourseExcludedByConditionException;
 import java.util.List;
@@ -8,45 +9,55 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /**
- * 필수 강의를 먼저 확정하고, 필수 강의끼리 충돌하면 즉시 실패시킨다.
- * 필수 강의와 이미 충돌하는 선택 강의는 백트래킹 탐색을 줄이기 위해 미리 후보에서 제거한다.
+ * 사용자가 필수로 지정한 분반을 먼저 배치하고 나머지 후보를 분리한다.
  */
 @Component
 public class RequiredCoursePlacer {
 
-    public RequiredPlacementResult place(List<CandidateCourse> filteredCandidates, Set<Long> requiredCourseIds) {
+    public RequiredPlacementResult place(
+            List<CandidateCourse> filteredCandidates,
+            Set<SectionReference> requiredSections) {
         List<CandidateCourse> required = filteredCandidates.stream()
-                .filter(course -> requiredCourseIds.contains(course.courseId()))
+                .filter(course -> requiredSections.contains(course.section()))
                 .toList();
 
-        validateAllRequiredCoursesPresent(required, requiredCourseIds);
+        validateAllRequiredSectionsPresent(required, requiredSections);
         validateNoConflictAmongRequired(required);
 
         List<CandidateCourse> optional = filteredCandidates.stream()
-                .filter(course -> !requiredCourseIds.contains(course.courseId()))
+                .filter(course -> !requiredSections.contains(course.section()))
                 .filter(course -> required.stream().noneMatch(course::conflictsWith))
                 .toList();
 
         return new RequiredPlacementResult(required, optional);
     }
 
-    private void validateAllRequiredCoursesPresent(List<CandidateCourse> required, Set<Long> requiredCourseIds) {
-        Set<Long> foundIds = required.stream().map(CandidateCourse::courseId).collect(Collectors.toSet());
-        Set<Long> missing = requiredCourseIds.stream().filter(id -> !foundIds.contains(id)).collect(Collectors.toSet());
+    private void validateAllRequiredSectionsPresent(
+            List<CandidateCourse> required,
+            Set<SectionReference> requiredSections) {
+        Set<SectionReference> found = required.stream()
+                .map(CandidateCourse::section)
+                .collect(Collectors.toSet());
+        Set<String> missing = requiredSections.stream()
+                .filter(section -> !found.contains(section))
+                .map(SectionReference::displayKey)
+                .collect(Collectors.toSet());
         if (!missing.isEmpty()) {
             throw new RequiredCourseExcludedByConditionException(
-                    "필수 강의 중 후보 목록에 없거나 조건(제외 요일/수업 가능 시간대)에 맞지 않는 강의가 있습니다. courseIds=" + missing);
+                    "필수 분반이 후보에 없거나 시간 조건에서 제외됐습니다. sections=" + missing);
         }
     }
 
     private void validateNoConflictAmongRequired(List<CandidateCourse> required) {
         for (int i = 0; i < required.size(); i++) {
             for (int j = i + 1; j < required.size(); j++) {
-                CandidateCourse a = required.get(i);
-                CandidateCourse b = required.get(j);
-                if (a.conflictsWith(b)) {
+                CandidateCourse left = required.get(i);
+                CandidateCourse right = required.get(j);
+                if (left.conflictsWith(right)) {
                     throw new RequiredCourseConflictException(
-                            "필수 강의끼리 시간이 겹칩니다: '" + a.courseName() + "' vs '" + b.courseName() + "'");
+                            "필수 분반끼리 중복되거나 시간이 겹칩니다: "
+                                    + left.section().displayKey() + " vs "
+                                    + right.section().displayKey());
                 }
             }
         }

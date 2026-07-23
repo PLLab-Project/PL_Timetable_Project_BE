@@ -1,8 +1,25 @@
 package com.example.pl_timetable_project;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.example.pl_timetable_project.exception.SectionConflictException;
+import com.example.pl_timetable_project.optimization.dto.request.CourseCandidateRequest;
+import com.example.pl_timetable_project.optimization.dto.request.OptimizationCreateRequest;
+import com.example.pl_timetable_project.optimization.dto.request.TimeRangeRequest;
+import com.example.pl_timetable_project.optimization.dto.response.OptimizationJobResponse;
+import com.example.pl_timetable_project.optimization.entity.OptimizationJobStatus;
+import com.example.pl_timetable_project.optimization.service.OptimizationService;
+import com.example.pl_timetable_project.timetable.dto.request.TimetableCourseRequest;
+import com.example.pl_timetable_project.timetable.dto.request.TimetableCreateRequest;
+import com.example.pl_timetable_project.timetable.dto.response.TimetableResponse;
+import com.example.pl_timetable_project.timetable.service.TimetableService;
+import jakarta.persistence.EntityManager;
+import java.math.BigDecimal;
 import java.sql.Connection;
+import java.time.LocalTime;
+import java.util.List;
+import java.util.UUID;
 
 import javax.sql.DataSource;
 
@@ -33,6 +50,15 @@ class PlTimetableProjectApplicationTests {
     @Autowired
     DataSource dataSource;
 
+    @Autowired
+    EntityManager entityManager;
+
+    @Autowired
+    TimetableService timetableService;
+
+    @Autowired
+    OptimizationService optimizationService;
+
     @Test
     void contextLoads() {
     }
@@ -55,13 +81,21 @@ class PlTimetableProjectApplicationTests {
         String sectionAcademicUnits = jdbcTemplate.queryForObject(
                 "SELECT to_regclass('public.section_academic_units')::text",
                 String.class);
+        String timetables = jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.timetables')::text",
+                String.class);
+        String optimizationJobs = jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.optimization_jobs')::text",
+                String.class);
 
         assertThat(version).startsWith("18.4");
-        assertThat(successfulMigrations).isEqualTo(5);
+        assertThat(successfulMigrations).isEqualTo(6);
         assertThat(graduationProfiles).isEqualTo("graduation_credit_profiles");
         assertThat(socialIdentities).isEqualTo("social_identities");
         assertThat(academicUnits).isEqualTo("academic_units");
         assertThat(sectionAcademicUnits).isEqualTo("section_academic_units");
+        assertThat(timetables).isEqualTo("timetables");
+        assertThat(optimizationJobs).isEqualTo("optimization_jobs");
     }
 
     @Test
@@ -163,6 +197,181 @@ class PlTimetableProjectApplicationTests {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM section_academic_units WHERE academic_unit_code = 'D1'",
                 Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    @Transactional
+    void persistsTimetableWithCanonicalAcademicSectionAndUuidOwner() {
+        UUID userId = insertTimetableFixture();
+
+        TimetableResponse response = timetableService.createTimetable(
+                userId,
+                new TimetableCreateRequest(
+                        "2026-1 기본 시간표",
+                        "2026-1",
+                        List.of(new TimetableCourseRequest("CSE100", "01"))));
+        entityManager.flush();
+
+        assertThat(response.userId()).isEqualTo(userId);
+        assertThat(response.semesterId()).isEqualTo("2026-1");
+        assertThat(response.totalCredits()).isEqualByComparingTo(new BigDecimal("3.00"));
+        assertThat(response.sections()).hasSize(1);
+        assertThat(response.sections().get(0).courseName()).isEqualTo("자료구조");
+        assertThat(response.sections().get(0).professorName()).isEqualTo("홍길동");
+        assertThat(response.sections().get(0).meetings()).hasSize(2);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM timetable_courses WHERE timetable_id = ?",
+                Integer.class,
+                response.id())).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT count(*)
+                  FROM timetable_course_meetings m
+                  JOIN timetable_courses c ON c.id = m.timetable_course_id
+                 WHERE c.timetable_id = ?
+                """,
+                Integer.class,
+                response.id())).isEqualTo(2);
+        assertThat(jdbcTemplate.queryForList(
+                """
+                SELECT start_minute, end_minute
+                  FROM timetable_course_meetings m
+                  JOIN timetable_courses c ON c.id = m.timetable_course_id
+                 WHERE c.timetable_id = ?
+                 ORDER BY position
+                """,
+                response.id()))
+                .extracting(row -> List.of(
+                        ((Number) row.get("start_minute")).intValue(),
+                        ((Number) row.get("end_minute")).intValue()))
+                .containsExactlyInAnyOrder(
+                        List.of(540, 630),
+                        List.of(780, 830));
+
+        entityManager.clear();
+        TimetableResponse reloaded = timetableService.getTimetable(userId, response.id());
+        assertThat(reloaded.sections().get(0).meetings())
+                .extracting(meeting -> List.of(meeting.startTime(), meeting.endTime()))
+                .containsExactlyInAnyOrder(
+                        List.of(LocalTime.of(9, 0), LocalTime.of(10, 30)),
+                        List.of(LocalTime.of(13, 0), LocalTime.of(13, 50)));
+    }
+
+    @Test
+    @Transactional
+    void rejectsTwoSectionsOfTheSameCourse() {
+        UUID userId = insertTimetableFixture();
+        jdbcTemplate.execute("""
+                INSERT INTO sections (
+                    semester_id, course_code, section_code, professor,
+                    raw_lecture_time, time_to_be_announced, warning_codes
+                ) VALUES (
+                    '2026-1', 'CSE100', '02', '김교수',
+                    '수1-3', false, '[]'::jsonb
+                );
+
+                INSERT INTO sessions (
+                    semester_id, course_code, section_code, day, start_minute, end_minute
+                ) VALUES (
+                    '2026-1', 'CSE100', '02', '수', 540, 690
+                );
+                """);
+
+        TimetableCreateRequest request = new TimetableCreateRequest(
+                "중복 분반 시간표",
+                "2026-1",
+                List.of(
+                        new TimetableCourseRequest("CSE100", "01"),
+                        new TimetableCourseRequest("CSE100", "02")));
+
+        assertThatThrownBy(() -> timetableService.createTimetable(userId, request))
+                .isInstanceOf(SectionConflictException.class)
+                .hasMessageContaining("같은 과목");
+    }
+
+    @Test
+    @Transactional
+    void persistsOptimizationJobWithCanonicalRequiredSection() {
+        UUID userId = insertTimetableFixture();
+        TimetableResponse timetable = timetableService.createTimetable(
+                userId,
+                new TimetableCreateRequest("자동 편성", "2026-1", List.of()));
+
+        OptimizationJobResponse job = optimizationService.createJob(
+                userId,
+                new OptimizationCreateRequest(
+                        timetable.id(),
+                        new BigDecimal("3.00"),
+                        new BigDecimal("3.00"),
+                        new BigDecimal("3.00"),
+                        java.util.Set.of(),
+                        new TimeRangeRequest(LocalTime.of(8, 0), LocalTime.of(20, 0)),
+                        new TimeRangeRequest(LocalTime.of(12, 0), LocalTime.of(13, 0)),
+                        480,
+                        List.of(new CourseCandidateRequest("CSE100", "01", true))));
+        entityManager.flush();
+
+        assertThat(job.userId()).isEqualTo(userId);
+        assertThat(job.semesterId()).isEqualTo("2026-1");
+        assertThat(job.status()).isEqualTo(OptimizationJobStatus.PENDING);
+        var storedTimes = jdbcTemplate.queryForMap(
+                """
+                SELECT available_start_minute, available_end_minute,
+                       lunch_start_minute, lunch_end_minute
+                  FROM optimization_jobs
+                 WHERE id = ?
+                """,
+                job.id());
+        assertThat(((Number) storedTimes.get("available_start_minute")).intValue()).isEqualTo(480);
+        assertThat(((Number) storedTimes.get("available_end_minute")).intValue()).isEqualTo(1200);
+        assertThat(((Number) storedTimes.get("lunch_start_minute")).intValue()).isEqualTo(720);
+        assertThat(((Number) storedTimes.get("lunch_end_minute")).intValue()).isEqualTo(780);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT count(*)
+                  FROM optimization_job_required_sections
+                 WHERE job_id = ?
+                   AND semester_id = '2026-1'
+                   AND course_code = 'CSE100'
+                   AND section_code = '01'
+                """,
+                Integer.class,
+                job.id())).isEqualTo(1);
+    }
+
+    private UUID insertTimetableFixture() {
+        UUID userId = jdbcTemplate.queryForObject(
+                """
+                INSERT INTO users (display_name, primary_email)
+                VALUES ('테스트 사용자', 'timetable@example.com')
+                RETURNING id
+                """,
+                UUID.class);
+        jdbcTemplate.execute("""
+                INSERT INTO semesters (
+                    id, prepared_at, dataset_version, source_checksum, is_active, created_at
+                ) VALUES (
+                    '2026-1', current_date, 'test-timetable-v1', repeat('f', 64), true, now()
+                );
+
+                INSERT INTO courses (semester_id, course_code, name, category, credits)
+                VALUES ('2026-1', 'CSE100', '자료구조', '전공', 3.00);
+
+                INSERT INTO sections (
+                    semester_id, course_code, section_code, professor,
+                    raw_lecture_time, time_to_be_announced, warning_codes
+                ) VALUES (
+                    '2026-1', 'CSE100', '01', '홍길동',
+                    '월1-2,금3', false, '[]'::jsonb
+                );
+
+                INSERT INTO sessions (
+                    semester_id, course_code, section_code, day, start_minute, end_minute
+                ) VALUES
+                    ('2026-1', 'CSE100', '01', '월', 540, 630),
+                    ('2026-1', 'CSE100', '01', '금', 780, 830);
+                """);
+        return userId;
     }
 
     private void executeAcademicUnitNormalization() {
