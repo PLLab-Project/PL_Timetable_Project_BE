@@ -21,7 +21,6 @@ import com.example.pl_timetable_project.optimization.algorithm.ScheduleCombinati
 import com.example.pl_timetable_project.optimization.algorithm.ScheduleScorer;
 import com.example.pl_timetable_project.optimization.algorithm.ScheduleSearchService;
 import com.example.pl_timetable_project.optimization.algorithm.ScoredCombination;
-import com.example.pl_timetable_project.optimization.algorithm.TopCombinationSelector;
 import com.example.pl_timetable_project.optimization.dto.request.CourseCandidateRequest;
 import com.example.pl_timetable_project.optimization.dto.request.OptimizationCreateRequest;
 import com.example.pl_timetable_project.optimization.dto.request.TimeRangeRequest;
@@ -57,7 +56,6 @@ public class OptimizationService {
     private final RequiredCoursePlacer requiredCoursePlacer;
     private final ScheduleSearchService scheduleSearchService;
     private final ScheduleScorer scheduleScorer;
-    private final TopCombinationSelector topCombinationSelector;
 
     public OptimizationService(
             OptimizationJobLifecycleService lifecycleService,
@@ -66,8 +64,7 @@ public class OptimizationService {
             CandidateCourseFilter candidateCourseFilter,
             RequiredCoursePlacer requiredCoursePlacer,
             ScheduleSearchService scheduleSearchService,
-            ScheduleScorer scheduleScorer,
-            TopCombinationSelector topCombinationSelector) {
+            ScheduleScorer scheduleScorer) {
         this.lifecycleService = lifecycleService;
         this.timetableRepository = timetableRepository;
         this.sectionQueryRepository = sectionQueryRepository;
@@ -75,7 +72,6 @@ public class OptimizationService {
         this.requiredCoursePlacer = requiredCoursePlacer;
         this.scheduleSearchService = scheduleSearchService;
         this.scheduleScorer = scheduleScorer;
-        this.topCombinationSelector = topCombinationSelector;
     }
 
     public OptimizationJobResponse createJob(
@@ -129,9 +125,7 @@ public class OptimizationService {
                     .map(combination -> scheduleScorer.score(
                             combination, event.constraints()))
                     .toList();
-            lifecycleService.finalizeSuccess(
-                    jobId,
-                    toOptimizationResults(topCombinationSelector.selectTop(scored)));
+            lifecycleService.finalizeSuccess(jobId, toOptimizationResults(scored));
         } catch (OptimizationTimeoutException exception) {
             lifecycleService.finalizeTimeout(jobId, exception.getMessage());
         } catch (ApplicationException exception) {
