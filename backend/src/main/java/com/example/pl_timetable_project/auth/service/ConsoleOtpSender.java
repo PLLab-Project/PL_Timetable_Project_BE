@@ -3,6 +3,7 @@ package com.example.pl_timetable_project.auth.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
  * 운영 환경에서는 OTP_DELIVERY 값을 변경하고 실제 메일 전송 구현으로 교체해야 합니다.
  */
 @Component
+@Profile("!prod")
 @ConditionalOnProperty(name = "app.auth.otp.delivery", havingValue = "console", matchIfMissing = true)
 public class ConsoleOtpSender implements OtpSender {
 
