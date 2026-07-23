@@ -15,7 +15,6 @@ import com.example.pl_timetable_project.optimization.algorithm.ScheduleCombinati
 import com.example.pl_timetable_project.optimization.algorithm.ScheduleScorer;
 import com.example.pl_timetable_project.optimization.algorithm.ScheduleSearchService;
 import com.example.pl_timetable_project.optimization.algorithm.ScoredCombination;
-import com.example.pl_timetable_project.optimization.algorithm.TopCombinationSelector;
 import com.example.pl_timetable_project.optimization.dto.request.CourseCandidateRequest;
 import com.example.pl_timetable_project.optimization.dto.request.OptimizationCreateRequest;
 import com.example.pl_timetable_project.optimization.dto.response.OptimizationJobResponse;
@@ -28,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -47,7 +47,6 @@ public class OptimizationService {
     private final RequiredCoursePlacer requiredCoursePlacer;
     private final ScheduleSearchService scheduleSearchService;
     private final ScheduleScorer scheduleScorer;
-    private final TopCombinationSelector topCombinationSelector;
 
     public OptimizationJobResponse createJob(Long userId, OptimizationCreateRequest request) {
         validateCreditRange(request);
@@ -63,6 +62,7 @@ public class OptimizationService {
         return OptimizationJobResponse.from(job);
     }
 
+    @Transactional(readOnly = true)
     public OptimizationJobResponse getJob(Long userId, Long jobId) {
         return OptimizationJobResponse.from(lifecycleService.getOwnedJob(userId, jobId));
     }
@@ -89,12 +89,14 @@ public class OptimizationService {
                 throw new NoFeasibleTimetableException("조건에 맞는 시간표 조합을 찾지 못했습니다. jobId=" + jobId);
             }
 
+            // scheduleSearchService.search()가 CP-SAT 목적함수(ScheduleScorer와 동일한 점수식)로
+            // 이미 서로 다른 상위 3개를 찾아 최적 순서대로 반환하므로, 여기서는 결과 저장에 필요한
+            // 점수/등교일수/공강시간 등 부가 지표만 계산한다(순위 재산정이나 재선정은 하지 않는다).
             List<ScoredCombination> scored = combinations.stream()
                     .map(combination -> scheduleScorer.score(combination, event.constraints()))
                     .toList();
-            List<ScoredCombination> top = topCombinationSelector.selectTop(scored);
 
-            lifecycleService.finalizeSuccess(jobId, toOptimizationResults(top));
+            lifecycleService.finalizeSuccess(jobId, toOptimizationResults(scored));
         } catch (OptimizationTimeoutException e) {
             lifecycleService.finalizeTimeout(jobId, e.getMessage());
         } catch (RequiredCourseConflictException | InvalidOptimizationConditionException | NoFeasibleTimetableException e) {
