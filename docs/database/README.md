@@ -3,7 +3,7 @@
 ## 적용된 구성
 
 - PostgreSQL `18.4`
-- Flyway `12.11.0`
+- Flyway `12.11.0`과 버전 마이그레이션 6개
 - Spring Data JPA와 PostgreSQL JDBC 드라이버
 - Testcontainers PostgreSQL 통합 테스트
 - Docker Compose의 `db`, `migrate`, `ingest` 서비스
@@ -81,6 +81,23 @@ volume을 사용합니다.
 기본 비밀번호는 로컬 개발 전용입니다. 배포 환경에서는 환경변수 또는 비밀 관리 도구로
 별도 값을 주입해야 합니다. Hibernate는 `ddl-auto=validate`로 설정되어 DDL을 생성하거나
 기존 스키마를 수정하지 않습니다.
+
+## 시간표·자동 편성 저장 구조
+
+- `timetables`: 사용자 UUID와 정식 `semester_id`를 참조하는 시간표
+- `timetable_courses`: 시간표가 선택한 분반 복합키와 표시용 스냅샷
+- `timetable_course_meetings`: 선택 분반의 요일과 자정 기준 시작·종료 분 스냅샷
+- `optimization_jobs`: 사용자·시간표·학기와 연결된 자동 편성 작업 상태
+- `optimization_job_excluded_days`: 제외 요일 조건
+- `optimization_job_required_sections`: 반드시 포함할 정확한 분반 복합키
+- `optimization_results`: 작업별 순위 결과와 점수
+- `optimization_result_course_slots`: 결과에 포함된 분반별 수업시간 스냅샷
+
+시간표와 자동 편성 API는 클라이언트가 보낸 과목명·교수·학점·시간을 저장하지 않습니다.
+`semester_id`, `course_code`, `section_code`로 `courses`, `sections`, `sessions`를 조회한 뒤
+검증된 학사 원본만 스냅샷으로 보관합니다. 사용자 FK는 `users.id`의 UUID를 사용합니다.
+수업시간은 PostgreSQL/JVM 시간대 설정에 영향을 받지 않도록 기존 `sessions`와 같은
+자정 기준 분(`smallint`, 0~1440)으로 저장하고 API 경계에서 `LocalTime`으로 변환합니다.
 
 ## 인증 관련 범위
 
