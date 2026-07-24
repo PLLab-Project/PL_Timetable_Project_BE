@@ -6,6 +6,8 @@
 ## 연결 기본값
 
 - API prefix: `/api/v1`
+- 팀 테스트 서버: `https://timetable-api.kdhoon.me`
+- 외부 Swagger UI: `https://timetable-api.kdhoon.me/swagger-ui.html`
 - 로컬 백엔드: Spring Boot 기본 포트 `8080`
 - 기본 허용 프론트 origin: `http://localhost:5173`
 - 세션 인증: 브라우저 요청에 쿠키 포함 (`credentials: "include"`)
