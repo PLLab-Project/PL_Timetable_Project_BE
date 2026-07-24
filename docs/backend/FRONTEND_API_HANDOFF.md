@@ -24,6 +24,7 @@
 인증이 필요한 영역:
 
 - `/auth/session`, `/auth/logout`
+- `/users/me/**`
 - `/reviews/**`의 작성·내 목록·수정·삭제
 - `/completed-courses/**`
 - `/graduation/evaluation`, `/graduation/me/evaluation`
@@ -62,7 +63,7 @@
 
 프론트 팀에 최종 전달하기 전 다음 항목을 팀 공통으로 완료해야 합니다.
 
-1. 소셜 로그인 여부와 최종 인증 흐름 확정
+1. 소셜 로그인 여부와 졸업판정용 학생 프로필 입력 흐름 확정
 2. 성공·오류 응답 형식과 오류 코드 통일
 3. 시간표·자동 편성 명세 문서 추가
 4. OpenAPI 또는 동등한 기계 판독 명세 생성
