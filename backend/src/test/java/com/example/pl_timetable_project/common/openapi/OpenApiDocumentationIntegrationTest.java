@@ -4,6 +4,7 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +49,9 @@ class OpenApiDocumentationIntegrationTest {
                 .andExpect(jsonPath("$.info.title").value("PL Timetable API"))
                 .andExpect(jsonPath("$.components.securitySchemes.sessionCookie.in").value("cookie"))
                 .andExpect(jsonPath("$.components.securitySchemes.csrfHeader.in").value("header"))
+                .andExpect(jsonPath(
+                        "$.components.schemas.CompletedCourseResponse.properties.sourceSnapshot.additionalProperties")
+                        .value(true))
                 .andExpect(jsonPath("$.paths['/api/v1/auth/otp/request'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/users/me'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/departments'].get").exists())
@@ -82,6 +86,23 @@ class OpenApiDocumentationIntegrationTest {
         mockMvc.perform(get("/swagger-ui/index.html"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/html"));
+    }
+
+    @Test
+    void redirectsRootToModernScalarReferenceWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/scalar"));
+
+        mockMvc.perform(get("/scalar"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("text/html"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "PL Timetable API")));
+
+        mockMvc.perform(get("/favicon.svg"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("image/svg+xml"));
     }
 
     @Test

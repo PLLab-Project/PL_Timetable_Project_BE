@@ -48,11 +48,12 @@ docker compose down -v
 
 ## 문서
 
-- [외부 Swagger UI](https://timetable-api.kdhoon.me/swagger-ui.html)
+- [외부 API 문서(Scalar)](https://timetable-api.kdhoon.me/)
+- [기존 Swagger UI](https://timetable-api.kdhoon.me/swagger-ui.html)
 - [백엔드 구조 원칙](docs/backend/ARCHITECTURE.md)
 - [전체 백엔드 API 명세](docs/backend/API_REFERENCE.md)
 - [프론트엔드 API 연동 안내](docs/backend/FRONTEND_API_HANDOFF.md)
-- [OpenAPI·Swagger 사용법](docs/backend/OPENAPI.md)
+- [OpenAPI·API 문서 사용법](docs/backend/OPENAPI.md)
 - [인증·사용자 API](docs/backend/AUTH_USER_API.md)
 - [학사 조회 API](docs/backend/ACADEMIC_API.md)
 - [이수과목 API](docs/backend/COMPLETED_COURSE_API.md)

@@ -1,16 +1,23 @@
-# OpenAPI·Swagger 사용법
+# OpenAPI·API 문서 사용법
 
 백엔드는 `springdoc-openapi`로 실행 중인 Controller와 DTO에서 OpenAPI 3 명세를
-생성합니다.
+생성합니다. 프론트 연동용 기본 화면은 Scalar이며, 기존 Swagger UI도 호환성과 디버깅을
+위해 함께 제공합니다.
 
 ## 팀 테스트 서버
 
 | 용도 | URL |
 |---|---|
-| Swagger UI | `https://timetable-api.kdhoon.me/swagger-ui.html` |
+| 기본 API 문서(Scalar) | `https://timetable-api.kdhoon.me/` |
+| Scalar 직접 주소 | `https://timetable-api.kdhoon.me/scalar` |
+| 기존 Swagger UI | `https://timetable-api.kdhoon.me/swagger-ui.html` |
 | OpenAPI JSON | `https://timetable-api.kdhoon.me/v3/api-docs` |
 | OpenAPI YAML | `https://timetable-api.kdhoon.me/v3/api-docs.yaml` |
 | 서버 상태 | `https://timetable-api.kdhoon.me/api/v1/health/live` |
+
+API 전용 호스트의 루트(`/`)는 Scalar로 이동합니다. Scalar와 Swagger UI는 같은 OpenAPI
+명세를 읽으므로 요청·응답 계약은 동일합니다. Scalar는 탐색과 프론트 전달의 기본 화면,
+Swagger UI는 기존 도구 호환이나 요청 시험이 필요할 때 사용할 수 있습니다.
 
 이 서버는 Cloudflare Tunnel을 통해 HTTPS로 제공됩니다. 데이터베이스 포트는 외부에
 공개하지 않습니다. 현재 인증 구현은 소셜 로그인이 아니라 OTP 세션 방식이며 테스트
@@ -22,11 +29,13 @@
 
 | 용도 | URL |
 |---|---|
-| Swagger UI | `http://localhost:8080/swagger-ui.html` |
+| 기본 API 문서(Scalar) | `http://localhost:8080/` |
+| Scalar 직접 주소 | `http://localhost:8080/scalar` |
+| 기존 Swagger UI | `http://localhost:8080/swagger-ui.html` |
 | OpenAPI JSON | `http://localhost:8080/v3/api-docs` |
 | OpenAPI YAML | `http://localhost:8080/v3/api-docs.yaml` |
 
-세 경로는 인증 없이 조회할 수 있습니다.
+위 문서 경로는 인증 없이 조회할 수 있습니다.
 
 ## 인증된 API 시험
 
@@ -35,7 +44,7 @@
 1. `/api/v1/auth/otp/request`와 `/api/v1/auth/otp/verify`를 호출합니다.
 2. 브라우저가 받은 `JSESSIONID` 쿠키를 유지합니다.
 3. GET 이외의 보호 API에는 `XSRF-TOKEN` 쿠키 값도 필요합니다.
-4. Swagger UI의 **Authorize**에서 `csrfHeader`에 해당 값을 입력합니다.
+4. Scalar 또는 Swagger UI의 인증 입력란에 `csrfHeader` 값을 입력합니다.
 
 `sessionCookie`는 브라우저가 동일 서버 쿠키를 자동으로 전송하므로 보통 Swagger UI에
 직접 입력할 필요가 없습니다. 프론트 애플리케이션에서는 모든 인증 요청에
@@ -58,9 +67,9 @@ Security가 수행합니다.
 OPENAPI_ENABLED=false
 ```
 
-이 값은 OpenAPI JSON/YAML과 Swagger UI를 함께 비활성화합니다. 내부 개발 서버에서는
-기본값 `true`를 사용할 수 있지만 공개 운영 서버에서는 팀의 노출 정책을 정한 뒤
-설정해야 합니다.
+이 값은 OpenAPI JSON/YAML, Scalar, Swagger UI를 함께 비활성화합니다. 내부 개발
+서버에서는 기본값 `true`를 사용할 수 있지만 공개 운영 서버에서는 팀의 노출 정책을
+정한 뒤 설정해야 합니다.
 
 ## 문서 관리 원칙
 

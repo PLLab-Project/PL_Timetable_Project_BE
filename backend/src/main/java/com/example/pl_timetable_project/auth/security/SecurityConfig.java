@@ -43,6 +43,10 @@ public class SecurityConfig {
                                 "/v3/api-docs.yaml",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
+                                "/scalar",
+                                "/scalar/**",
+                                "/favicon.svg",
+                                "/",
                                 "/error").permitAll()
                         .requestMatchers(
                                 HttpMethod.GET,

@@ -60,7 +60,7 @@
 
 - 도메인별 Markdown API 명세와 프론트 연동 안내
 - OpenAPI JSON·YAML 자동 생성
-- Swagger UI
+- 루트 주소에서 열리는 Scalar API 문서와 기존 Swagger UI
 - 세션 쿠키와 CSRF 요구사항의 OpenAPI 표시
 
 ## 아직 구현되지 않음
