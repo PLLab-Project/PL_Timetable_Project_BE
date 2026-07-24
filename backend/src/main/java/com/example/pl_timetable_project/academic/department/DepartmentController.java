@@ -4,9 +4,9 @@ import com.example.pl_timetable_project.academic.common.AcademicPageResponse;
 import com.example.pl_timetable_project.academic.common.PageSpec;
 import com.example.pl_timetable_project.academic.department.dto.DepartmentDetailResponse;
 import com.example.pl_timetable_project.academic.department.dto.DepartmentSummaryResponse;
+import com.example.pl_timetable_project.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,20 +26,20 @@ public class DepartmentController {
 
     @Operation(summary = "학과·전공 목록 조회")
     @GetMapping
-    public ResponseEntity<AcademicPageResponse<DepartmentSummaryResponse>> getDepartments(
+    public ApiResponse<AcademicPageResponse<DepartmentSummaryResponse>> getDepartments(
             @RequestParam(required = false) String query,
             @RequestParam(required = false) String collegeCode,
             @RequestParam(defaultValue = "true") boolean currentOnly,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "" + PageSpec.DEFAULT_SIZE) int size) {
-        return ResponseEntity.ok(departmentService.getDepartments(
+        return ApiResponse.success(departmentService.getDepartments(
                 query, collegeCode, currentOnly, page, size));
     }
 
     @Operation(summary = "학과·전공 상세 조회")
     @GetMapping("/{code}")
-    public ResponseEntity<DepartmentDetailResponse> getDepartment(
+    public ApiResponse<DepartmentDetailResponse> getDepartment(
             @PathVariable String code) {
-        return ResponseEntity.ok(departmentService.getDepartment(code));
+        return ApiResponse.success(departmentService.getDepartment(code));
     }
 }

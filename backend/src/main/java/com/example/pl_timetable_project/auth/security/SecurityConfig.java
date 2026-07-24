@@ -1,6 +1,9 @@
 package com.example.pl_timetable_project.auth.security;
 
+import com.example.pl_timetable_project.auth.AuthErrorCode;
 import com.example.pl_timetable_project.auth.config.AuthProperties;
+import com.example.pl_timetable_project.common.exception.CommonErrorCode;
+import com.example.pl_timetable_project.common.exception.ErrorCode;
 import com.example.pl_timetable_project.common.response.ApiResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
@@ -73,9 +76,9 @@ public class SecurityConfig {
                 .logout(logout -> logout.disable())
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, error) ->
-                                writeError(response, objectMapper, 401, "AUTH_SESSION_EXPIRED", "로그인이 필요합니다."))
+                                writeError(response, objectMapper, AuthErrorCode.SESSION_EXPIRED))
                         .accessDeniedHandler((request, response, error) ->
-                                writeError(response, objectMapper, 403, "COMMON_FORBIDDEN", "접근 권한이 없습니다.")))
+                                writeError(response, objectMapper, CommonErrorCode.FORBIDDEN)))
                 .build();
     }
 
@@ -95,11 +98,13 @@ public class SecurityConfig {
         return source;
     }
 
-    private static void writeError(HttpServletResponse response, ObjectMapper mapper,
-                                   int status, String code, String message) throws java.io.IOException {
-        response.setStatus(status);
+    private static void writeError(
+            HttpServletResponse response,
+            ObjectMapper mapper,
+            ErrorCode errorCode) throws java.io.IOException {
+        response.setStatus(errorCode.status());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        mapper.writeValue(response.getWriter(), new ApiResponse<>(code, message, null));
+        mapper.writeValue(response.getWriter(), ApiResponse.error(errorCode));
     }
 }

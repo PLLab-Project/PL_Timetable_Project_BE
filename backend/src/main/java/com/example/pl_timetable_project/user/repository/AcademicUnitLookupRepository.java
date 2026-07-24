@@ -4,7 +4,7 @@ import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-/** 학과 원본 도메인은 수정하지 않고, 회원 수정에 필요한 이름만 읽습니다. */
+/** 사용자 프로필이 참조하는 정규 학과의 코드와 표시 이름을 조회합니다. */
 @Repository
 public class AcademicUnitLookupRepository {
     private final JdbcTemplate jdbcTemplate;
@@ -13,10 +13,31 @@ public class AcademicUnitLookupRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public Optional<String> findCurrentNameByCode(String code) {
+    public Optional<AcademicUnit> findCurrentByCode(String code) {
         return jdbcTemplate.query(
-                "select name from academic_units where code = ? and is_current = true",
-                (resultSet, rowNumber) -> resultSet.getString("name"), code
+                """
+                SELECT code, name
+                  FROM academic_units
+                 WHERE code = ?
+                   AND is_current = true
+                """,
+                (resultSet, rowNumber) -> new AcademicUnit(
+                        resultSet.getString("code"),
+                        resultSet.getString("name")),
+                code
         ).stream().findFirst();
+    }
+
+    public Optional<AcademicUnit> findByCode(String code) {
+        return jdbcTemplate.query(
+                "SELECT code, name FROM academic_units WHERE code = ?",
+                (resultSet, rowNumber) -> new AcademicUnit(
+                        resultSet.getString("code"),
+                        resultSet.getString("name")),
+                code
+        ).stream().findFirst();
+    }
+
+    public record AcademicUnit(String code, String name) {
     }
 }

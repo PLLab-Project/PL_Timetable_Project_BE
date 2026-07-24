@@ -6,6 +6,12 @@ import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem.HttpMethod;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.media.Content;
+import io.swagger.v3.oas.models.media.MediaType;
+import io.swagger.v3.oas.models.media.ObjectSchema;
+import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.media.StringSchema;
+import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.util.List;
@@ -18,6 +24,8 @@ public class OpenApiConfig {
 
     private static final String SESSION_COOKIE = "sessionCookie";
     private static final String CSRF_HEADER = "csrfHeader";
+    private static final String JSON = org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+    private static final String ERROR_SCHEMA = "#/components/schemas/ApiErrorResponse";
 
     @Bean
     OpenAPI plTimetableOpenApi() {
@@ -32,8 +40,9 @@ public class OpenApiConfig {
                                 POST·PATCH·DELETE 요청은 `XSRF-TOKEN` 쿠키 값을
                                 `X-XSRF-TOKEN` 헤더에도 포함해야 합니다.
                                 """)
-                        .contact(new Contact().name("PL Lab")))
+                .contact(new Contact().name("PL Lab")))
                 .components(new Components()
+                        .addSchemas("ApiErrorResponse", apiErrorSchema())
                         .addSecuritySchemes(SESSION_COOKIE, new SecurityScheme()
                                 .type(SecurityScheme.Type.APIKEY)
                                 .in(SecurityScheme.In.COOKIE)
@@ -46,13 +55,59 @@ public class OpenApiConfig {
                                 .description("XSRF-TOKEN 쿠키의 값을 그대로 전송")));
     }
 
+    private ObjectSchema apiErrorSchema() {
+        ObjectSchema schema = new ObjectSchema();
+        schema.setDescription("모든 API가 공통으로 사용하는 오류 응답");
+        schema.addProperty("code", new StringSchema().example("VALIDATION_ERROR"));
+        schema.addProperty(
+                "message",
+                new StringSchema().example("요청값이 올바르지 않습니다."));
+        schema.addProperty("data", new ObjectSchema().nullable(true));
+        schema.setRequired(List.of("code", "message"));
+        return schema;
+    }
+
     @Bean
-    OpenApiCustomizer securityAndTagCustomizer() {
+    OpenApiCustomizer apiContractCustomizer() {
         return openApi -> openApi.getPaths().forEach((path, pathItem) ->
                 pathItem.readOperationsMap().forEach((method, operation) -> {
                     operation.setTags(List.of(tagFor(path)));
                     applySecurity(path, method, operation);
+                    normalizeSuccessMediaTypes(operation);
+                    documentCommonErrors(path, method, operation);
                 }));
+    }
+
+    private void normalizeSuccessMediaTypes(Operation operation) {
+        operation.getResponses().values().forEach(response -> {
+            Content content = response.getContent();
+            if (content != null && content.containsKey("*/*")) {
+                MediaType schema = content.remove("*/*");
+                content.addMediaType(JSON, schema);
+            }
+        });
+    }
+
+    private void documentCommonErrors(
+            String path, HttpMethod method, Operation operation) {
+        operation.getResponses().putIfAbsent(
+                "400", errorResponse("요청값 또는 조회 조건이 올바르지 않음"));
+        operation.getResponses().putIfAbsent(
+                "500", errorResponse("예상하지 못한 서버 오류"));
+        if (!isPublic(path, method)) {
+            operation.getResponses().putIfAbsent(
+                    "401", errorResponse("로그인 세션이 없거나 만료됨"));
+            operation.getResponses().putIfAbsent(
+                    "403", errorResponse("접근 권한 또는 CSRF 검증 실패"));
+        }
+    }
+
+    private ApiResponse errorResponse(String description) {
+        Schema<?> schema = new ObjectSchema().$ref(ERROR_SCHEMA);
+        return new ApiResponse()
+                .description(description)
+                .content(new Content().addMediaType(
+                        JSON, new MediaType().schema(schema)));
     }
 
     private void applySecurity(String path, HttpMethod method, Operation operation) {

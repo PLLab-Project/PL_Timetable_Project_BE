@@ -2,7 +2,7 @@ package com.example.pl_timetable_project.exception;
 
 import org.springframework.http.HttpStatus;
 
-public enum ErrorCode {
+public enum ErrorCode implements com.example.pl_timetable_project.common.exception.ErrorCode {
 
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "요청 값이 올바르지 않습니다."),
     INVALID_ACADEMIC_QUERY(HttpStatus.BAD_REQUEST, "학사 데이터 조회 조건이 올바르지 않습니다."),
@@ -35,6 +35,21 @@ public enum ErrorCode {
     }
 
     public String getDefaultMessage() {
+        return defaultMessage;
+    }
+
+    @Override
+    public int status() {
+        return status.value();
+    }
+
+    @Override
+    public String code() {
+        return name();
+    }
+
+    @Override
+    public String message() {
         return defaultMessage;
     }
 }

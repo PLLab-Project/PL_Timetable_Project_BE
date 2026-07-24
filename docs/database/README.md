@@ -3,7 +3,7 @@
 ## 적용된 구성
 
 - PostgreSQL `18.4`
-- Flyway `12.11.0`과 버전 마이그레이션 6개
+- Flyway `12.11.0`과 버전 마이그레이션 8개
 - Spring Data JPA와 PostgreSQL JDBC 드라이버
 - Testcontainers PostgreSQL 통합 테스트
 - Docker Compose의 `db`, `migrate`, `ingest` 서비스
@@ -48,6 +48,7 @@ docker compose run --rm --no-deps ingest
 - `academic_units`: 공식 학과·전공 코드와 공식 코드가 없는 과거 요건용 결정적 파생 코드
 - `academic_unit_aliases`: 교육과정·졸업요건에서 사용된 연도별 표기
 - `section_academic_units`: 현재 분반과 명시적으로 제공된 학과 코드의 다대다 관계
+- `student_profiles.academic_unit_code`: 사용자 학과를 `academic_units`에 연결하는 FK
 
 `academic_units.is_current`는 최신 교육과정 데이터셋에 코드가 존재한다는 의미이며,
 신입생 모집 또는 행정조직 운영 상태를 보장하지 않습니다. 학과 코드가 없는 교양·공통
@@ -101,6 +102,7 @@ volume을 사용합니다.
 
 ## 인증 관련 범위
 
-현재 마이그레이션은 `users`, `social_identities`, `student_profiles`, `privacy_consents`의
-최소 DB 계약만 제공합니다. OTP 테이블은 포함하지 않았지만, Spring Security·OAuth2
-Client·소셜 공급자 설정·로그인 성공 처리·로그인 세션은 아직 구현되지 않았습니다.
+현재 마이그레이션에는 `users`, `student_profiles`, `privacy_consents`,
+`social_identities`, `login_otp_challenges`가 포함됩니다. 학교 이메일 OTP와 Spring
+Security 서버 세션은 구현되어 있습니다. `social_identities`는 향후 공급자 식별자
+연결을 위한 계약이며 OAuth2 Client·소셜 공급자 콜백은 아직 구현되지 않았습니다.

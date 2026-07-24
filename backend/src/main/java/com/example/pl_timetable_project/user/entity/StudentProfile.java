@@ -19,11 +19,8 @@ public class StudentProfile {
     @Column(name = "student_number", length = 20, unique = true)
     private String studentNumber;
 
-    @Column(name = "academic_unit_name", length = 240)
-    private String academicUnitName;
-
-    @Column(name = "academic_unit_key", length = 240)
-    private String academicUnitKey;
+    @Column(name = "academic_unit_code", length = 40)
+    private String academicUnitCode;
 
     private Short grade;
 
@@ -60,15 +57,14 @@ public class StudentProfile {
         this.studentNumber = studentNumber;
     }
 
-    public void update(Short grade, String academicUnitKey, String academicUnitName) {
+    public void update(Short grade, String academicUnitCode) {
         if (grade != null) {
             this.grade = grade;
         }
-        if (academicUnitKey != null) {
-            this.academicUnitKey = academicUnitKey;
-            this.academicUnitName = academicUnitName;
+        if (academicUnitCode != null) {
+            this.academicUnitCode = academicUnitCode;
         }
-        this.profileCompleted = this.grade != null && this.academicUnitKey != null;
+        this.profileCompleted = this.grade != null && this.academicUnitCode != null;
         this.updatedAt = Instant.now();
     }
 
@@ -80,12 +76,8 @@ public class StudentProfile {
         return studentNumber;
     }
 
-    public String academicUnitName() {
-        return academicUnitName;
-    }
-
-    public String academicUnitKey() {
-        return academicUnitKey;
+    public String academicUnitCode() {
+        return academicUnitCode;
     }
 
     public Short grade() {

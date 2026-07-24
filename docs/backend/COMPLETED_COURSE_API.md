@@ -6,6 +6,8 @@
 기존 보안 정책에 따라 CSRF 토큰도 필요하다.
 
 기본 경로는 `/api/v1/completed-courses`다.
+모든 성공 응답은 공통 `ApiResponse<T>` envelope를 사용하며 아래 예시의 업무 데이터는
+`data`에 들어간다. 삭제 성공은 HTTP `200`과 `data=null`이다.
 
 ## 상태와 입력 출처
 
@@ -54,20 +56,24 @@
 
 ```json
 {
-  "totalCredits": 5.00,
-  "completedCredits": 2.00,
-  "inProgressCredits": 3.00,
-  "creditsByCategory": {
-    "전공선택": 3.00,
-    "교양필수": 2.00
-  },
-  "creditsByArea": {
-    "전공심화": 3.00,
-    "의사소통": 2.00
-  },
-  "creditsByStatus": {
-    "COMPLETED": 2.00,
-    "IN_PROGRESS": 3.00
+  "code": "SUCCESS",
+  "message": "요청을 성공적으로 처리했습니다.",
+  "data": {
+    "totalCredits": 5.00,
+    "completedCredits": 2.00,
+    "inProgressCredits": 3.00,
+    "creditsByCategory": {
+      "전공선택": 3.00,
+      "교양필수": 2.00
+    },
+    "creditsByArea": {
+      "전공심화": 3.00,
+      "의사소통": 2.00
+    },
+    "creditsByStatus": {
+      "COMPLETED": 2.00,
+      "IN_PROGRESS": 3.00
+    }
   }
 }
 ```
@@ -84,22 +90,26 @@
 
 ```json
 {
-  "timetableId": 10,
-  "importedCount": 1,
-  "skippedCount": 0,
-  "records": [
-    {
-      "courseCode": "CSE300",
-      "sectionCode": "01",
-      "status": "IN_PROGRESS",
-      "inputSource": "TIMETABLE",
-      "sourceSnapshot": {
-        "timetableId": 10,
-        "timetableCourseId": 20,
-        "professorName": "김교수"
+  "code": "SUCCESS",
+  "message": "요청을 성공적으로 처리했습니다.",
+  "data": {
+    "timetableId": 10,
+    "importedCount": 1,
+    "skippedCount": 0,
+    "records": [
+      {
+        "courseCode": "CSE300",
+        "sectionCode": "01",
+        "status": "IN_PROGRESS",
+        "inputSource": "TIMETABLE",
+        "sourceSnapshot": {
+          "timetableId": 10,
+          "timetableCourseId": 20,
+          "professorName": "김교수"
+        }
       }
-    }
-  ]
+    ]
+  }
 }
 ```
 

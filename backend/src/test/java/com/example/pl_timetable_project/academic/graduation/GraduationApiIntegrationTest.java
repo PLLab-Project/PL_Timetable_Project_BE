@@ -64,18 +64,18 @@ class GraduationApiIntegrationTest {
                         .param("studentType", "regular")
                         .param("programPath", "advanced_major"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.profileId").value("credit-profile-1"))
-                .andExpect(jsonPath("$.academicUnitCode").value("D1"))
-                .andExpect(jsonPath("$.credits.total").value(20))
-                .andExpect(jsonPath("$.liberalArts.totalMinimum").value(7))
-                .andExpect(jsonPath("$.liberalAreas[0].area").value("소통"))
-                .andExpect(jsonPath("$.requiredCourses.length()").value(4))
-                .andExpect(jsonPath("$.sourceRefs[0]").value("official-credit-table.pdf#p=3"))
-                .andExpect(jsonPath("$.warnings[0].code").value("SOURCE_TOTAL_MISMATCH"))
-                .andExpect(jsonPath("$.nonAutomaticItems[0].code")
+                .andExpect(jsonPath("$.data.profileId").value("credit-profile-1"))
+                .andExpect(jsonPath("$.data.academicUnitCode").value("D1"))
+                .andExpect(jsonPath("$.data.credits.total").value(20))
+                .andExpect(jsonPath("$.data.liberalArts.totalMinimum").value(7))
+                .andExpect(jsonPath("$.data.liberalAreas[0].area").value("소통"))
+                .andExpect(jsonPath("$.data.requiredCourses.length()").value(4))
+                .andExpect(jsonPath("$.data.sourceRefs[0]").value("official-credit-table.pdf#p=3"))
+                .andExpect(jsonPath("$.data.warnings[0].code").value("SOURCE_TOTAL_MISMATCH"))
+                .andExpect(jsonPath("$.data.nonAutomaticItems[0].code")
                         .value("PROFILE_MANUAL_REVIEW"))
                 .andExpect(jsonPath(
-                        "$.nonAutomaticItems[?(@.code == 'ASSESSMENT_A')]")
+                        "$.data.nonAutomaticItems[?(@.code == 'ASSESSMENT_A')]")
                         .exists());
     }
 
@@ -86,36 +86,89 @@ class GraduationApiIntegrationTest {
                         .with(authenticated())
                         .param("semesterId", "2026-1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.completedCredits.total").value(11))
-                .andExpect(jsonPath("$.completedCredits.primaryMajor").value(6))
-                .andExpect(jsonPath("$.completedCredits.liberalTotal").value(5))
-                .andExpect(jsonPath("$.automaticRequirementsSatisfied").value(false))
-                .andExpect(jsonPath("$.creditGaps[?(@.code == 'TOTAL')].missing")
+                .andExpect(jsonPath("$.data.completedCredits.total").value(11))
+                .andExpect(jsonPath("$.data.completedCredits.primaryMajor").value(6))
+                .andExpect(jsonPath("$.data.completedCredits.liberalTotal").value(5))
+                .andExpect(jsonPath("$.data.automaticRequirementsSatisfied").value(false))
+                .andExpect(jsonPath("$.data.creditGaps[?(@.code == 'TOTAL')].missing")
                         .value(9.0))
-                .andExpect(jsonPath("$.areaGaps[0].area").value("소통"))
-                .andExpect(jsonPath("$.areaGaps[0].missingCourses").value(1))
-                .andExpect(jsonPath("$.areaGaps[0].missingCredits").value(1))
-                .andExpect(jsonPath("$.requiredCourseGaps.length()").value(2))
+                .andExpect(jsonPath("$.data.areaGaps[0].area").value("소통"))
+                .andExpect(jsonPath("$.data.areaGaps[0].missingCourses").value(1))
+                .andExpect(jsonPath("$.data.areaGaps[0].missingCredits").value(1))
+                .andExpect(jsonPath("$.data.requiredCourseGaps.length()").value(2))
+                .andExpect(jsonPath("$.data.requiredCourseGaps[0].course.courseCode")
+                        .value("LIB102"))
+                .andExpect(jsonPath("$.data.requiredCourseGaps[1].course.courseCode")
+                        .value("CSE202"))
                 .andExpect(jsonPath(
-                        "$.requiredCourseGaps[?(@.course.courseCode == 'CSE202')]")
+                        "$.data.requiredCourseGaps[?(@.course.courseCode == 'CSE202')]")
                         .exists())
                 .andExpect(jsonPath(
-                        "$.recommendations[?(@.courseCode == 'CSE202')].fills")
+                        "$.data.recommendations[?(@.courseCode == 'CSE202')].fills")
                         .value(org.hamcrest.Matchers.hasItem(
                                 org.hamcrest.Matchers.hasItem("MAJOR_REQUIRED"))))
                 .andExpect(jsonPath(
-                        "$.recommendations[?(@.courseCode == 'CSE202')].fills")
+                        "$.data.recommendations[?(@.courseCode == 'CSE202')].fills")
                         .value(org.hamcrest.Matchers.hasItem(
                                 org.hamcrest.Matchers.hasItem("PRIMARY_MAJOR"))))
                 .andExpect(jsonPath(
-                        "$.recommendations[?(@.courseCode == 'CSE202')].fills")
+                        "$.data.recommendations[?(@.courseCode == 'CSE202')].fills")
                         .value(org.hamcrest.Matchers.hasItem(
                                 org.hamcrest.Matchers.hasItem("TOTAL"))))
                 .andExpect(jsonPath(
-                        "$.recommendations[?(@.courseCode == 'LIB102')]")
+                        "$.data.recommendations[?(@.courseCode == 'LIB102')]")
                         .exists())
-                .andExpect(jsonPath("$.warnings[1].code").value(
+                .andExpect(jsonPath("$.data.recommendations[0].courseCode")
+                        .value("LIB102"))
+                .andExpect(jsonPath("$.data.sourceRefs[0]")
+                        .value("official-credit-table.pdf#p=3"))
+                .andExpect(jsonPath("$.data.nonAutomaticItems.length()").value(3))
+                .andExpect(jsonPath("$.data.warnings[1].code").value(
                         "LIBERAL_AREA_RECOMMENDATION_REQUIRES_CATALOG_MAPPING"));
+    }
+
+    @Test
+    void treatsNormalizedCourseAliasesAsCompletedRequiredCourses()
+            throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO completed_courses (
+                    user_id, course_name, credits, category, area,
+                    semester, status, input_source
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                USER_ID,
+                "프레젠테이션과 토론",
+                2,
+                "교양필수",
+                "소통",
+                "2024-1",
+                "COMPLETED",
+                "MANUAL");
+
+        mockMvc.perform(get("/api/v1/graduation/evaluation")
+                        .with(authenticated())
+                        .param("semesterId", "2026-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.requiredCourseGaps.length()").value(1))
+                .andExpect(jsonPath("$.data.requiredCourseGaps[0].course.courseCode")
+                        .value("CSE202"));
+    }
+
+    @Test
+    void rejectsEvaluationWhenGraduationProfileScopeIsIncomplete()
+            throws Exception {
+        jdbcTemplate.update("""
+                UPDATE student_profiles
+                SET program_path = NULL,
+                    profile_completed = false
+                WHERE user_id = ?
+                """, USER_ID);
+
+        mockMvc.perform(get("/api/v1/graduation/evaluation")
+                        .with(authenticated())
+                        .param("semesterId", "2026-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_ACADEMIC_QUERY"));
     }
 
     @Test
@@ -326,13 +379,13 @@ class GraduationApiIntegrationTest {
                 );
 
                 INSERT INTO student_profiles (
-                    user_id, student_number, academic_unit_name,
-                    academic_unit_key, grade, admission_year, entry_type,
+                    user_id, student_number, academic_unit_code,
+                    grade, admission_year, entry_type,
                     student_type, section_group, program_path,
                     profile_completed
                 ) VALUES (
                     '10000000-0000-0000-0000-000000000001',
-                    '20220001', '컴퓨터공학과', '컴퓨터공학과', 4, 2022,
+                    '20220001', 'D1', 4, 2022,
                     'NEW', 'REGULAR', 'DAY', 'ADVANCED_MAJOR', true
                 );
 

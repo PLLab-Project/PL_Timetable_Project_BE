@@ -2,7 +2,7 @@
 
 시간표 API는 로그인한 사용자가 자신의 시간표만 관리하도록 제한합니다. 모든 경로는
 세션 인증이 필요하며 상태 변경 요청은 CSRF 헤더가 필요합니다. 성공 응답은 공통
-envelope 없이 DTO를 본문에 직접 반환합니다.
+`ApiResponse<T>` envelope를 사용하고 시간표 DTO는 `data`에 들어갑니다.
 
 ## 엔드포인트
 
@@ -15,7 +15,7 @@ envelope 없이 DTO를 본문에 직접 반환합니다.
 | PATCH | `/api/v1/timetables/{timetableId}/sections` | 200 | 분반 구성 전체 교체 |
 | POST | `/api/v1/timetables/{timetableId}/sections` | 201 | 분반 하나 추가 |
 | DELETE | `/api/v1/timetables/{timetableId}/sections/{timetableCourseId}` | 200 | 분반 제거 |
-| DELETE | `/api/v1/timetables/{timetableId}` | 204 | 시간표 삭제 |
+| DELETE | `/api/v1/timetables/{timetableId}` | 200 | 시간표 삭제 (`data=null`) |
 
 ## 시간표 생성
 
@@ -43,32 +43,36 @@ envelope 없이 DTO를 본문에 직접 반환합니다.
 
 ```json
 {
-  "id": 12,
-  "userId": "3c8fb145-a10f-4df8-818a-a213ef8b3fc5",
-  "name": "2026년 1학기",
-  "semesterId": "2026-1",
-  "totalCredits": 3.0,
-  "sections": [
-    {
-      "id": 25,
-      "semesterId": "2026-1",
-      "courseCode": "CSE101",
-      "sectionCode": "01",
-      "courseName": "컴퓨터개론",
-      "professorName": "홍교수",
-      "credits": 3.0,
-      "meetings": [
-        {
-          "dayOfWeek": "MONDAY",
-          "startTime": "09:00:00",
-          "endTime": "10:15:00"
-        }
-      ]
-    }
-  ],
-  "freeTimes": [],
-  "createdAt": "2026-07-24T04:00:00Z",
-  "updatedAt": "2026-07-24T04:00:00Z"
+  "code": "SUCCESS",
+  "message": "요청을 성공적으로 처리했습니다.",
+  "data": {
+    "id": 12,
+    "userId": "3c8fb145-a10f-4df8-818a-a213ef8b3fc5",
+    "name": "2026년 1학기",
+    "semesterId": "2026-1",
+    "totalCredits": 3.0,
+    "sections": [
+      {
+        "id": 25,
+        "semesterId": "2026-1",
+        "courseCode": "CSE101",
+        "sectionCode": "01",
+        "courseName": "컴퓨터개론",
+        "professorName": "홍교수",
+        "credits": 3.0,
+        "meetings": [
+          {
+            "dayOfWeek": "MONDAY",
+            "startTime": "09:00:00",
+            "endTime": "10:15:00"
+          }
+        ]
+      }
+    ],
+    "freeTimes": [],
+    "createdAt": "2026-07-24T04:00:00Z",
+    "updatedAt": "2026-07-24T04:00:00Z"
+  }
 }
 ```
 

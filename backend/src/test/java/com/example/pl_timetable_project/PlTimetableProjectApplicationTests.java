@@ -89,13 +89,49 @@ class PlTimetableProjectApplicationTests {
                 String.class);
 
         assertThat(version).startsWith("18.4");
-        assertThat(successfulMigrations).isEqualTo(7);
+        assertThat(successfulMigrations).isEqualTo(8);
         assertThat(graduationProfiles).isEqualTo("graduation_credit_profiles");
         assertThat(socialIdentities).isEqualTo("social_identities");
         assertThat(academicUnits).isEqualTo("academic_units");
         assertThat(sectionAcademicUnits).isEqualTo("section_academic_units");
         assertThat(timetables).isEqualTo("timetables");
         assertThat(optimizationJobs).isEqualTo("optimization_jobs");
+    }
+
+    @Test
+    void normalizesStudentProfileAcademicUnitsAndAddsForeignKeySupportIndexes() {
+        List<String> profileColumns = jdbcTemplate.queryForList("""
+                SELECT column_name
+                  FROM information_schema.columns
+                 WHERE table_schema = 'public'
+                   AND table_name = 'student_profiles'
+                 ORDER BY ordinal_position
+                """, String.class);
+        Integer academicUnitForeignKeys = jdbcTemplate.queryForObject("""
+                SELECT count(*)
+                  FROM information_schema.table_constraints constraint_info
+                  JOIN information_schema.key_column_usage column_info
+                    ON column_info.constraint_schema = constraint_info.constraint_schema
+                   AND column_info.constraint_name = constraint_info.constraint_name
+                 WHERE constraint_info.table_schema = 'public'
+                   AND constraint_info.table_name = 'student_profiles'
+                   AND constraint_info.constraint_type = 'FOREIGN KEY'
+                   AND column_info.column_name = 'academic_unit_code'
+                """, Integer.class);
+
+        assertThat(profileColumns)
+                .contains("academic_unit_code")
+                .doesNotContain("academic_unit_name", "academic_unit_key");
+        assertThat(academicUnitForeignKeys).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.ix_student_profiles_requirement_lookup')::text",
+                String.class)).isEqualTo("ix_student_profiles_requirement_lookup");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.ix_sessions_room')::text",
+                String.class)).isEqualTo("ix_sessions_room");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.ix_optimization_required_sections_section')::text",
+                String.class)).isEqualTo("ix_optimization_required_sections_section");
     }
 
     @Test

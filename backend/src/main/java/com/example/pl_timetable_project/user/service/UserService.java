@@ -12,6 +12,7 @@ import com.example.pl_timetable_project.user.entity.PrivacyConsent;
 import com.example.pl_timetable_project.user.entity.StudentProfile;
 import com.example.pl_timetable_project.user.entity.UserAccount;
 import com.example.pl_timetable_project.user.repository.AcademicUnitLookupRepository;
+import com.example.pl_timetable_project.user.repository.AcademicUnitLookupRepository.AcademicUnit;
 import com.example.pl_timetable_project.user.repository.PrivacyConsentRepository;
 import com.example.pl_timetable_project.user.repository.StudentProfileRepository;
 import com.example.pl_timetable_project.user.repository.UserAccountRepository;
@@ -53,12 +54,13 @@ public class UserService {
         if (request.name() != null) {
             user.updateProfile(request.name().trim());
         }
-        String departmentName = null;
+        String academicUnitCode = null;
         if (request.departmentId() != null) {
-            departmentName = academicUnitRepository.findCurrentNameByCode(request.departmentId())
+            academicUnitCode = academicUnitRepository.findCurrentByCode(request.departmentId())
+                    .map(AcademicUnit::code)
                     .orElseThrow(() -> new BusinessException(UserErrorCode.DEPARTMENT_NOT_FOUND));
         }
-        profile.update(request.grade(), request.departmentId(), departmentName);
+        profile.update(request.grade(), academicUnitCode);
         return toResponse(user, profile);
     }
 
@@ -114,8 +116,13 @@ public class UserService {
     }
 
     private UserInfoResponse toResponse(UserAccount user, StudentProfile profile) {
+        AcademicUnit academicUnit = profile.academicUnitCode() == null
+                ? null
+                : academicUnitRepository.findByCode(profile.academicUnitCode()).orElse(null);
         return new UserInfoResponse(user.id(), profile.studentNumber(), user.displayName(), profile.grade(),
-                profile.academicUnitKey(), profile.academicUnitName(), user.createdAt());
+                academicUnit == null ? null : academicUnit.code(),
+                academicUnit == null ? null : academicUnit.name(),
+                user.createdAt());
     }
 
     private ConsentResponse toConsentResponse(PrivacyConsent consent) {

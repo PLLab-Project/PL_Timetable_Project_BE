@@ -3,10 +3,10 @@ package com.example.pl_timetable_project.common.exception;
 /** 공통 계층에서 사용하는 오류 코드입니다. */
 public enum CommonErrorCode implements ErrorCode {
 
-    INVALID_REQUEST(400, "INVALID_REQUEST", "요청값이 올바르지 않습니다."),
-    UNAUTHORIZED(401, "UNAUTHORIZED", "인증이 필요합니다."),
-    FORBIDDEN(403, "FORBIDDEN", "요청한 작업을 수행할 권한이 없습니다."),
-    INTERNAL_ERROR(500, "INTERNAL_ERROR", "서버 내부 오류가 발생했습니다."),
+    VALIDATION_ERROR(400, "VALIDATION_ERROR", "요청값이 올바르지 않습니다."),
+    UNAUTHORIZED(401, "AUTH_SESSION_EXPIRED", "로그인이 필요합니다."),
+    FORBIDDEN(403, "COMMON_FORBIDDEN", "접근 권한이 없습니다."),
+    INTERNAL_ERROR(500, "INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다."),
     SERVICE_UNAVAILABLE(503, "SERVICE_UNAVAILABLE", "현재 서비스를 사용할 수 없습니다.");
 
     private final int status;

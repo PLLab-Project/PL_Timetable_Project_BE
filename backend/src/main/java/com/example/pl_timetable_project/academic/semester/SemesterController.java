@@ -2,10 +2,10 @@ package com.example.pl_timetable_project.academic.semester;
 
 import com.example.pl_timetable_project.academic.semester.dto.SemesterDataVersionResponse;
 import com.example.pl_timetable_project.academic.semester.dto.SemesterResponse;
+import com.example.pl_timetable_project.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,22 +25,22 @@ public class SemesterController {
 
     @Operation(summary = "학기 목록 조회")
     @GetMapping
-    public ResponseEntity<List<SemesterResponse>> getSemesters(
+    public ApiResponse<List<SemesterResponse>> getSemesters(
             @RequestParam(defaultValue = "true") boolean activeOnly) {
-        return ResponseEntity.ok(semesterService.getSemesters(activeOnly));
+        return ApiResponse.success(semesterService.getSemesters(activeOnly));
     }
 
     @Operation(summary = "학기 상세 조회")
     @GetMapping("/{semesterId}")
-    public ResponseEntity<SemesterResponse> getSemester(
+    public ApiResponse<SemesterResponse> getSemester(
             @PathVariable String semesterId) {
-        return ResponseEntity.ok(semesterService.getSemester(semesterId));
+        return ApiResponse.success(semesterService.getSemester(semesterId));
     }
 
     @Operation(summary = "학기 데이터 버전 조회")
     @GetMapping("/{semesterId}/version")
-    public ResponseEntity<SemesterDataVersionResponse> getDataVersion(
+    public ApiResponse<SemesterDataVersionResponse> getDataVersion(
             @PathVariable String semesterId) {
-        return ResponseEntity.ok(semesterService.getDataVersion(semesterId));
+        return ApiResponse.success(semesterService.getDataVersion(semesterId));
     }
 }

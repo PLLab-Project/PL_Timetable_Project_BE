@@ -12,6 +12,16 @@ public class BusinessException extends RuntimeException {
         this.errorCode = errorCode;
     }
 
+    public BusinessException(ErrorCode errorCode, String message) {
+        super(Objects.requireNonNull(message, "message must not be null"));
+        this.errorCode = Objects.requireNonNull(errorCode, "errorCode must not be null");
+    }
+
+    public BusinessException(ErrorCode errorCode, String message, Throwable cause) {
+        super(Objects.requireNonNull(message, "message must not be null"), cause);
+        this.errorCode = Objects.requireNonNull(errorCode, "errorCode must not be null");
+    }
+
     public ErrorCode errorCode() {
         return errorCode;
     }

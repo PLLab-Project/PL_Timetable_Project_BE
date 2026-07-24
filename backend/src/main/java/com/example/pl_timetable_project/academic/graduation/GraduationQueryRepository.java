@@ -86,10 +86,15 @@ public class GraduationQueryRepository {
 
     public Optional<StudentScope> findStudentScope(UUID userId) {
         return jdbcTemplate.query("""
-                SELECT admission_year, academic_unit_key, academic_unit_name,
-                       student_type, program_path
-                  FROM student_profiles
-                 WHERE user_id = :userId
+                SELECT profile.admission_year,
+                       unit.normalized_key AS academic_unit_key,
+                       unit.name AS academic_unit_name,
+                       profile.student_type,
+                       profile.program_path
+                  FROM student_profiles profile
+                  LEFT JOIN academic_units unit
+                    ON unit.code = profile.academic_unit_code
+                 WHERE profile.user_id = :userId
                 """, Map.of("userId", userId), (rs, rowNum) -> new StudentScope(
                 rs.getObject("admission_year", Integer.class),
                 rs.getString("academic_unit_key"),

@@ -116,7 +116,9 @@
 ```
 
 현재 사용자 API에는 졸업판정 입력인 `admissionYear`, `studentType`, `programPath`를
-저장하는 필드가 없습니다. 해당 값을 요구하는 졸업판정은 별도 쿼리 파라미터를 사용합니다.
+저장하는 필드가 없습니다. 해당 값이 `student_profiles`에 없는 사용자는 졸업판정 API에서
+`INVALID_ACADEMIC_QUERY`를 받습니다. 프론트 온보딩에서 판정까지 연결하려면 이 입력
+계약을 별도로 추가해야 합니다.
 
 ### 개인정보 동의
 
