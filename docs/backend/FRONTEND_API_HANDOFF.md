@@ -39,6 +39,7 @@
 - [학과·학기·강의·리뷰](ACADEMIC_API.md)
 - [이수과목](COMPLETED_COURSE_API.md)
 - [졸업요건](GRADUATION_API.md)
+- [로컬 실사용 스모크 테스트 결과](LOCAL_API_SMOKE_TEST.md)
 
 시간표와 자동 편성은 각각 `timetable`과 `optimization` 패키지의 Controller·DTO가
 현재 계약입니다. 해당 영역의 별도 프론트 명세 문서는 아직 작성되지 않았습니다.
