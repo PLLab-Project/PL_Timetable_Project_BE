@@ -3,6 +3,7 @@ package com.example.pl_timetable_project.academic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,8 +39,19 @@ class AcademicApiIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(applicationContext).build();
+        mockMvc = MockMvcBuilders.webAppContextSetup(applicationContext)
+                .apply(springSecurity())
+                .build();
         insertFixture();
+    }
+
+    @Test
+    void allowsPublicAcademicReadsAndProtectsUserTimetables() throws Exception {
+        mockMvc.perform(get("/api/v1/semesters"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/timetables"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
