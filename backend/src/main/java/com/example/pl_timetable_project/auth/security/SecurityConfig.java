@@ -33,7 +33,14 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            ObjectMapper objectMapper,
+            @Value("${app.security.csrf-cookie-secure:false}") boolean csrfCookieSecure) throws Exception {
+        CookieCsrfTokenRepository csrfTokenRepository =
+                CookieCsrfTokenRepository.withHttpOnlyFalse();
+        csrfTokenRepository.setCookieCustomizer(cookie -> cookie.secure(csrfCookieSecure));
+
         return http
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
@@ -59,7 +66,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .csrf(csrf -> csrf
                         .spa()
-                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRepository(csrfTokenRepository)
                         .ignoringRequestMatchers("/api/v1/auth/otp/**"))
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
