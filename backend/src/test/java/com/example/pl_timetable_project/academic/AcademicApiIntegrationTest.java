@@ -1,17 +1,28 @@
 package com.example.pl_timetable_project.academic;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
+import com.example.pl_timetable_project.auth.security.AuthenticatedUser;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
@@ -121,15 +132,211 @@ class AcademicApiIntegrationTest {
     void supportsRatingAndPopularitySorts() throws Exception {
         mockMvc.perform(get("/api/v1/courses")
                         .param("semesterId", "2026-1")
+                        .param("sort", "NAME_DESC"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.items[1].courseCode").value("CSE200"))
+                .andExpect(jsonPath("$.items[2].courseCode").value("GEN100"));
+
+        mockMvc.perform(get("/api/v1/courses")
+                        .param("semesterId", "2026-1")
+                        .param("sort", "REVIEW_COUNT_DESC"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.items[1].courseCode").value("CSE200"))
+                .andExpect(jsonPath("$.items[2].courseCode").value("GEN100"));
+
+        mockMvc.perform(get("/api/v1/courses")
+                        .param("semesterId", "2026-1")
                         .param("sort", "RATING_DESC"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[0].courseCode").value("CSE200"));
+                .andExpect(jsonPath("$.items[0].courseCode").value("CSE200"))
+                .andExpect(jsonPath("$.items[0].reviewCount").value(1))
+                .andExpect(jsonPath("$.items[0].ratingAverage").value(5.0));
 
         mockMvc.perform(get("/api/v1/courses")
                         .param("semesterId", "2026-1")
                         .param("sort", "POPULARITY_DESC"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[0].courseCode").value("CSE100"));
+                .andExpect(jsonPath("$.items[0].courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.items[0].reviewCount").value(2))
+                .andExpect(jsonPath("$.items[0].ratingAverage").value(4.5));
+    }
+
+    @Test
+    void exposesPublicReviewListsWithoutAuthorIdentity() throws Exception {
+        mockMvc.perform(get("/api/v1/courses/reviews")
+                        .param("semesterId", "2026-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.items.length()").value(3))
+                .andExpect(jsonPath("$.items[0].userId").doesNotExist());
+
+        mockMvc.perform(get(
+                        "/api/v1/courses/reviews/{courseCode}",
+                        "CSE100")
+                        .param("semesterId", "2026-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.items[0].courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.items[1].courseCode").value("CSE100"));
+
+        mockMvc.perform(get(
+                        "/api/v1/courses/reviews/{courseCode}/professors/{professor}",
+                        "CSE100",
+                        "홍길동")
+                        .param("semesterId", "2026-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2));
+    }
+
+    @Test
+    void createsListsUpdatesAndDeletesOwnedReviews() throws Exception {
+        String userId = "00000000-0000-0000-0000-000000000003";
+        mockMvc.perform(post("/api/v1/reviews")
+                        .with(signedInAs(userId))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "semesterId": "2026-1",
+                                  "courseCode": "GEN100",
+                                  "rating": 4,
+                                  "content": "글쓰기 연습에 도움이 됩니다."
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.courseCode").value("GEN100"))
+                .andExpect(jsonPath("$.courseName").value("글쓰기"))
+                .andExpect(jsonPath("$.professor").isEmpty())
+                .andExpect(jsonPath("$.rating").value(4));
+
+        UUID reviewId = jdbcTemplate.queryForObject("""
+                SELECT id
+                  FROM course_reviews
+                 WHERE user_id = ?::uuid
+                   AND course_code = 'GEN100'
+                """, UUID.class, userId);
+
+        mockMvc.perform(get("/api/v1/reviews/me")
+                        .with(signedInAs(userId))
+                        .param("semesterId", "2026-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2));
+
+        mockMvc.perform(patch("/api/v1/reviews/{reviewId}", reviewId)
+                        .with(signedInAs(userId))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "rating": 5,
+                                  "content": "수정한 리뷰입니다."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rating").value(5))
+                .andExpect(jsonPath("$.content").value("수정한 리뷰입니다."));
+
+        mockMvc.perform(get("/api/v1/courses/2026-1/GEN100"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reviewCount").value(1))
+                .andExpect(jsonPath("$.ratingAverage").value(5.0));
+
+        mockMvc.perform(delete("/api/v1/reviews/{reviewId}", reviewId)
+                        .with(signedInAs(userId))
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/reviews/me")
+                        .with(signedInAs(userId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    void enforcesReviewAuthenticationValidationDuplicatesAndOwnership()
+            throws Exception {
+        String userOne = "00000000-0000-0000-0000-000000000001";
+        String userTwo = "00000000-0000-0000-0000-000000000002";
+        String duplicateReview = """
+                {
+                  "semesterId": "2026-1",
+                  "courseCode": "CSE100",
+                  "professor": "홍길동",
+                  "rating": 3,
+                  "content": "중복 리뷰"
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/reviews")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(duplicateReview))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/v1/reviews/me"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/v1/reviews")
+                        .with(signedInAs(userOne))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(duplicateReview))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_ACADEMIC_QUERY"));
+
+        mockMvc.perform(post("/api/v1/reviews")
+                        .with(signedInAs(userTwo))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "semesterId": "2026-1",
+                                  "courseCode": "CSE100",
+                                  "professor": "없는교수",
+                                  "rating": 3,
+                                  "content": "교수 검증"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_ACADEMIC_QUERY"));
+
+        mockMvc.perform(post("/api/v1/reviews")
+                        .with(signedInAs(userTwo))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "semesterId": "2026-1",
+                                  "courseCode": "GEN100",
+                                  "rating": 0,
+                                  "content": "별점 검증"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        UUID userOneReviewId = jdbcTemplate.queryForObject("""
+                SELECT id
+                  FROM course_reviews
+                 WHERE user_id = ?::uuid
+                   AND course_code = 'CSE100'
+                """, UUID.class, userOne);
+        mockMvc.perform(patch(
+                        "/api/v1/reviews/{reviewId}", userOneReviewId)
+                        .with(signedInAs(userTwo))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "rating": 1,
+                                  "content": "다른 사용자 리뷰 수정 시도"
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code")
+                        .value("ACADEMIC_RESOURCE_NOT_FOUND"));
     }
 
     @Test
@@ -275,5 +482,13 @@ class AcademicApiIntegrationTest {
                         'CSE200', '알고리즘', '김교수', '2026-1', 5, '추천해요'
                     );
                 """);
+    }
+
+    private RequestPostProcessor signedInAs(String userId) {
+        AuthenticatedUser principal = new AuthenticatedUser(
+                UUID.fromString(userId), "20260001");
+        return authentication(
+                new UsernamePasswordAuthenticationToken(
+                        principal, null, List.of()));
     }
 }

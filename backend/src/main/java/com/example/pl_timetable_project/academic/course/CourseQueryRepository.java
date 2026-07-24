@@ -238,6 +238,9 @@ public class CourseQueryRepository {
     private String orderBy(CourseSort sort) {
         return switch (sort) {
             case NAME_ASC -> "c.name ASC, c.course_code ASC";
+            case NAME_DESC -> "c.name DESC, c.course_code DESC";
+            case REVIEW_COUNT_DESC ->
+                    "coalesce(rs.review_count, 0) DESC, c.name ASC, c.course_code ASC";
             case RATING_DESC ->
                     "bayesian_rating DESC NULLS LAST, rs.review_count DESC NULLS LAST, "
                             + "c.name ASC, c.course_code ASC";

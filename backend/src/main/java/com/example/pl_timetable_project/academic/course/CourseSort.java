@@ -5,6 +5,8 @@ import java.util.Locale;
 
 public enum CourseSort {
     NAME_ASC,
+    NAME_DESC,
+    REVIEW_COUNT_DESC,
     RATING_DESC,
     POPULARITY_DESC;
 
@@ -16,7 +18,8 @@ public enum CourseSort {
             return valueOf(value.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
             throw new InvalidAcademicQueryException(
-                    "sort는 NAME_ASC, RATING_DESC, POPULARITY_DESC 중 하나여야 합니다.");
+                    "sort는 NAME_ASC, NAME_DESC, REVIEW_COUNT_DESC, "
+                            + "RATING_DESC, POPULARITY_DESC 중 하나여야 합니다.");
         }
     }
 }
