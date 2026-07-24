@@ -42,6 +42,17 @@ public class TopCombinationSelector {
         return selected;
     }
 
+    /** CP-SAT 반복 탐색에서 두 강의 조합의 중복 비율을 계산합니다. */
+    public double overlapRatio(List<CandidateCourse> left, List<CandidateCourse> right) {
+        Set<SectionReference> leftSections = sections(left);
+        Set<SectionReference> rightSections = sections(right);
+        Set<SectionReference> intersection = new HashSet<>(leftSections);
+        intersection.retainAll(rightSections);
+        Set<SectionReference> union = new HashSet<>(leftSections);
+        union.addAll(rightSections);
+        return union.isEmpty() ? 0.0 : (double) intersection.size() / union.size();
+    }
+
     private double overlapRatio(ScoredCombination left, ScoredCombination right) {
         Set<SectionReference> leftSections = sections(left);
         Set<SectionReference> rightSections = sections(right);
@@ -53,7 +64,11 @@ public class TopCombinationSelector {
     }
 
     private Set<SectionReference> sections(ScoredCombination combination) {
-        return combination.combination().courses().stream()
+        return sections(combination.combination().courses());
+    }
+
+    private Set<SectionReference> sections(List<CandidateCourse> courses) {
+        return courses.stream()
                 .map(CandidateCourse::section)
                 .collect(Collectors.toSet());
     }

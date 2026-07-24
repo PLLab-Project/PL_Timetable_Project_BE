@@ -11,7 +11,8 @@ import org.junit.jupiter.api.Test;
 
 class OptimizationAlgorithmTest {
 
-    private final ScheduleSearchService searchService = new ScheduleSearchService();
+    private final ScheduleSearchService searchService =
+            new ScheduleSearchService(new TopCombinationSelector());
 
     @Test
     void neverSelectsTwoAlternativeSectionsOfTheSameCourse() {
