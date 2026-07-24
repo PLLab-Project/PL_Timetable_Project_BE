@@ -48,6 +48,7 @@ docker compose down -v
 
 ## 문서
 
+- [외부 Swagger UI](https://timetable-api.kdhoon.me/swagger-ui.html)
 - [백엔드 구조 원칙](docs/backend/ARCHITECTURE.md)
 - [전체 백엔드 API 명세](docs/backend/API_REFERENCE.md)
 - [프론트엔드 API 연동 안내](docs/backend/FRONTEND_API_HANDOFF.md)

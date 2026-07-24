@@ -3,6 +3,19 @@
 백엔드는 `springdoc-openapi`로 실행 중인 Controller와 DTO에서 OpenAPI 3 명세를
 생성합니다.
 
+## 팀 테스트 서버
+
+| 용도 | URL |
+|---|---|
+| Swagger UI | `https://timetable-api.kdhoon.me/swagger-ui.html` |
+| OpenAPI JSON | `https://timetable-api.kdhoon.me/v3/api-docs` |
+| OpenAPI YAML | `https://timetable-api.kdhoon.me/v3/api-docs.yaml` |
+| 서버 상태 | `https://timetable-api.kdhoon.me/api/v1/health/live` |
+
+이 서버는 Cloudflare Tunnel을 통해 HTTPS로 제공됩니다. 데이터베이스 포트는 외부에
+공개하지 않습니다. 현재 인증 구현은 소셜 로그인이 아니라 OTP 세션 방식이며 테스트
+서버의 OTP 전달 방식은 운영 메일 발송 설정이 확정되기 전까지 개발 설정을 사용합니다.
+
 ## 로컬 주소
 
 서버 기본 포트가 `8080`일 때:

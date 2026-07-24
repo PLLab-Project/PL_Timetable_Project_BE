@@ -6,6 +6,12 @@
 
 ## 실행 중인 명세
 
+팀 테스트 서버:
+
+- Swagger UI: `https://timetable-api.kdhoon.me/swagger-ui.html`
+- OpenAPI JSON: `https://timetable-api.kdhoon.me/v3/api-docs`
+- OpenAPI YAML: `https://timetable-api.kdhoon.me/v3/api-docs.yaml`
+
 로컬 서버를 `8080` 포트에서 실행했을 때:
 
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
