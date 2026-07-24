@@ -1,5 +1,6 @@
 package com.example.pl_timetable_project.auth.security;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -9,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import jakarta.servlet.http.Cookie;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +24,10 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
-@SpringBootTest(properties = "app.security.csrf-cookie-secure=true")
+@SpringBootTest(properties = {
+        "app.security.csrf-cookie-secure=true",
+        "app.security.csrf-cookie-same-site=None"
+})
 @Testcontainers
 class SpaCsrfIntegrationTest {
 
@@ -44,19 +49,23 @@ class SpaCsrfIntegrationTest {
     }
 
     @Test
-    void acceptsPlainCookieTokenFromSpaHeader() throws Exception {
-        MvcResult tokenResponse = mockMvc.perform(get("/api/v1/health/live"))
+    void acceptsTokenEndpointValueFromSpaHeader() throws Exception {
+        MvcResult tokenResponse = mockMvc.perform(get("/api/v1/auth/csrf"))
                 .andExpect(status().isOk())
                 .andExpect(cookie().exists("XSRF-TOKEN"))
                 .andReturn();
 
         Cookie csrfCookie = tokenResponse.getResponse().getCookie("XSRF-TOKEN");
+        String responseToken = JsonPath.read(
+                tokenResponse.getResponse().getContentAsString(),
+                "$.data.token");
         assertTrue(csrfCookie.getSecure());
+        assertEquals("None", csrfCookie.getAttribute("SameSite"));
 
         mockMvc.perform(post("/api/v1/auth/logout")
                         .with(user("smoke-user"))
                         .cookie(csrfCookie)
-                        .header("X-XSRF-TOKEN", csrfCookie.getValue()))
+                        .header("X-XSRF-TOKEN", responseToken))
                 .andExpect(status().isOk());
     }
 

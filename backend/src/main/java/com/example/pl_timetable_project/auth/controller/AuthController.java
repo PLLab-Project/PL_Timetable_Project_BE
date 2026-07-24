@@ -1,6 +1,7 @@
 package com.example.pl_timetable_project.auth.controller;
 
 import com.example.pl_timetable_project.auth.dto.AuthSessionResponse;
+import com.example.pl_timetable_project.auth.dto.CsrfTokenResponse;
 import com.example.pl_timetable_project.auth.dto.LogoutResponse;
 import com.example.pl_timetable_project.auth.dto.OtpStartRequest;
 import com.example.pl_timetable_project.auth.dto.OtpStartResponse;
@@ -21,6 +22,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -37,6 +39,17 @@ public class AuthController {
 
     public AuthController(OtpAuthenticationService authenticationService) {
         this.authenticationService = authenticationService;
+    }
+
+    @Operation(
+            summary = "CSRF 토큰 발급",
+            description = "브라우저가 상태 변경 API의 X-XSRF-TOKEN 헤더에 넣을 토큰을 반환합니다.")
+    @GetMapping("/csrf")
+    public ApiResponse<CsrfTokenResponse> csrf(CsrfToken csrfToken) {
+        return ApiResponse.success(new CsrfTokenResponse(
+                csrfToken.getHeaderName(),
+                csrfToken.getParameterName(),
+                csrfToken.getToken()));
     }
 
     @Operation(summary = "학교 이메일 OTP 요청")

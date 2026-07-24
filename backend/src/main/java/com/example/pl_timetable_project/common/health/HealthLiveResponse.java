@@ -1,4 +1,4 @@
 package com.example.pl_timetable_project.common.health;
 
-public record HealthLiveResponse(String status, String version) {
+public record HealthLiveResponse(String status, String version, String commit) {
 }

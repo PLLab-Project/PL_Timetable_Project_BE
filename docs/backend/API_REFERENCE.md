@@ -41,8 +41,9 @@
 
 - 세션 쿠키: `JSESSIONID`
 - 브라우저 요청: `credentials: "include"` 사용
-- 인증된 상태 변경 요청: `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더에 포함
-- OTP 요청·검증, 공개 학사 조회, Scalar·Swagger·OpenAPI 명세는 인증 없이 접근 가능
+- CSRF 토큰: `GET /api/v1/auth/csrf`의 `data.token`
+- 인증된 상태 변경 요청: 토큰을 `X-XSRF-TOKEN` 헤더에 포함
+- CSRF·OTP 요청·검증, 공개 학사 조회, Scalar·Swagger·OpenAPI 명세는 인증 없이 접근 가능
 - 다른 사용자의 소유 데이터에는 접근할 수 없음
 
 ## 공통 응답 계약
@@ -63,7 +64,13 @@
 - 생성 성공은 HTTP `201`, 나머지 성공은 HTTP `200`입니다.
 - 오류는 HTTP 상태와 도메인 오류 `code`를 함께 확인하며 `data=null`입니다.
 
-OpenAPI에는 성공 envelope와 공통 400·401·403·500 오류 스키마가 표시됩니다.
+OpenAPI에는 성공 envelope, 실제 요청 예제, 파라미터 설명과 공통 400·401·403·500
+오류가 표시됩니다. 각 API에서 발생 가능한 404·409·422·429·503 업무 오류도 해당
+작업에 함께 표시됩니다.
+
+OpenAPI는 Controller·DTO와 문서 카탈로그에서 서버 실행 시 자동 생성됩니다. 코드가
+Git `main`에 병합되기만 해서는 외부 문서가 바뀌지 않으며, 최신 JAR 또는 Docker 이미지를
+테스트 서버에 배포하고 재시작해야 `/v3/api-docs`도 최신화됩니다.
 
 ## 아직 구현되지 않은 주요 기능
 

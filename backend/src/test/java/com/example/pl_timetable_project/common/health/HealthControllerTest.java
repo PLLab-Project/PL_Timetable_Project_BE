@@ -7,7 +7,8 @@ import org.junit.jupiter.api.Test;
 
 class HealthControllerTest {
 
-    private final HealthController controller = new HealthController();
+    private final HealthController controller =
+            new HealthController("1.4.0", "e72a719");
 
     @Test
     void returnsLiveStatus() {
@@ -15,6 +16,7 @@ class HealthControllerTest {
 
         assertThat(response.code()).isEqualTo("SUCCESS");
         assertThat(response.data().status()).isEqualTo("UP");
-        assertThat(response.data().version()).isEqualTo("0.0.1-SNAPSHOT");
+        assertThat(response.data().version()).isEqualTo("1.4.0");
+        assertThat(response.data().commit()).isEqualTo("e72a719");
     }
 }

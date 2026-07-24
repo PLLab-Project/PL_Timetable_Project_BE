@@ -41,6 +41,7 @@ out/
 .env
 *.local
 postgres-data/
+/backups/
 
 ### Locally provisioned academic data ###
 /data/database/*.sql.gz

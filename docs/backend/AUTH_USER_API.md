@@ -19,10 +19,31 @@
 
 | Method | Path | 인증 | CSRF | 설명 |
 |---|---|---:|---:|---|
+| GET | `/api/v1/auth/csrf` | 불필요 | 불필요 | SPA 상태 변경 요청용 CSRF 토큰 발급 |
 | POST | `/api/v1/auth/otp/request` | 불필요 | 제외 | 학교 이메일로 OTP 요청 |
 | POST | `/api/v1/auth/otp/verify` | 불필요 | 제외 | OTP 검증 후 세션 생성 |
 | GET | `/api/v1/auth/session` | 필요 | 불필요 | 현재 로그인 세션 조회 |
 | POST | `/api/v1/auth/logout` | 필요 | 필요 | 세션 무효화 및 로그아웃 |
+
+### CSRF 토큰
+
+프론트와 API Origin이 달라도 쿠키를 직접 읽지 않도록 토큰을 응답 본문으로 제공합니다.
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "요청을 성공적으로 처리했습니다.",
+  "data": {
+    "headerName": "X-XSRF-TOKEN",
+    "parameterName": "_csrf",
+    "token": "현재 브라우저 세션에 연결된 토큰"
+  }
+}
+```
+
+브라우저는 요청에 `credentials: "include"`를 사용하고 `data.token`을 메모리에
+보관합니다. 로그인으로 세션 ID가 바뀐 뒤 다시 조회하며 POST·PATCH·DELETE 요청의
+`X-XSRF-TOKEN` 헤더에 사용합니다.
 
 ### OTP 요청
 
@@ -159,18 +180,22 @@ OTP challenge가 삭제되고 현재 세션도 무효화됩니다.
 ## 브라우저 호출 규칙
 
 ```javascript
-const xsrf = document.cookie
-  .split("; ")
-  .find((value) => value.startsWith("XSRF-TOKEN="))
-  ?.split("=")[1];
+const csrfResponse = await fetch(
+  `${API_BASE_URL}/api/v1/auth/csrf`,
+  { credentials: "include" }
+);
+const csrf = (await csrfResponse.json()).data.token;
 
-await fetch("http://localhost:8080/api/v1/users/me", {
+await fetch(`${API_BASE_URL}/api/v1/users/me`, {
   method: "PATCH",
   credentials: "include",
   headers: {
     "Content-Type": "application/json",
-    "X-XSRF-TOKEN": decodeURIComponent(xsrf ?? "")
+    "X-XSRF-TOKEN": csrf
   },
   body: JSON.stringify({ name: "홍길동", grade: 3, departmentId: "CSE" })
 });
 ```
+
+재사용 가능한 TypeScript 래퍼는
+[프론트엔드 API 연동 안내](FRONTEND_API_HANDOFF.md)를 확인합니다.
