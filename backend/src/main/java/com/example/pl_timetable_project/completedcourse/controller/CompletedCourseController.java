@@ -8,6 +8,8 @@ import com.example.pl_timetable_project.completedcourse.dto.CompletedCourseRespo
 import com.example.pl_timetable_project.completedcourse.dto.CompletedCourseUpdateRequest;
 import com.example.pl_timetable_project.completedcourse.dto.TimetableImportResponse;
 import com.example.pl_timetable_project.completedcourse.service.CompletedCourseService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/completed-courses")
+@Tag(name = "이수과목", description = "내 이수·수강 중 과목과 학점 관리")
 public class CompletedCourseController {
 
     private final CompletedCourseService completedCourseService;
@@ -34,6 +37,7 @@ public class CompletedCourseController {
         this.completedCourseService = completedCourseService;
     }
 
+    @Operation(summary = "이수과목 직접 등록")
     @PostMapping
     public ResponseEntity<CompletedCourseResponse> create(
             @AuthenticationPrincipal AuthenticatedUser principal,
@@ -42,6 +46,7 @@ public class CompletedCourseController {
                 .body(completedCourseService.create(principal.userId(), request));
     }
 
+    @Operation(summary = "내 이수과목 목록 조회")
     @GetMapping
     public ResponseEntity<List<CompletedCourseResponse>> getAll(
             @AuthenticationPrincipal AuthenticatedUser principal,
@@ -51,12 +56,14 @@ public class CompletedCourseController {
                 completedCourseService.getAll(principal.userId(), status, semester));
     }
 
+    @Operation(summary = "내 이수학점 요약")
     @GetMapping("/summary")
     public ResponseEntity<CompletedCourseCreditSummaryResponse> summarize(
             @AuthenticationPrincipal AuthenticatedUser principal) {
         return ResponseEntity.ok(completedCourseService.summarize(principal.userId()));
     }
 
+    @Operation(summary = "이수과목 단건 조회")
     @GetMapping("/{completedCourseId}")
     public ResponseEntity<CompletedCourseResponse> get(
             @AuthenticationPrincipal AuthenticatedUser principal,
@@ -65,6 +72,7 @@ public class CompletedCourseController {
                 completedCourseService.get(principal.userId(), completedCourseId));
     }
 
+    @Operation(summary = "이수과목 수정")
     @PatchMapping("/{completedCourseId}")
     public ResponseEntity<CompletedCourseResponse> update(
             @AuthenticationPrincipal AuthenticatedUser principal,
@@ -74,6 +82,7 @@ public class CompletedCourseController {
                 completedCourseService.update(principal.userId(), completedCourseId, request));
     }
 
+    @Operation(summary = "이수과목 삭제")
     @DeleteMapping("/{completedCourseId}")
     public ResponseEntity<Void> delete(
             @AuthenticationPrincipal AuthenticatedUser principal,
@@ -82,6 +91,7 @@ public class CompletedCourseController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "시간표 과목을 이수과목으로 가져오기")
     @PostMapping("/imports/timetables/{timetableId}")
     public ResponseEntity<TimetableImportResponse> importTimetable(
             @AuthenticationPrincipal AuthenticatedUser principal,
@@ -90,6 +100,7 @@ public class CompletedCourseController {
                 .body(completedCourseService.importTimetable(principal.userId(), timetableId));
     }
 
+    @Operation(summary = "수강 중 과목을 이수 완료로 전환")
     @PostMapping("/{completedCourseId}/complete")
     public ResponseEntity<CompletedCourseResponse> complete(
             @AuthenticationPrincipal AuthenticatedUser principal,

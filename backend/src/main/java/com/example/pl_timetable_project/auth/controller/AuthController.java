@@ -9,6 +9,8 @@ import com.example.pl_timetable_project.auth.dto.OtpVerifyResponse;
 import com.example.pl_timetable_project.auth.security.AuthenticatedUser;
 import com.example.pl_timetable_project.auth.service.OtpAuthenticationService;
 import com.example.pl_timetable_project.common.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
@@ -28,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** 노션 인증 API 명세의 OTP·세션·로그아웃 엔드포인트입니다. */
 @RestController
 @RequestMapping("/api/v1/auth")
+@Tag(name = "인증", description = "학교 이메일 OTP와 세션 인증")
 public class AuthController {
 
     private final OtpAuthenticationService authenticationService;
@@ -36,11 +39,13 @@ public class AuthController {
         this.authenticationService = authenticationService;
     }
 
+    @Operation(summary = "학교 이메일 OTP 요청")
     @PostMapping("/otp/request")
     public ApiResponse<OtpStartResponse> requestOtp(@Valid @RequestBody OtpStartRequest request) {
         return ApiResponse.success(authenticationService.start(request.studentNumber()));
     }
 
+    @Operation(summary = "OTP 검증 및 로그인")
     @PostMapping("/otp/verify")
     public ApiResponse<OtpVerifyResponse> verifyOtp(@Valid @RequestBody OtpVerifyRequest request,
                                                      HttpServletRequest servletRequest) {
@@ -62,6 +67,7 @@ public class AuthController {
         return ApiResponse.success(new OtpVerifyResponse(true, result.user(), result.newUser(), expiresAt));
     }
 
+    @Operation(summary = "현재 로그인 세션 조회")
     @GetMapping("/session")
     public ApiResponse<AuthSessionResponse> session(Authentication authentication, HttpSession session) {
         AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
@@ -72,6 +78,7 @@ public class AuthController {
         ));
     }
 
+    @Operation(summary = "로그아웃")
     @PostMapping("/logout")
     public ApiResponse<LogoutResponse> logout(HttpServletRequest request) {
         HttpSession session = request.getSession(false);

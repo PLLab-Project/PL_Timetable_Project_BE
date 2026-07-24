@@ -36,7 +36,14 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
         return http
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/v1/auth/otp/**", "/api/v1/health/**", "/error").permitAll()
+                        .requestMatchers(
+                                "/api/v1/auth/otp/**",
+                                "/api/v1/health/**",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs.yaml",
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/error").permitAll()
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/v1/departments/**",

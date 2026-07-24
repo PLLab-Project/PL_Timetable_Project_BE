@@ -3,6 +3,8 @@ package com.example.pl_timetable_project.academic.graduation;
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.Evaluation;
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.Rule;
 import com.example.pl_timetable_project.auth.security.AuthenticatedUser;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/graduation")
+@Tag(name = "졸업요건", description = "입학연도·학과별 규칙과 개인 이수 판정")
 public class GraduationController {
 
     private final GraduationService graduationService;
@@ -20,6 +23,7 @@ public class GraduationController {
         this.graduationService = graduationService;
     }
 
+    @Operation(summary = "졸업요건 규칙 조회")
     @GetMapping("/rules")
     public ResponseEntity<Rule> getRule(
             @RequestParam int admissionYear,
@@ -30,6 +34,7 @@ public class GraduationController {
                 admissionYear, academicUnit, studentType, programPath));
     }
 
+    @Operation(summary = "내 졸업요건 판정")
     @GetMapping({"/evaluation", "/me/evaluation"})
     public ResponseEntity<Evaluation> evaluate(
             @AuthenticationPrincipal AuthenticatedUser principal,

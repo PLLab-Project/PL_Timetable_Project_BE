@@ -6,6 +6,8 @@ import com.example.pl_timetable_project.academic.review.dto.ReviewCreateRequest;
 import com.example.pl_timetable_project.academic.review.dto.ReviewResponse;
 import com.example.pl_timetable_project.academic.review.dto.ReviewUpdateRequest;
 import com.example.pl_timetable_project.auth.security.AuthenticatedUser;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/reviews")
+@Tag(name = "리뷰", description = "내 리뷰 작성·수정·삭제")
 public class ReviewController {
 
     private final ReviewService reviewService;
@@ -31,6 +34,7 @@ public class ReviewController {
         this.reviewService = reviewService;
     }
 
+    @Operation(summary = "리뷰 작성")
     @PostMapping
     public ResponseEntity<ReviewResponse> createReview(
             @AuthenticationPrincipal AuthenticatedUser principal,
@@ -39,6 +43,7 @@ public class ReviewController {
                 .body(reviewService.create(principal.userId(), request));
     }
 
+    @Operation(summary = "내 리뷰 목록 조회")
     @GetMapping("/me")
     public ResponseEntity<AcademicPageResponse<ReviewResponse>> listMyReviews(
             @AuthenticationPrincipal AuthenticatedUser principal,
@@ -49,6 +54,7 @@ public class ReviewController {
                 principal.userId(), semesterId, page, size));
     }
 
+    @Operation(summary = "내 리뷰 수정")
     @PatchMapping("/{reviewId}")
     public ResponseEntity<ReviewResponse> updateReview(
             @AuthenticationPrincipal AuthenticatedUser principal,
@@ -58,6 +64,7 @@ public class ReviewController {
                 principal.userId(), reviewId, request));
     }
 
+    @Operation(summary = "내 리뷰 삭제")
     @DeleteMapping("/{reviewId}")
     public ResponseEntity<Void> deleteReview(
             @AuthenticationPrincipal AuthenticatedUser principal,

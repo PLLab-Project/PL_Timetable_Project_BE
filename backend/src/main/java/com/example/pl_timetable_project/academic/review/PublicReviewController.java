@@ -3,6 +3,8 @@ package com.example.pl_timetable_project.academic.review;
 import com.example.pl_timetable_project.academic.common.AcademicPageResponse;
 import com.example.pl_timetable_project.academic.common.PageSpec;
 import com.example.pl_timetable_project.academic.review.dto.ReviewResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/courses/reviews")
+@Tag(name = "리뷰", description = "공개 강의·교수 리뷰 조회")
 public class PublicReviewController {
 
     private final ReviewService reviewService;
@@ -20,6 +23,7 @@ public class PublicReviewController {
         this.reviewService = reviewService;
     }
 
+    @Operation(summary = "전체 공개 리뷰 조회")
     @GetMapping
     public ResponseEntity<AcademicPageResponse<ReviewResponse>> listReviews(
             @RequestParam(required = false) String semesterId,
@@ -29,6 +33,7 @@ public class PublicReviewController {
                 semesterId, null, null, page, size));
     }
 
+    @Operation(summary = "과목별 공개 리뷰 조회")
     @GetMapping("/{courseCode}")
     public ResponseEntity<AcademicPageResponse<ReviewResponse>> listCourseReviews(
             @PathVariable String courseCode,
@@ -39,6 +44,7 @@ public class PublicReviewController {
                 semesterId, courseCode, null, page, size));
     }
 
+    @Operation(summary = "과목·교수별 공개 리뷰 조회")
     @GetMapping("/{courseCode}/professors/{professor}")
     public ResponseEntity<AcademicPageResponse<ReviewResponse>> listProfessorReviews(
             @PathVariable String courseCode,
