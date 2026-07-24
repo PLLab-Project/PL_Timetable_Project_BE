@@ -14,6 +14,7 @@ erDiagram
     USERS ||--o{ COMPLETED_COURSES : completes
     USERS ||--o{ TIMETABLES : owns
     USERS ||--o{ OPTIMIZATION_JOBS : requests
+    ACADEMIC_UNITS ||--o{ STUDENT_PROFILES : identifies
 
     SEMESTERS ||--o{ COURSES : contains
     COURSES ||--o{ SECTIONS : offers
@@ -53,9 +54,10 @@ erDiagram
 
 ## 영역별 역할
 
-- **인증 최소 계약**: `users`와 `social_identities`로 서비스 사용자와 외부 공급자 식별자를
-  분리합니다. `student_profiles`에는 학번·학과·입학연도 같은 학사 프로필을 둡니다.
-  OAuth 토큰·로그인 세션·Spring Security 구현은 포함하지 않습니다.
+- **인증·사용자 계약**: `users`와 `social_identities`로 서비스 사용자와 외부 공급자
+  식별자를 분리합니다. `student_profiles`에는 학번·입학연도 같은 학사 프로필과
+  `academic_units`를 참조하는 학과 코드를 둡니다. 학교 이메일 OTP와 Spring Security
+  세션은 구현되어 있고 소셜 로그인 공급자 연동은 후속 범위입니다.
 - **현재 강의 카탈로그**: 2026-1 학기의 강의·분반·수업시간·강의실을 정규화합니다.
   여기서 `sessions`는 로그인 세션이 아니라 요일·시작시간·종료시간을 가진 **수업시간**입니다.
 - **학과·전공 기준정보**: 단과대와 학과·전공의 안정적인 코드를 기준으로 최신 명칭과
@@ -66,8 +68,8 @@ erDiagram
   보존합니다.
 - **졸업요건**: 2016~2026 교육과정 필수과목과 2020~2026 졸업 학점, 교양,
   2026 졸업인증 자료를 데이터셋과 출처에 연결합니다.
-- **사용자 학사 데이터**: 현재는 리뷰와 이수과목 테이블만 포함합니다. 시간표·즐겨찾기·
-  공유 기능은 별도 후속 범위입니다.
+- **사용자 학사 데이터**: 리뷰, 이수과목, 시간표, 자동 편성 작업을 포함합니다.
+  즐겨찾기·복사·공유 기능은 별도 후속 범위입니다.
 - **시간표·자동 편성**: 시간표는 사용자 UUID와 학기를 참조하고 선택 분반은 현재 학사
   카탈로그의 복합키를 FK로 사용합니다. 자동 편성 후보의 과목명·학점·수업시간은 요청값을
   신뢰하지 않고 DB에서 읽으며, 작업 조건과 상위 결과를 별도 테이블에 저장합니다.

@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.endsWith;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,7 +62,19 @@ class OpenApiDocumentationIntegrationTest {
                 .andExpect(jsonPath("$.paths['/api/v1/completed-courses'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/graduation/rules'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/timetables'].post").exists())
-                .andExpect(jsonPath("$.paths['/api/v1/optimizations'].post").exists());
+                .andExpect(jsonPath("$.paths['/api/v1/optimizations'].post").exists())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/courses'].get.responses['200'].content['application/json'].schema['$ref']")
+                        .value(endsWith("ApiResponseAcademicPageResponseCourseSummaryResponse")))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/timetables'].post.responses['201'].content['application/json'].schema['$ref']")
+                        .value(endsWith("ApiResponseTimetableResponse")))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/timetables'].post.responses['401'].content['application/json'].schema['$ref']")
+                        .value(endsWith("ApiErrorResponse")))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/timetables/{timetableId}'].delete.responses['200'].content['application/json'].schema['$ref']")
+                        .value(endsWith("ApiResponseVoid")));
     }
 
     @Test

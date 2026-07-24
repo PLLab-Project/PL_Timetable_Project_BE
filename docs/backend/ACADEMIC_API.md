@@ -4,6 +4,9 @@
 `academic_units`, `semesters`, `courses`, `sections`, `sessions`,
 `section_academic_units`입니다.
 
+모든 성공 응답은 공통 `ApiResponse<T>` envelope를 사용하며 아래에서 설명하는 목록,
+페이지, 상세 객체는 `data`에 들어갑니다.
+
 ## 학과·전공
 
 | Method | Path | 설명 |

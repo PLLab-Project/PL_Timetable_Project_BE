@@ -2,7 +2,8 @@
 
 자동 편성은 학사 DB의 정식 분반을 후보로 받아 OR-Tools CP-SAT으로 조건을 만족하는
 시간표를 탐색합니다. 모든 API는 세션 인증이 필요하고 생성·취소 요청은 CSRF 헤더가
-필요합니다. 성공 응답은 공통 envelope 없이 DTO를 직접 반환합니다.
+필요합니다. 성공 응답은 공통 `ApiResponse<T>` envelope를 사용하며 작업 DTO는
+`data`에 들어갑니다.
 
 ## 엔드포인트
 
@@ -10,7 +11,7 @@
 |---|---|---:|---|
 | POST | `/api/v1/optimizations` | 201 | 비동기 자동 편성 작업 생성 |
 | GET | `/api/v1/optimizations/{jobId}` | 200 | 작업 상태와 결과 조회 |
-| DELETE | `/api/v1/optimizations/{jobId}` | 204 | 완료 전 작업 취소 |
+| DELETE | `/api/v1/optimizations/{jobId}` | 200 | 완료 전 작업 취소 (`data=null`) |
 
 완료된 작업을 취소하면 `409 Conflict`가 반환됩니다.
 
@@ -74,35 +75,27 @@
 
 ```json
 {
-  "id": 40,
-  "userId": "3c8fb145-a10f-4df8-818a-a213ef8b3fc5",
-  "timetableId": 12,
-  "semesterId": "2026-1",
-  "status": "SUCCESS",
-  "failureReason": null,
-  "results": [
-    {
-      "rank": 1,
-      "sections": [
-        {
-          "semesterId": "2026-1",
-          "courseCode": "CSE101",
-          "sectionCode": "01",
-          "courseName": "컴퓨터개론",
-          "professorName": "홍교수",
-          "credits": 3.0,
-          "dayOfWeek": "MONDAY",
-          "startTime": "09:00:00",
-          "endTime": "10:15:00"
-        }
-      ],
-      "attendanceDays": 4,
-      "totalCredits": 15.0,
-      "totalFreeMinutes": 120,
-      "score": 155.5
-    }
-  ],
-  "createdAt": "2026-07-24T04:00:00Z"
+  "code": "SUCCESS",
+  "message": "요청을 성공적으로 처리했습니다.",
+  "data": {
+    "id": 40,
+    "userId": "3c8fb145-a10f-4df8-818a-a213ef8b3fc5",
+    "timetableId": 12,
+    "semesterId": "2026-1",
+    "status": "SUCCESS",
+    "failureReason": null,
+    "results": [
+      {
+        "rank": 1,
+        "sections": [],
+        "attendanceDays": 4,
+        "totalCredits": 15.0,
+        "totalFreeMinutes": 120,
+        "score": 155.5
+      }
+    ],
+    "createdAt": "2026-07-24T04:00:00Z"
+  }
 }
 ```
 

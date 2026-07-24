@@ -3,6 +3,9 @@
 졸업요건 API는 정규화된 졸업요건 기준 테이블과 사용자의
 `completed_courses`를 결합해 규칙 조회와 개인 판정을 제공합니다.
 
+성공 응답은 공통 `ApiResponse<T>` envelope를 사용하며 규칙과 판정 결과는 `data`에
+들어갑니다.
+
 ## 졸업요건 규칙 조회
 
 `GET /api/v1/graduation/rules`

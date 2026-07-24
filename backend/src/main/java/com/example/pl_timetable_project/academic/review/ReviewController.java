@@ -6,12 +6,13 @@ import com.example.pl_timetable_project.academic.review.dto.ReviewCreateRequest;
 import com.example.pl_timetable_project.academic.review.dto.ReviewResponse;
 import com.example.pl_timetable_project.academic.review.dto.ReviewUpdateRequest;
 import com.example.pl_timetable_project.auth.security.AuthenticatedUser;
+import com.example.pl_timetable_project.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,40 +37,40 @@ public class ReviewController {
 
     @Operation(summary = "리뷰 작성")
     @PostMapping
-    public ResponseEntity<ReviewResponse> createReview(
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<ReviewResponse> createReview(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @Valid @RequestBody ReviewCreateRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(reviewService.create(principal.userId(), request));
+        return ApiResponse.success(reviewService.create(principal.userId(), request));
     }
 
     @Operation(summary = "내 리뷰 목록 조회")
     @GetMapping("/me")
-    public ResponseEntity<AcademicPageResponse<ReviewResponse>> listMyReviews(
+    public ApiResponse<AcademicPageResponse<ReviewResponse>> listMyReviews(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @RequestParam(required = false) String semesterId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "" + PageSpec.DEFAULT_SIZE) int size) {
-        return ResponseEntity.ok(reviewService.listMine(
+        return ApiResponse.success(reviewService.listMine(
                 principal.userId(), semesterId, page, size));
     }
 
     @Operation(summary = "내 리뷰 수정")
     @PatchMapping("/{reviewId}")
-    public ResponseEntity<ReviewResponse> updateReview(
+    public ApiResponse<ReviewResponse> updateReview(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @PathVariable UUID reviewId,
             @Valid @RequestBody ReviewUpdateRequest request) {
-        return ResponseEntity.ok(reviewService.update(
+        return ApiResponse.success(reviewService.update(
                 principal.userId(), reviewId, request));
     }
 
     @Operation(summary = "내 리뷰 삭제")
     @DeleteMapping("/{reviewId}")
-    public ResponseEntity<Void> deleteReview(
+    public ApiResponse<Void> deleteReview(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @PathVariable UUID reviewId) {
         reviewService.delete(principal.userId(), reviewId);
-        return ResponseEntity.noContent().build();
+        return ApiResponse.success();
     }
 }

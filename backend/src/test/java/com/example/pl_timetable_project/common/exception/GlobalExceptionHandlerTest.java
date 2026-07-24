@@ -18,6 +18,6 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.getStatusCode().value()).isEqualTo(403);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().code()).isEqualTo("FORBIDDEN");
+        assertThat(response.getBody().code()).isEqualTo("COMMON_FORBIDDEN");
     }
 }

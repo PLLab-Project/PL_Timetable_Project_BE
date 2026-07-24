@@ -8,7 +8,7 @@ public enum AuthErrorCode implements ErrorCode {
     INVALID_STUDENT_NUMBER(400, "INVALID_STUDENT_NUMBER", "학번 형식이 올바르지 않습니다."),
     INVALID_CODE_FORMAT(400, "INVALID_CODE_FORMAT", "인증번호는 숫자 6자리여야 합니다."),
     INVALID_OR_EXPIRED_CODE(401, "INVALID_OR_EXPIRED_CODE", "인증번호가 틀렸거나 만료되었습니다."),
-    SESSION_EXPIRED(401, "SESSION_EXPIRED", "로그인 세션이 만료되었습니다."),
+    SESSION_EXPIRED(401, "AUTH_SESSION_EXPIRED", "로그인이 필요합니다."),
     ACCOUNT_DISABLED(403, "ACCOUNT_DISABLED", "탈퇴하거나 정지된 계정입니다."),
     TOO_MANY_REQUESTS(429, "TOO_MANY_REQUESTS", "잠시 후 인증번호를 다시 요청해주세요."),
     TOO_MANY_ATTEMPTS(429, "TOO_MANY_ATTEMPTS", "인증번호 확인 횟수를 초과했습니다."),

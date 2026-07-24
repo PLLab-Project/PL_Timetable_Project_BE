@@ -11,6 +11,6 @@ class BusinessExceptionTest {
         BusinessException exception = new BusinessException(CommonErrorCode.FORBIDDEN);
 
         assertThat(exception.errorCode()).isEqualTo(CommonErrorCode.FORBIDDEN);
-        assertThat(exception.getMessage()).isEqualTo("요청한 작업을 수행할 권한이 없습니다.");
+        assertThat(exception.getMessage()).isEqualTo("접근 권한이 없습니다.");
     }
 }

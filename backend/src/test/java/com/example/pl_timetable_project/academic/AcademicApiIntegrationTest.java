@@ -72,29 +72,29 @@ class AcademicApiIntegrationTest {
                         .param("page", "0")
                         .param("size", "10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(1))
-                .andExpect(jsonPath("$.totalPages").value(1))
-                .andExpect(jsonPath("$.items[0].code").value("D1"))
-                .andExpect(jsonPath("$.items[0].collegeName").value("공과대학"));
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.totalPages").value(1))
+                .andExpect(jsonPath("$.data.items[0].code").value("D1"))
+                .andExpect(jsonPath("$.data.items[0].collegeName").value("공과대학"));
 
         mockMvc.perform(get("/api/v1/departments/D1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("컴퓨터공학과"))
-                .andExpect(jsonPath("$.aliases[0].alias").value("컴공"))
-                .andExpect(jsonPath("$.aliases[0].primary").value(true));
+                .andExpect(jsonPath("$.data.name").value("컴퓨터공학과"))
+                .andExpect(jsonPath("$.data.aliases[0].alias").value("컴공"))
+                .andExpect(jsonPath("$.data.aliases[0].primary").value(true));
     }
 
     @Test
     void returnsSemesterAndDatasetVersion() throws Exception {
         mockMvc.perform(get("/api/v1/semesters"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value("2026-1"))
-                .andExpect(jsonPath("$[0].datasetVersion").value("academic-api-test-v1"));
+                .andExpect(jsonPath("$.data[0].id").value("2026-1"))
+                .andExpect(jsonPath("$.data[0].datasetVersion").value("academic-api-test-v1"));
 
         mockMvc.perform(get("/api/v1/semesters/2026-1/version"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.semesterId").value("2026-1"))
-                .andExpect(jsonPath("$.sourceChecksum")
+                .andExpect(jsonPath("$.data.semesterId").value("2026-1"))
+                .andExpect(jsonPath("$.data.sourceChecksum")
                         .value("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
     }
 
@@ -107,16 +107,16 @@ class AcademicApiIntegrationTest {
                         .param("day", "MONDAY")
                         .param("size", "10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(1))
-                .andExpect(jsonPath("$.items[0].courseCode").value("CSE100"))
-                .andExpect(jsonPath("$.items[0].sectionCount").value(1))
-                .andExpect(jsonPath("$.items[0].ratingAverage").value(4.5))
-                .andExpect(jsonPath("$.items[0].reviewCount").value(2));
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.data.items[0].sectionCount").value(1))
+                .andExpect(jsonPath("$.data.items[0].ratingAverage").value(4.5))
+                .andExpect(jsonPath("$.data.items[0].reviewCount").value(2));
 
         mockMvc.perform(get("/api/v1/courses/2026-1/CSE100"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("자료구조"))
-                .andExpect(jsonPath("$.academicUnits[0].code").value("D1"));
+                .andExpect(jsonPath("$.data.name").value("자료구조"))
+                .andExpect(jsonPath("$.data.academicUnits[0].code").value("D1"));
 
         mockMvc.perform(get("/api/v1/courses")
                         .param("semesterId", "2026-1")
@@ -124,8 +124,8 @@ class AcademicApiIntegrationTest {
                         .param("professor", "홍")
                         .param("credits", "3.00"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(1))
-                .andExpect(jsonPath("$.items[0].courseCode").value("CSE100"));
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE100"));
     }
 
     @Test
@@ -134,33 +134,33 @@ class AcademicApiIntegrationTest {
                         .param("semesterId", "2026-1")
                         .param("sort", "NAME_DESC"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[0].courseCode").value("CSE100"))
-                .andExpect(jsonPath("$.items[1].courseCode").value("CSE200"))
-                .andExpect(jsonPath("$.items[2].courseCode").value("GEN100"));
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.data.items[1].courseCode").value("CSE200"))
+                .andExpect(jsonPath("$.data.items[2].courseCode").value("GEN100"));
 
         mockMvc.perform(get("/api/v1/courses")
                         .param("semesterId", "2026-1")
                         .param("sort", "REVIEW_COUNT_DESC"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[0].courseCode").value("CSE100"))
-                .andExpect(jsonPath("$.items[1].courseCode").value("CSE200"))
-                .andExpect(jsonPath("$.items[2].courseCode").value("GEN100"));
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.data.items[1].courseCode").value("CSE200"))
+                .andExpect(jsonPath("$.data.items[2].courseCode").value("GEN100"));
 
         mockMvc.perform(get("/api/v1/courses")
                         .param("semesterId", "2026-1")
                         .param("sort", "RATING_DESC"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[0].courseCode").value("CSE200"))
-                .andExpect(jsonPath("$.items[0].reviewCount").value(1))
-                .andExpect(jsonPath("$.items[0].ratingAverage").value(5.0));
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE200"))
+                .andExpect(jsonPath("$.data.items[0].reviewCount").value(1))
+                .andExpect(jsonPath("$.data.items[0].ratingAverage").value(5.0));
 
         mockMvc.perform(get("/api/v1/courses")
                         .param("semesterId", "2026-1")
                         .param("sort", "POPULARITY_DESC"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[0].courseCode").value("CSE100"))
-                .andExpect(jsonPath("$.items[0].reviewCount").value(2))
-                .andExpect(jsonPath("$.items[0].ratingAverage").value(4.5));
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.data.items[0].reviewCount").value(2))
+                .andExpect(jsonPath("$.data.items[0].ratingAverage").value(4.5));
     }
 
     @Test
@@ -168,18 +168,18 @@ class AcademicApiIntegrationTest {
         mockMvc.perform(get("/api/v1/courses/reviews")
                         .param("semesterId", "2026-1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(3))
-                .andExpect(jsonPath("$.items.length()").value(3))
-                .andExpect(jsonPath("$.items[0].userId").doesNotExist());
+                .andExpect(jsonPath("$.data.totalElements").value(3))
+                .andExpect(jsonPath("$.data.items.length()").value(3))
+                .andExpect(jsonPath("$.data.items[0].userId").doesNotExist());
 
         mockMvc.perform(get(
                         "/api/v1/courses/reviews/{courseCode}",
                         "CSE100")
                         .param("semesterId", "2026-1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(2))
-                .andExpect(jsonPath("$.items[0].courseCode").value("CSE100"))
-                .andExpect(jsonPath("$.items[1].courseCode").value("CSE100"));
+                .andExpect(jsonPath("$.data.totalElements").value(2))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.data.items[1].courseCode").value("CSE100"));
 
         mockMvc.perform(get(
                         "/api/v1/courses/reviews/{courseCode}/professors/{professor}",
@@ -187,7 +187,7 @@ class AcademicApiIntegrationTest {
                         "홍길동")
                         .param("semesterId", "2026-1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(2));
+                .andExpect(jsonPath("$.data.totalElements").value(2));
     }
 
     @Test
@@ -206,10 +206,10 @@ class AcademicApiIntegrationTest {
                                 }
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.courseCode").value("GEN100"))
-                .andExpect(jsonPath("$.courseName").value("글쓰기"))
-                .andExpect(jsonPath("$.professor").isEmpty())
-                .andExpect(jsonPath("$.rating").value(4));
+                .andExpect(jsonPath("$.data.courseCode").value("GEN100"))
+                .andExpect(jsonPath("$.data.courseName").value("글쓰기"))
+                .andExpect(jsonPath("$.data.professor").isEmpty())
+                .andExpect(jsonPath("$.data.rating").value(4));
 
         UUID reviewId = jdbcTemplate.queryForObject("""
                 SELECT id
@@ -222,7 +222,7 @@ class AcademicApiIntegrationTest {
                         .with(signedInAs(userId))
                         .param("semesterId", "2026-1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(2));
+                .andExpect(jsonPath("$.data.totalElements").value(2));
 
         mockMvc.perform(patch("/api/v1/reviews/{reviewId}", reviewId)
                         .with(signedInAs(userId))
@@ -235,23 +235,24 @@ class AcademicApiIntegrationTest {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.rating").value(5))
-                .andExpect(jsonPath("$.content").value("수정한 리뷰입니다."));
+                .andExpect(jsonPath("$.data.rating").value(5))
+                .andExpect(jsonPath("$.data.content").value("수정한 리뷰입니다."));
 
         mockMvc.perform(get("/api/v1/courses/2026-1/GEN100"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.reviewCount").value(1))
-                .andExpect(jsonPath("$.ratingAverage").value(5.0));
+                .andExpect(jsonPath("$.data.reviewCount").value(1))
+                .andExpect(jsonPath("$.data.ratingAverage").value(5.0));
 
         mockMvc.perform(delete("/api/v1/reviews/{reviewId}", reviewId)
                         .with(signedInAs(userId))
                         .with(csrf()))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"));
 
         mockMvc.perform(get("/api/v1/reviews/me")
                         .with(signedInAs(userId)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(1));
+                .andExpect(jsonPath("$.data.totalElements").value(1));
     }
 
     @Test
@@ -343,14 +344,14 @@ class AcademicApiIntegrationTest {
     void returnsSectionSessionsAndValidatedErrors() throws Exception {
         mockMvc.perform(get("/api/v1/courses/2026-1/CSE100/sections"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].sectionCode").value("01"))
-                .andExpect(jsonPath("$[0].sessions[0].dayOfWeek").value("MONDAY"))
-                .andExpect(jsonPath("$[0].sessions[0].roomLabel").value("공학관 101호"));
+                .andExpect(jsonPath("$.data[0].sectionCode").value("01"))
+                .andExpect(jsonPath("$.data[0].sessions[0].dayOfWeek").value("MONDAY"))
+                .andExpect(jsonPath("$.data[0].sessions[0].roomLabel").value("공학관 101호"));
 
         mockMvc.perform(get("/api/v1/courses/2026-1/CSE100/sections/01"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.warningCodes[0]").value("SOURCE_TIME_NORMALIZED"))
-                .andExpect(jsonPath("$.academicUnits[0].code").value("D1"));
+                .andExpect(jsonPath("$.data.warningCodes[0]").value("SOURCE_TIME_NORMALIZED"))
+                .andExpect(jsonPath("$.data.academicUnits[0].code").value("D1"));
 
         mockMvc.perform(get("/api/v1/courses")
                         .param("semesterId", "2026-1")

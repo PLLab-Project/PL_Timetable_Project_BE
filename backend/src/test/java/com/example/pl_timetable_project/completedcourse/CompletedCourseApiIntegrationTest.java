@@ -80,22 +80,22 @@ class CompletedCourseApiIntegrationTest {
                                 }
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.courseCode").value("CSE100"))
-                .andExpect(jsonPath("$.inputSource").value("MANUAL"))
-                .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
+                .andExpect(jsonPath("$.data.courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.data.inputSource").value("MANUAL"))
+                .andExpect(jsonPath("$.data.status").value("IN_PROGRESS"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
-        UUID completedCourseId = UUID.fromString(JsonPath.read(createdBody, "$.id"));
+        UUID completedCourseId = UUID.fromString(JsonPath.read(createdBody, "$.data.id"));
 
         mockMvc.perform(get("/api/v1/completed-courses")
                         .with(authenticatedAs(USER_ONE))
                         .param("status", "IN_PROGRESS")
                         .param("semester", "2026-1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(completedCourseId.toString()))
-                .andExpect(jsonPath("$[0].area").value("전공핵심"));
+                .andExpect(jsonPath("$.data[0].id").value(completedCourseId.toString()))
+                .andExpect(jsonPath("$.data[0].area").value("전공핵심"));
 
         mockMvc.perform(patch("/api/v1/completed-courses/{id}", completedCourseId)
                         .with(authenticatedAs(USER_ONE))
@@ -108,8 +108,8 @@ class CompletedCourseApiIntegrationTest {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.courseName").value("자료구조와실습"))
-                .andExpect(jsonPath("$.area").value("전공심화"));
+                .andExpect(jsonPath("$.data.courseName").value("자료구조와실습"))
+                .andExpect(jsonPath("$.data.area").value("전공심화"));
 
         mockMvc.perform(get("/api/v1/completed-courses/{id}", completedCourseId)
                         .with(authenticatedAs(USER_TWO)))
@@ -119,7 +119,8 @@ class CompletedCourseApiIntegrationTest {
         mockMvc.perform(delete("/api/v1/completed-courses/{id}", completedCourseId)
                         .with(authenticatedAs(USER_ONE))
                         .with(csrf()))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"));
 
         mockMvc.perform(get("/api/v1/completed-courses/{id}", completedCourseId)
                         .with(authenticatedAs(USER_ONE)))
@@ -143,17 +144,17 @@ class CompletedCourseApiIntegrationTest {
                         .with(authenticatedAs(USER_ONE))
                         .with(csrf()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("COMPLETED"));
+                .andExpect(jsonPath("$.data.status").value("COMPLETED"));
 
         mockMvc.perform(get("/api/v1/completed-courses/summary")
                         .with(authenticatedAs(USER_ONE)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalCredits").value(5.0))
-                .andExpect(jsonPath("$.completedCredits").value(5.0))
-                .andExpect(jsonPath("$.inProgressCredits").value(0))
-                .andExpect(jsonPath("$.creditsByCategory['전공선택']").value(3.0))
-                .andExpect(jsonPath("$.creditsByArea['의사소통']").value(2.0))
-                .andExpect(jsonPath("$.creditsByStatus.COMPLETED").value(5.0));
+                .andExpect(jsonPath("$.data.totalCredits").value(5.0))
+                .andExpect(jsonPath("$.data.completedCredits").value(5.0))
+                .andExpect(jsonPath("$.data.inProgressCredits").value(0))
+                .andExpect(jsonPath("$.data.creditsByCategory['전공선택']").value(3.0))
+                .andExpect(jsonPath("$.data.creditsByArea['의사소통']").value(2.0))
+                .andExpect(jsonPath("$.data.creditsByStatus.COMPLETED").value(5.0));
 
         mockMvc.perform(post("/api/v1/completed-courses/{id}/complete", inProgressId)
                         .with(authenticatedAs(USER_ONE))
@@ -171,21 +172,21 @@ class CompletedCourseApiIntegrationTest {
                         .with(authenticatedAs(USER_ONE))
                         .with(csrf()))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.importedCount").value(1))
-                .andExpect(jsonPath("$.skippedCount").value(0))
-                .andExpect(jsonPath("$.records[0].courseCode").value("CSE300"))
-                .andExpect(jsonPath("$.records[0].category").value("전공선택"))
-                .andExpect(jsonPath("$.records[0].status").value("IN_PROGRESS"))
-                .andExpect(jsonPath("$.records[0].inputSource").value("TIMETABLE"))
-                .andExpect(jsonPath("$.records[0].sourceSnapshot.timetableId")
+                .andExpect(jsonPath("$.data.importedCount").value(1))
+                .andExpect(jsonPath("$.data.skippedCount").value(0))
+                .andExpect(jsonPath("$.data.records[0].courseCode").value("CSE300"))
+                .andExpect(jsonPath("$.data.records[0].category").value("전공선택"))
+                .andExpect(jsonPath("$.data.records[0].status").value("IN_PROGRESS"))
+                .andExpect(jsonPath("$.data.records[0].inputSource").value("TIMETABLE"))
+                .andExpect(jsonPath("$.data.records[0].sourceSnapshot.timetableId")
                         .value(timetableId));
 
         mockMvc.perform(post("/api/v1/completed-courses/imports/timetables/{id}", timetableId)
                         .with(authenticatedAs(USER_ONE))
                         .with(csrf()))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.importedCount").value(0))
-                .andExpect(jsonPath("$.skippedCount").value(1));
+                .andExpect(jsonPath("$.data.importedCount").value(0))
+                .andExpect(jsonPath("$.data.skippedCount").value(1));
 
         mockMvc.perform(post("/api/v1/completed-courses/imports/timetables/{id}", timetableId)
                         .with(authenticatedAs(USER_TWO))
@@ -225,10 +226,10 @@ class CompletedCourseApiIntegrationTest {
                                   "category": "전공필수",
                                   "status": "DONE"
                                 }
-                                """))
+                """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code")
-                        .value("COMPLETED_COURSE_INVALID_REQUEST"));
+                        .value("VALIDATION_ERROR"));
     }
 
     private RequestPostProcessor authenticatedAs(UUID userId) {

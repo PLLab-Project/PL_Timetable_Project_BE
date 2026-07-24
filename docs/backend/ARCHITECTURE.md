@@ -49,10 +49,18 @@ optimization/
 
 ## 공통 코드 경계
 
-세션 인증 주체는 `AuthenticatedUser`로 통합되어 있습니다. 다만 성공 응답은 인증 API의
-`ApiResponse<T>` 형식과 다른 도메인의 직접 DTO 형식이 함께 존재하고, 예외 응답도
-`common.exception`과 기존 `exception` 패키지의 두 형식이 공존합니다. 프론트 최종 연동
-전에 팀 공통 응답 형식과 오류 코드를 하나로 확정해야 합니다.
+세션 인증 주체는 `AuthenticatedUser`로 통합되어 있습니다. 모든 성공 응답은
+`ApiResponse<T>`의 `code`, `message`, `data` envelope를 사용합니다. 생성 API는
+HTTP `201`, 조회·수정·삭제·취소 API는 HTTP `200`을 사용하며 삭제·취소 응답의
+`data`는 `null`입니다.
+
+모든 애플리케이션 예외는 `BusinessException` 계층과 하나의
+`common.exception.GlobalExceptionHandler`에서 처리합니다. 검증 오류와 예기치 않은
+오류도 동일한 `ApiResponse<Void>` 오류 계약으로 변환합니다. Spring Security의
+401·403 응답 역시 같은 오류 스키마를 사용합니다.
+
+졸업판정은 `GraduationService`가 흐름만 조정하고 규칙 응답 조립,
+학점·영역·필수과목 계산, 추천 선별을 각각 별도 컴포넌트가 담당합니다.
 
 범용 BaseController, BaseService, BaseRepository 같은 계층은 만들지 않습니다. 공통화는
 두 개 이상의 기능에서 실제로 동일한 요구가 확인된 경우에만 진행합니다.

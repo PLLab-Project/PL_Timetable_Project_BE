@@ -19,8 +19,8 @@ class ApiResponseTest {
     void errorResponseContainsErrorCodeWithoutData() {
         ApiResponse<Void> response = ApiResponse.error(CommonErrorCode.UNAUTHORIZED);
 
-        assertThat(response.code()).isEqualTo("UNAUTHORIZED");
-        assertThat(response.message()).isEqualTo("인증이 필요합니다.");
+        assertThat(response.code()).isEqualTo("AUTH_SESSION_EXPIRED");
+        assertThat(response.message()).isEqualTo("로그인이 필요합니다.");
         assertThat(response.data()).isNull();
     }
 }

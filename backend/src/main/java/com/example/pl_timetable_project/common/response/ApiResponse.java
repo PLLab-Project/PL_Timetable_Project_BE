@@ -26,4 +26,12 @@ public record ApiResponse<T>(String code, String message, T data) {
         Objects.requireNonNull(errorCode, "errorCode must not be null");
         return new ApiResponse<>(errorCode.code(), errorCode.message(), null);
     }
+
+    public static ApiResponse<Void> error(ErrorCode errorCode, String message) {
+        Objects.requireNonNull(errorCode, "errorCode must not be null");
+        return new ApiResponse<>(
+                errorCode.code(),
+                Objects.requireNonNull(message, "message must not be null"),
+                null);
+    }
 }
