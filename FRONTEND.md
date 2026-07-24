@@ -1,4 +1,4 @@
-# 프론트엔드 API 연동 안내
+# 프론트엔드 연결 가이드
 
 이 문서는 현재 구현된 백엔드의 프론트 연동 경계를 요약합니다. 요청·응답 필드와 검증
 조건은 실행 서버의 OpenAPI가 기준이고, 도메인 Markdown은 업무 규칙과 제한을 설명합니다.
@@ -54,15 +54,15 @@ VITE_API_BASE_URL=https://timetable-api.kdhoon.me
 
 ## 도메인별 명세
 
-- [전체 API 문서 인덱스](API_REFERENCE.md)
-- [인증·사용자](AUTH_USER_API.md)
-- [학과·학기·강의·리뷰](ACADEMIC_API.md)
-- [이수과목](COMPLETED_COURSE_API.md)
-- [졸업요건](GRADUATION_API.md)
-- [시간표](TIMETABLE_API.md)
-- [자동 편성](OPTIMIZATION_API.md)
-- [OpenAPI·API 문서 사용법](OPENAPI.md)
-- [로컬 실사용 스모크 테스트 결과](LOCAL_API_SMOKE_TEST.md)
+- [전체 API 문서 인덱스](docs/backend/API_REFERENCE.md)
+- [인증·사용자](docs/backend/AUTH_USER_API.md)
+- [학과·학기·강의·리뷰](docs/backend/ACADEMIC_API.md)
+- [이수과목](docs/backend/COMPLETED_COURSE_API.md)
+- [졸업요건](docs/backend/GRADUATION_API.md)
+- [시간표](docs/backend/TIMETABLE_API.md)
+- [자동 편성](docs/backend/OPTIMIZATION_API.md)
+- [OpenAPI·API 문서 사용법](docs/backend/OPENAPI.md)
+- [로컬 실사용 스모크 테스트 결과](docs/backend/LOCAL_API_SMOKE_TEST.md)
 
 실행 중인 서버의 루트(`/`)와 `/scalar`에서 대화형 문서를 확인할 수 있습니다.
 `/swagger-ui.html`은 Swagger UI를 제공하고, `/v3/api-docs`와

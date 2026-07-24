@@ -46,24 +46,21 @@ docker compose version
 ## 2. 저장소와 학사 데이터
 
 ```bash
-git clone git@github.com:PLLab-Project/PL_Timetable_Project_BE.git
+git clone https://github.com/PLLab-Project/PL_Timetable_Project_BE.git
 cd PL_Timetable_Project_BE
 git switch main
 git pull --ff-only origin main
 ```
 
-공개 Git에서 제외된 다음 파일을 승인된 경로로 전달받아 `data/database/`에 둡니다.
+공개 Git에서 제외된 다음 단일 파일을 승인된 경로로 전달받아 `data/database/`에 둡니다.
 
 ```text
-current-catalog.sql.gz
-reference-data.sql.gz.part-00
-reference-data.sql.gz.part-01
-reference-data.sql.gz.part-02
+academic-data-bundle.tar.gz
 ```
 
 `SHA256SUMS`, `expected-row-counts.tsv`, `manifest.json`은 저장소에 포함되어 있습니다.
-적재 전에 스크립트가 조각별·전체 체크섬을 확인하므로 파일이 손상되거나 다른 버전이면
-실행을 중단합니다.
+실행 스크립트가 번들의 파일 구성을 제한하고 자동으로 푼 뒤 조각별·전체 체크섬을
+확인하므로 파일이 손상되거나 다른 버전이면 실행을 중단합니다.
 
 ## 3. 운영 환경변수
 
@@ -104,7 +101,7 @@ SESSION_COOKIE_SAME_SITE=none
 ## 4. 최초 실행
 
 ```bash
-./scripts/bootstrap-school.sh
+./start.sh
 ```
 
 스크립트는 다음을 자동 수행합니다.
@@ -178,7 +175,7 @@ curl -i -X OPTIONS \
 ./scripts/backup-database.sh
 git switch main
 git pull --ff-only origin main
-./scripts/bootstrap-school.sh
+./start.sh
 ```
 
 최신 커밋 확인:
@@ -222,7 +219,7 @@ docker compose down -v
 
 ```bash
 git switch --detach <known-good-commit>
-./scripts/bootstrap-school.sh
+./start.sh
 ```
 
 DB 마이그레이션이 포함된 변경은 애플리케이션만 이전 버전으로 돌렸을 때 호환되지 않을 수
