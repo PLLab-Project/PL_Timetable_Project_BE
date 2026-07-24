@@ -8,6 +8,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -36,6 +37,11 @@ public class SecurityConfig {
         return http
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/v1/auth/otp/**", "/api/v1/health/**", "/error").permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/v1/departments/**",
+                                "/api/v1/semesters/**",
+                                "/api/v1/courses/**").permitAll()
                         .anyRequest().authenticated())
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
