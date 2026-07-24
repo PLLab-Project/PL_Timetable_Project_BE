@@ -3,6 +3,7 @@ package com.example.pl_timetable_project.completedcourse.dto;
 import com.example.pl_timetable_project.completedcourse.CompletedCourseInputSource;
 import com.example.pl_timetable_project.completedcourse.CompletedCourseStatus;
 import com.example.pl_timetable_project.completedcourse.entity.CompletedCourse;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
@@ -20,6 +21,10 @@ public record CompletedCourseResponse(
         String historicalOfferingId,
         String sectionCode,
         CompletedCourseInputSource inputSource,
+        @Schema(
+                description = "시간표·OCR 등 원본에서 가져온 변경 불가 스냅샷",
+                type = "object",
+                additionalProperties = Schema.AdditionalPropertiesValue.TRUE)
         Map<String, Object> sourceSnapshot,
         Instant createdAt,
         Instant updatedAt) {

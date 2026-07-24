@@ -8,17 +8,21 @@
 
 팀 테스트 서버:
 
-- Swagger UI: `https://timetable-api.kdhoon.me/swagger-ui.html`
+- 기본 API 문서(Scalar): `https://timetable-api.kdhoon.me/`
+- Scalar 직접 주소: `https://timetable-api.kdhoon.me/scalar`
+- 기존 Swagger UI: `https://timetable-api.kdhoon.me/swagger-ui.html`
 - OpenAPI JSON: `https://timetable-api.kdhoon.me/v3/api-docs`
 - OpenAPI YAML: `https://timetable-api.kdhoon.me/v3/api-docs.yaml`
 
 로컬 서버를 `8080` 포트에서 실행했을 때:
 
-- Swagger UI: `http://localhost:8080/swagger-ui.html`
+- 기본 API 문서(Scalar): `http://localhost:8080/`
+- Scalar 직접 주소: `http://localhost:8080/scalar`
+- 기존 Swagger UI: `http://localhost:8080/swagger-ui.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 - OpenAPI YAML: `http://localhost:8080/v3/api-docs.yaml`
 
-자세한 사용법과 운영 환경 비활성화 방법은 [OpenAPI·Swagger](OPENAPI.md)를 확인합니다.
+자세한 사용법과 운영 환경 비활성화 방법은 [OpenAPI·API 문서](OPENAPI.md)를 확인합니다.
 
 ## 도메인 문서
 
@@ -38,7 +42,7 @@
 - 세션 쿠키: `JSESSIONID`
 - 브라우저 요청: `credentials: "include"` 사용
 - 인증된 상태 변경 요청: `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더에 포함
-- OTP 요청·검증, 공개 학사 조회, OpenAPI·Swagger는 인증 없이 접근 가능
+- OTP 요청·검증, 공개 학사 조회, Scalar·Swagger·OpenAPI 명세는 인증 없이 접근 가능
 - 다른 사용자의 소유 데이터에는 접근할 수 없음
 
 ## 현재 계약상 주의점

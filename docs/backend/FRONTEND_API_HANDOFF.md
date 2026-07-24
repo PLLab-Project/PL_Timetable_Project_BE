@@ -7,7 +7,8 @@
 
 - API prefix: `/api/v1`
 - 팀 테스트 서버: `https://timetable-api.kdhoon.me`
-- 외부 Swagger UI: `https://timetable-api.kdhoon.me/swagger-ui.html`
+- 기본 API 문서(Scalar): `https://timetable-api.kdhoon.me/`
+- 기존 Swagger UI: `https://timetable-api.kdhoon.me/swagger-ui.html`
 - 로컬 백엔드: Spring Boot 기본 포트 `8080`
 - 기본 허용 프론트 origin: `http://localhost:5173`
 - 세션 인증: 브라우저 요청에 쿠키 포함 (`credentials: "include"`)
@@ -45,11 +46,12 @@
 - [졸업요건](GRADUATION_API.md)
 - [시간표](TIMETABLE_API.md)
 - [자동 편성](OPTIMIZATION_API.md)
-- [OpenAPI·Swagger 사용법](OPENAPI.md)
+- [OpenAPI·API 문서 사용법](OPENAPI.md)
 - [로컬 실사용 스모크 테스트 결과](LOCAL_API_SMOKE_TEST.md)
 
-실행 중인 서버에서는 `/swagger-ui.html`, `/v3/api-docs`, `/v3/api-docs.yaml`로
-기계 판독 가능한 최신 스키마와 대화형 문서를 확인할 수 있습니다.
+실행 중인 서버의 루트(`/`)와 `/scalar`에서 기본 대화형 문서를 확인할 수 있습니다.
+`/swagger-ui.html`은 기존 Swagger UI를 제공하고, `/v3/api-docs`와
+`/v3/api-docs.yaml`은 기계 판독 가능한 최신 스키마를 제공합니다.
 
 ## 현재 응답 형식 주의
 
