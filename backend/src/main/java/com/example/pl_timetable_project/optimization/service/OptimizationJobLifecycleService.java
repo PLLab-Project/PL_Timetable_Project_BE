@@ -1,9 +1,9 @@
 package com.example.pl_timetable_project.optimization.service;
 
-import com.example.pl_timetable_project.exception.ForbiddenException;
-import com.example.pl_timetable_project.exception.OptimizationAlreadyFinishedException;
-import com.example.pl_timetable_project.exception.OptimizationJobNotFoundException;
-import com.example.pl_timetable_project.exception.UnauthorizedException;
+import com.example.pl_timetable_project.optimization.OptimizationAlreadyFinishedException;
+import com.example.pl_timetable_project.optimization.OptimizationJobNotFoundException;
+import com.example.pl_timetable_project.timetable.ForbiddenException;
+import com.example.pl_timetable_project.timetable.UnauthorizedException;
 import com.example.pl_timetable_project.optimization.algorithm.CandidateCourse;
 import com.example.pl_timetable_project.optimization.algorithm.OptimizationConstraints;
 import com.example.pl_timetable_project.optimization.dto.request.OptimizationCreateRequest;

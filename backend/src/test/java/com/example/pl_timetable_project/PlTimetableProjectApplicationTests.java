@@ -57,7 +57,7 @@ class PlTimetableProjectApplicationTests {
                 String.class);
 
         assertThat(version).startsWith("18.4");
-        assertThat(successfulMigrations).isEqualTo(7);
+assertThat(successfulMigrations).isEqualTo(8);
         assertThat(graduationProfiles).isEqualTo("graduation_credit_profiles");
         assertThat(socialIdentities).isEqualTo("social_identities");
         assertThat(academicUnits).isEqualTo("academic_units");

@@ -1,6 +1,6 @@
 package com.example.pl_timetable_project.optimization.algorithm;
 
-import com.example.pl_timetable_project.exception.OptimizationTimeoutException;
+import com.example.pl_timetable_project.optimization.OptimizationTimeoutException;
 import com.google.ortools.Loader;
 import com.google.ortools.sat.BoolVar;
 import com.google.ortools.sat.CpModel;

@@ -1,10 +1,10 @@
 package com.example.pl_timetable_project.optimization.service;
 
-import com.example.pl_timetable_project.exception.InvalidOptimizationConditionException;
-import com.example.pl_timetable_project.exception.NoFeasibleTimetableException;
-import com.example.pl_timetable_project.exception.OptimizationFailedException;
-import com.example.pl_timetable_project.exception.OptimizationTimeoutException;
-import com.example.pl_timetable_project.exception.RequiredCourseConflictException;
+import com.example.pl_timetable_project.optimization.InvalidOptimizationConditionException;
+import com.example.pl_timetable_project.optimization.NoFeasibleTimetableException;
+import com.example.pl_timetable_project.optimization.OptimizationFailedException;
+import com.example.pl_timetable_project.optimization.OptimizationTimeoutException;
+import com.example.pl_timetable_project.optimization.RequiredCourseConflictException;
 import com.example.pl_timetable_project.optimization.algorithm.CandidateCourse;
 import com.example.pl_timetable_project.optimization.algorithm.CandidateCourseFilter;
 import com.example.pl_timetable_project.optimization.algorithm.CourseTimeSlot;

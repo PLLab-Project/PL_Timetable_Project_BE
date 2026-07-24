@@ -1,7 +1,7 @@
 package com.example.pl_timetable_project.optimization.algorithm;
 
-import com.example.pl_timetable_project.exception.RequiredCourseConflictException;
-import com.example.pl_timetable_project.exception.RequiredCourseExcludedByConditionException;
+import com.example.pl_timetable_project.optimization.RequiredCourseConflictException;
+import com.example.pl_timetable_project.optimization.RequiredCourseExcludedByConditionException;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
