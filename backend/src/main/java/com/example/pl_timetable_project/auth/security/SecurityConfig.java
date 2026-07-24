@@ -41,7 +41,8 @@ public class SecurityConfig {
                                 HttpMethod.GET,
                                 "/api/v1/departments/**",
                                 "/api/v1/semesters/**",
-                                "/api/v1/courses/**").permitAll()
+                                "/api/v1/courses/**",
+                                "/api/v1/graduation/rules").permitAll()
                         .anyRequest().authenticated())
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))

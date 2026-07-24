@@ -13,6 +13,9 @@ academic/
     dto/
   semester/
   course/
+  review/
+  graduation/
+completedcourse/
 timetable/
 optimization/
 ```
@@ -39,13 +42,15 @@ optimization/
 - 학사 데이터는 `semester_id`, `course_code`, `section_code`, `academic_unit_code`를 정식 키로 사용합니다.
 - 과목명·교수·학점·수업시간은 클라이언트 입력을 신뢰하지 않고 학사 DB에서 조회합니다.
 - API 요청·응답은 Java record를 우선 사용합니다.
-- 사용자 소유 API의 사용자 ID는 인증 통합 후 로그인 주체에서 가져옵니다.
+- 사용자 소유 API의 사용자 ID는 요청값으로 받지 않고
+  `AuthenticatedUser.userId()`에서 가져옵니다.
 
 ## 공통 코드 경계
 
-현재 `GlobalExceptionHandler`, `ErrorCode`, 개별 응답 형식은 인증·공통 기반 브랜치가
-통합되기 전의 계약입니다. Yuki가 공통 API 응답과 인증 주체 계약을 확정하면 기능별
-Service와 DTO는 유지하고 Controller 및 공통 예외 연결부만 교체합니다.
+세션 인증 주체는 `AuthenticatedUser`로 통합되어 있습니다. 다만 성공 응답은 인증 API의
+`ApiResponse<T>` 형식과 다른 도메인의 직접 DTO 형식이 함께 존재하고, 예외 응답도
+`common.exception`과 기존 `exception` 패키지의 두 형식이 공존합니다. 프론트 최종 연동
+전에 팀 공통 응답 형식과 오류 코드를 하나로 확정해야 합니다.
 
 범용 BaseController, BaseService, BaseRepository 같은 계층은 만들지 않습니다. 공통화는
 두 개 이상의 기능에서 실제로 동일한 요구가 확인된 경우에만 진행합니다.
