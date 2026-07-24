@@ -34,7 +34,7 @@
 | 졸업요건 조회·판정 | [GRADUATION_API.md](GRADUATION_API.md) |
 | 시간표 | [TIMETABLE_API.md](TIMETABLE_API.md) |
 | 자동 편성 | [OPTIMIZATION_API.md](OPTIMIZATION_API.md) |
-| 프론트 연동 공통사항 | [FRONTEND_API_HANDOFF.md](FRONTEND_API_HANDOFF.md) |
+| 프론트 연동 공통사항 | [루트 FRONTEND.md](../../FRONTEND.md) |
 | 실제 HTTP 스모크 테스트 | [LOCAL_API_SMOKE_TEST.md](LOCAL_API_SMOKE_TEST.md) |
 
 ## 공통 인증 규칙

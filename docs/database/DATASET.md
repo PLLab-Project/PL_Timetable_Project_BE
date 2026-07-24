@@ -66,12 +66,14 @@
 
 ## 파일 구성
 
-- `reference-data.sql.gz.part-*`: 과거 강의·교육과정·졸업요건 기준 데이터(로컬 제공, Git 제외)
-- `current-catalog.sql.gz`: 2026-1 현재 학기 카탈로그(로컬 제공, Git 제외)
+- `academic-data-bundle.tar.gz`: 담당자가 한 파일로 전달하는 학사 데이터 번들(Git 제외)
+- `reference-data.sql.gz.part-*`: 번들에서 자동으로 풀리는 과거 강의·교육과정·졸업요건 기준 데이터
+- `current-catalog.sql.gz`: 번들에서 자동으로 풀리는 2026-1 현재 학기 카탈로그
 - `SHA256SUMS`: 위 SQL 적재 페이로드 파일의 무결성 값
 - `manifest.json`: 패키지 ID, 생성 시각, 범위, 데이터 버전과 전체 gzip 체크섬
 - `expected-row-counts.tsv`: 적재 후 기대하는 기준 테이블 행 수
 
-분할된 reference gzip은 파일명 순서대로 결합해 스트리밍합니다. 각 조각과 결합된 전체
-gzip의 SHA-256을 모두 확인한 뒤 PostgreSQL에 전달합니다. 교수명과 원천 강의계획서
-payload를 포함할 수 있는 SQL 페이로드는 공개 저장소에서 재배포하지 않습니다.
+분할은 내부 적재 구현에만 남아 있으며 설치자는 직접 다루지 않습니다.
+`bootstrap-school.sh`가 단일 번들의 파일 목록을 제한하고 자동으로 푼 뒤, 각 조각과
+결합된 전체 gzip의 SHA-256을 확인해 PostgreSQL로 스트리밍합니다. 교수명과 원천
+강의계획서 payload를 포함할 수 있는 번들은 공개 저장소에서 재배포하지 않습니다.

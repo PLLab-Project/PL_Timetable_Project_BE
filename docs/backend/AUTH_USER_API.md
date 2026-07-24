@@ -198,4 +198,4 @@ await fetch(`${API_BASE_URL}/api/v1/users/me`, {
 ```
 
 재사용 가능한 TypeScript 래퍼는
-[프론트엔드 API 연동 안내](FRONTEND_API_HANDOFF.md)를 확인합니다.
+[프론트엔드 연결 가이드](../../FRONTEND.md)를 확인합니다.

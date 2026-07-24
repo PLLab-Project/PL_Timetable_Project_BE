@@ -46,3 +46,5 @@ postgres-data/
 ### Locally provisioned academic data ###
 /data/database/*.sql.gz
 /data/database/*.sql.gz.part-*
+/data/database/academic-data-bundle.tar.gz
+/data/database/academic-data-bundle.tar.gz.tmp
