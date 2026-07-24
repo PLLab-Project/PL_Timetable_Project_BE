@@ -1,0 +1,40 @@
+package com.example.pl_timetable_project.academic.department;
+
+import com.example.pl_timetable_project.academic.common.AcademicPageResponse;
+import com.example.pl_timetable_project.academic.common.PageSpec;
+import com.example.pl_timetable_project.academic.department.dto.DepartmentDetailResponse;
+import com.example.pl_timetable_project.academic.department.dto.DepartmentSummaryResponse;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/v1/departments")
+public class DepartmentController {
+
+    private final DepartmentService departmentService;
+
+    public DepartmentController(DepartmentService departmentService) {
+        this.departmentService = departmentService;
+    }
+
+    @GetMapping
+    public ResponseEntity<AcademicPageResponse<DepartmentSummaryResponse>> getDepartments(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String collegeCode,
+            @RequestParam(defaultValue = "true") boolean currentOnly,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "" + PageSpec.DEFAULT_SIZE) int size) {
+        return ResponseEntity.ok(departmentService.getDepartments(
+                query, collegeCode, currentOnly, page, size));
+    }
+
+    @GetMapping("/{code}")
+    public ResponseEntity<DepartmentDetailResponse> getDepartment(
+            @PathVariable String code) {
+        return ResponseEntity.ok(departmentService.getDepartment(code));
+    }
+}
