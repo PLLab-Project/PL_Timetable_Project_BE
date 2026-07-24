@@ -1,5 +1,6 @@
 package com.example.pl_timetable_project.auth.security;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -21,7 +22,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.security.csrf-cookie-secure=true")
 @Testcontainers
 class SpaCsrfIntegrationTest {
 
@@ -50,6 +51,7 @@ class SpaCsrfIntegrationTest {
                 .andReturn();
 
         Cookie csrfCookie = tokenResponse.getResponse().getCookie("XSRF-TOKEN");
+        assertTrue(csrfCookie.getSecure());
 
         mockMvc.perform(post("/api/v1/auth/logout")
                         .with(user("smoke-user"))
