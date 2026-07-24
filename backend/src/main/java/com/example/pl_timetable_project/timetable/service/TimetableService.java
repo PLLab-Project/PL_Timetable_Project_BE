@@ -86,6 +86,7 @@ public class TimetableService {
         List<TimetableCourse> courses = buildConflictFreeCourses(timetable.getSemesterId(), sections);
         timetable.clearCourses();
         courses.forEach(timetable::addCourse);
+        timetableRepository.flush();
         return toResponse(timetable);
     }
 
@@ -97,6 +98,7 @@ public class TimetableService {
                 timetable.getSemesterId(), List.of(request)).get(0);
         timetable.getTimetableCourses().forEach(existing -> validateNoConflict(existing, newCourse));
         timetable.addCourse(newCourse);
+        timetableRepository.flush();
         return toResponse(timetable);
     }
 

@@ -9,6 +9,8 @@ import com.example.pl_timetable_project.user.dto.UserDeleteResponse;
 import com.example.pl_timetable_project.user.dto.UserInfoResponse;
 import com.example.pl_timetable_project.user.dto.UserUpdateRequest;
 import com.example.pl_timetable_project.user.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** 로그인한 본인만 접근할 수 있는 회원 API입니다. */
 @RestController
 @RequestMapping("/api/v1/users/me")
+@Tag(name = "사용자", description = "내 학생 프로필·개인정보 동의·회원 탈퇴")
 public class UserController {
     private final UserService userService;
 
@@ -32,28 +35,33 @@ public class UserController {
         this.userService = userService;
     }
 
+    @Operation(summary = "내 정보 조회")
     @GetMapping
     public ApiResponse<UserInfoResponse> getMe(@AuthenticationPrincipal AuthenticatedUser principal) {
         return ApiResponse.success(userService.get(principal.userId()));
     }
 
+    @Operation(summary = "내 정보 수정")
     @PatchMapping
     public ApiResponse<UserInfoResponse> updateMe(@AuthenticationPrincipal AuthenticatedUser principal,
                                                    @Valid @RequestBody UserUpdateRequest request) {
         return ApiResponse.success(userService.update(principal.userId(), request));
     }
 
+    @Operation(summary = "개인정보 동의 저장")
     @PostMapping("/privacy-consents")
     public ApiResponse<ConsentResponse> saveConsent(@AuthenticationPrincipal AuthenticatedUser principal,
                                                      @Valid @RequestBody ConsentCreateRequest request) {
         return ApiResponse.success(userService.saveConsent(principal.userId(), request));
     }
 
+    @Operation(summary = "개인정보 동의 내역 조회")
     @GetMapping("/privacy-consents")
     public ApiResponse<List<ConsentResponse>> getConsents(@AuthenticationPrincipal AuthenticatedUser principal) {
         return ApiResponse.success(userService.getConsents(principal.userId()));
     }
 
+    @Operation(summary = "회원 탈퇴 및 사용자 데이터 삭제")
     @DeleteMapping
     public ApiResponse<UserDeleteResponse> withdraw(@AuthenticationPrincipal AuthenticatedUser principal,
                                                      @RequestBody UserDeleteRequest request,

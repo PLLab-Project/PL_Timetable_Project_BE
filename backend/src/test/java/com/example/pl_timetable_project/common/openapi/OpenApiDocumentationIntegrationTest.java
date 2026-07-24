@@ -1,0 +1,94 @@
+package com.example.pl_timetable_project.common.openapi;
+
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
+
+@SpringBootTest
+@Testcontainers
+class OpenApiDocumentationIntegrationTest {
+
+    @Container
+    @ServiceConnection
+    static final PostgreSQLContainer postgres =
+            new PostgreSQLContainer("postgres:18.4-alpine");
+
+    @Autowired
+    private WebApplicationContext applicationContext;
+
+    private MockMvc mockMvc;
+
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(applicationContext)
+                .apply(springSecurity())
+                .build();
+    }
+
+    @Test
+    void exposesOpenApiForEveryImplementedDomainWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath("$.openapi").exists())
+                .andExpect(jsonPath("$.info.title").value("PL Timetable API"))
+                .andExpect(jsonPath("$.components.securitySchemes.sessionCookie.in").value("cookie"))
+                .andExpect(jsonPath("$.components.securitySchemes.csrfHeader.in").value("header"))
+                .andExpect(jsonPath("$.paths['/api/v1/auth/otp/request'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/users/me'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/departments'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/semesters'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/courses'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/reviews'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/completed-courses'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/graduation/rules'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/timetables'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/optimizations'].post").exists());
+    }
+
+    @Test
+    void documentsSessionAndCsrfRequirementsOnlyWhereNeeded() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/courses'].get.security").doesNotExist())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/auth/session'].get.security[0].sessionCookie").exists())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/timetables'].post.security[0].sessionCookie").exists())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/timetables'].post.security[0].csrfHeader").exists());
+    }
+
+    @Test
+    void exposesSwaggerUiWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/swagger-ui.html"))
+                .andExpect(status().is3xxRedirection());
+
+        mockMvc.perform(get("/swagger-ui/index.html"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("text/html"));
+    }
+
+    @Test
+    void exposesYamlSpecificationWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/v3/api-docs.yaml"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "title: PL Timetable API")));
+    }
+}

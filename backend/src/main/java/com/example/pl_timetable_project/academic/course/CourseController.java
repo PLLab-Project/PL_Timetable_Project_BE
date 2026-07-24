@@ -6,6 +6,8 @@ import com.example.pl_timetable_project.academic.course.dto.CourseDetailResponse
 import com.example.pl_timetable_project.academic.course.dto.CourseSummaryResponse;
 import com.example.pl_timetable_project.academic.course.dto.SectionDetailResponse;
 import com.example.pl_timetable_project.academic.course.dto.SectionSummaryResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/courses")
+@Tag(name = "강의", description = "학기별 강의 검색과 분반 조회")
 public class CourseController {
 
     private final CourseService courseService;
@@ -25,6 +28,7 @@ public class CourseController {
         this.courseService = courseService;
     }
 
+    @Operation(summary = "강의 검색·필터·정렬")
     @GetMapping
     public ResponseEntity<AcademicPageResponse<CourseSummaryResponse>> searchCourses(
             @RequestParam String semesterId,
@@ -50,6 +54,7 @@ public class CourseController {
                 size));
     }
 
+    @Operation(summary = "강의 상세 조회")
     @GetMapping("/{semesterId}/{courseCode}")
     public ResponseEntity<CourseDetailResponse> getCourse(
             @PathVariable String semesterId,
@@ -57,6 +62,7 @@ public class CourseController {
         return ResponseEntity.ok(courseService.getCourse(semesterId, courseCode));
     }
 
+    @Operation(summary = "강의의 분반 목록 조회")
     @GetMapping("/{semesterId}/{courseCode}/sections")
     public ResponseEntity<List<SectionSummaryResponse>> getSections(
             @PathVariable String semesterId,
@@ -64,6 +70,7 @@ public class CourseController {
         return ResponseEntity.ok(courseService.getSections(semesterId, courseCode));
     }
 
+    @Operation(summary = "분반 상세 조회")
     @GetMapping("/{semesterId}/{courseCode}/sections/{sectionCode}")
     public ResponseEntity<SectionDetailResponse> getSection(
             @PathVariable String semesterId,

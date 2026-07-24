@@ -36,12 +36,18 @@
 
 ## 도메인별 명세
 
+- [전체 API 문서 인덱스](API_REFERENCE.md)
+- [인증·사용자](AUTH_USER_API.md)
 - [학과·학기·강의·리뷰](ACADEMIC_API.md)
 - [이수과목](COMPLETED_COURSE_API.md)
 - [졸업요건](GRADUATION_API.md)
+- [시간표](TIMETABLE_API.md)
+- [자동 편성](OPTIMIZATION_API.md)
+- [OpenAPI·Swagger 사용법](OPENAPI.md)
+- [로컬 실사용 스모크 테스트 결과](LOCAL_API_SMOKE_TEST.md)
 
-시간표와 자동 편성은 각각 `timetable`과 `optimization` 패키지의 Controller·DTO가
-현재 계약입니다. 해당 영역의 별도 프론트 명세 문서는 아직 작성되지 않았습니다.
+실행 중인 서버에서는 `/swagger-ui.html`, `/v3/api-docs`, `/v3/api-docs.yaml`로
+기계 판독 가능한 최신 스키마와 대화형 문서를 확인할 수 있습니다.
 
 ## 현재 응답 형식 주의
 
@@ -65,10 +71,8 @@
 
 1. 소셜 로그인 여부와 졸업판정용 학생 프로필 입력 흐름 확정
 2. 성공·오류 응답 형식과 오류 코드 통일
-3. 시간표·자동 편성 명세 문서 추가
-4. OpenAPI 또는 동등한 기계 판독 명세 생성
-5. 프론트 개발 origin과 운영 환경 변수 확정
-6. 전체 PostgreSQL 통합 테스트 통과
+3. 프론트 개발 origin과 운영 환경 변수 확정
+4. 운영 배포 환경에서 전체 PostgreSQL 통합·인수 테스트 통과
 
 이후 화면 상태 관리와 API 호출 연결은 프론트 팀이 담당하고, 백엔드 팀은 연동 과정에서
 발견되는 계약 불일치와 서버 결함을 수정합니다.

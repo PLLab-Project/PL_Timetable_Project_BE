@@ -49,10 +49,15 @@ docker compose down -v
 ## 문서
 
 - [백엔드 구조 원칙](docs/backend/ARCHITECTURE.md)
+- [전체 백엔드 API 명세](docs/backend/API_REFERENCE.md)
 - [프론트엔드 API 연동 안내](docs/backend/FRONTEND_API_HANDOFF.md)
+- [OpenAPI·Swagger 사용법](docs/backend/OPENAPI.md)
+- [인증·사용자 API](docs/backend/AUTH_USER_API.md)
 - [학사 조회 API](docs/backend/ACADEMIC_API.md)
 - [이수과목 API](docs/backend/COMPLETED_COURSE_API.md)
 - [졸업요건 API](docs/backend/GRADUATION_API.md)
+- [시간표 API](docs/backend/TIMETABLE_API.md)
+- [자동 편성 API](docs/backend/OPTIMIZATION_API.md)
 - [구현 완료·미구현 상태](docs/database/STATUS.md)
 - [DB 구조와 실행 방법](docs/database/README.md)
 - [전체 ERD 시각화](docs/database/ERD.html)

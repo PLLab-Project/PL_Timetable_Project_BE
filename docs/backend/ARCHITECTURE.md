@@ -44,6 +44,8 @@ optimization/
 - API 요청·응답은 Java record를 우선 사용합니다.
 - 사용자 소유 API의 사용자 ID는 요청값으로 받지 않고
   `AuthenticatedUser.userId()`에서 가져옵니다.
+- 실행 중인 API 스키마는 springdoc OpenAPI로 생성하며, 사용법과 문서 경계는
+  [OpenAPI·Swagger 사용법](OPENAPI.md)을 따릅니다.
 
 ## 공통 코드 경계
 

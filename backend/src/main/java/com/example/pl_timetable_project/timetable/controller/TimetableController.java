@@ -8,6 +8,8 @@ import com.example.pl_timetable_project.timetable.dto.request.TimetableUpdateReq
 import com.example.pl_timetable_project.timetable.dto.response.TimetableResponse;
 import com.example.pl_timetable_project.timetable.dto.response.TimetableSummaryResponse;
 import com.example.pl_timetable_project.timetable.service.TimetableService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/timetables")
+@Tag(name = "시간표", description = "내 시간표와 분반 구성 관리")
 public class TimetableController {
 
     private final TimetableService timetableService;
@@ -32,6 +35,7 @@ public class TimetableController {
         this.timetableService = timetableService;
     }
 
+    @Operation(summary = "시간표 생성")
     @PostMapping
     public ResponseEntity<TimetableResponse> createTimetable(
             @AuthenticationPrincipal AuthenticatedUser principal,
@@ -40,12 +44,14 @@ public class TimetableController {
                 .body(timetableService.createTimetable(principal.userId(), request));
     }
 
+    @Operation(summary = "내 시간표 목록 조회")
     @GetMapping
     public ResponseEntity<List<TimetableSummaryResponse>> getTimetables(
             @AuthenticationPrincipal AuthenticatedUser principal) {
         return ResponseEntity.ok(timetableService.getTimetables(principal.userId()));
     }
 
+    @Operation(summary = "시간표 상세 조회")
     @GetMapping("/{timetableId}")
     public ResponseEntity<TimetableResponse> getTimetable(
             @AuthenticationPrincipal AuthenticatedUser principal,
@@ -53,6 +59,7 @@ public class TimetableController {
         return ResponseEntity.ok(timetableService.getTimetable(principal.userId(), timetableId));
     }
 
+    @Operation(summary = "시간표 이름 변경")
     @PatchMapping("/{timetableId}")
     public ResponseEntity<TimetableResponse> updateTimetable(
             @AuthenticationPrincipal AuthenticatedUser principal,
@@ -62,6 +69,7 @@ public class TimetableController {
                 timetableService.updateTimetable(principal.userId(), timetableId, request));
     }
 
+    @Operation(summary = "시간표 분반 구성 전체 교체")
     @PatchMapping("/{timetableId}/sections")
     public ResponseEntity<TimetableResponse> updateSections(
             @AuthenticationPrincipal AuthenticatedUser principal,
@@ -72,6 +80,7 @@ public class TimetableController {
                         principal.userId(), timetableId, request.getSections()));
     }
 
+    @Operation(summary = "시간표에 분반 추가")
     @PostMapping("/{timetableId}/sections")
     public ResponseEntity<TimetableResponse> addSection(
             @AuthenticationPrincipal AuthenticatedUser principal,
@@ -81,6 +90,7 @@ public class TimetableController {
                 .body(timetableService.addCourse(principal.userId(), timetableId, request));
     }
 
+    @Operation(summary = "시간표에서 분반 삭제")
     @DeleteMapping("/{timetableId}/sections/{timetableCourseId}")
     public ResponseEntity<TimetableResponse> removeSection(
             @AuthenticationPrincipal AuthenticatedUser principal,
@@ -91,6 +101,7 @@ public class TimetableController {
                         principal.userId(), timetableId, timetableCourseId));
     }
 
+    @Operation(summary = "시간표 삭제")
     @DeleteMapping("/{timetableId}")
     public ResponseEntity<Void> deleteTimetable(
             @AuthenticationPrincipal AuthenticatedUser principal,
