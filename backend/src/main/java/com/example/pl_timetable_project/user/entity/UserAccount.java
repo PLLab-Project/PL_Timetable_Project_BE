@@ -45,11 +45,6 @@ public class UserAccount {
         this.updatedAt = Instant.now();
     }
 
-    public void withdraw() {
-        this.status = "WITHDRAWN";
-        this.updatedAt = Instant.now();
-    }
-
     public UUID id() {
         return id;
     }
