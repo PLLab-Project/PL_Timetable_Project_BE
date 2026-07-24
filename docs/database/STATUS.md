@@ -5,6 +5,8 @@
 ## DB와 기준 데이터
 
 - PostgreSQL 18.4 Docker Compose 실행 환경
+- JDK 빌드·JRE 실행 멀티스테이지 Spring Boot API 이미지
+- DB·마이그레이션·적재·API를 한 명령으로 시작하는 Compose 구성
 - Flyway 8개 마이그레이션과 Testcontainers 빈 DB 검증
 - 현재 2026-1 강의 카탈로그
 - 2020~2026 과거 강의 개설 이력
@@ -25,6 +27,7 @@
 - Spring Security 세션 인증
 - OTP 만료·재전송 대기·시도 횟수 제한·BCrypt 저장
 - CSRF, CORS, 보안 쿠키 설정
+- 다른 Origin의 SPA가 사용할 수 있는 CSRF 토큰 초기화 API
 
 현재 구현은 이메일 OTP 방식입니다. 소셜 로그인은 아직 구현되지 않았습니다.
 
@@ -64,6 +67,8 @@
 - 루트 주소에서 열리는 Scalar API 문서와 기존 Swagger UI
 - 세션 쿠키와 CSRF 요구사항의 OpenAPI 표시
 - 전 API 성공·오류 `ApiResponse<T>` envelope와 공통 OpenAPI 오류 스키마
+- API별 상세 설명·파라미터·요청 예제와 업무 오류 응답
+- health 응답의 배포 버전·Git 커밋 식별
 
 ## 아직 구현되지 않음
 

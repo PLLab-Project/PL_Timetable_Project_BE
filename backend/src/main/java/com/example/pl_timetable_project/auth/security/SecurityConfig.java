@@ -20,6 +20,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.XorCsrfTokenRequestAttributeHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -39,15 +40,20 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             ObjectMapper objectMapper,
-            @Value("${app.security.csrf-cookie-secure:false}") boolean csrfCookieSecure) throws Exception {
+            @Value("${app.security.csrf-cookie-secure:false}") boolean csrfCookieSecure,
+            @Value("${app.security.csrf-cookie-same-site:Lax}") String csrfCookieSameSite)
+            throws Exception {
         CookieCsrfTokenRepository csrfTokenRepository =
                 CookieCsrfTokenRepository.withHttpOnlyFalse();
-        csrfTokenRepository.setCookieCustomizer(cookie -> cookie.secure(csrfCookieSecure));
+        csrfTokenRepository.setCookieCustomizer(cookie -> cookie
+                .secure(csrfCookieSecure)
+                .sameSite(csrfCookieSameSite));
 
         return http
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
                                 "/api/v1/auth/otp/**",
+                                "/api/v1/auth/csrf",
                                 "/api/v1/health/**",
                                 "/v3/api-docs/**",
                                 "/v3/api-docs.yaml",
@@ -68,7 +74,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .csrf(csrf -> csrf
-                        .spa()
+                        .csrfTokenRequestHandler(new XorCsrfTokenRequestAttributeHandler())
                         .csrfTokenRepository(csrfTokenRepository)
                         .ignoringRequestMatchers("/api/v1/auth/otp/**"))
                 .formLogin(form -> form.disable())

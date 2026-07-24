@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.hamcrest.Matchers.endsWith;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.emptyOrNullString;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,6 +52,8 @@ class OpenApiDocumentationIntegrationTest {
                 .andExpect(jsonPath("$.info.title").value("PL Timetable API"))
                 .andExpect(jsonPath("$.components.securitySchemes.sessionCookie.in").value("cookie"))
                 .andExpect(jsonPath("$.components.securitySchemes.csrfHeader.in").value("header"))
+                .andExpect(jsonPath("$.info.description").value(
+                        org.hamcrest.Matchers.containsString("OpenAPI 3")))
                 .andExpect(jsonPath(
                         "$.components.schemas.CompletedCourseResponse.properties.sourceSnapshot.additionalProperties")
                         .value(true))
@@ -75,6 +79,43 @@ class OpenApiDocumentationIntegrationTest {
                 .andExpect(jsonPath(
                         "$.paths['/api/v1/timetables/{timetableId}'].delete.responses['200'].content['application/json'].schema['$ref']")
                         .value(endsWith("ApiResponseVoid")));
+    }
+
+    @Test
+    void includesDescriptionsExamplesAndBusinessErrorResponsesForFrontendIntegration()
+            throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/courses'].get.description",
+                        not(emptyOrNullString())))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/courses'].get.parameters[?(@.name == 'semesterId')].description")
+                        .isNotEmpty())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/timetables'].post.requestBody.content['application/json'].example.name")
+                        .value("2026-1 전공 시간표"))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/auth/otp/request'].post.responses['429']")
+                        .exists())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/timetables/{timetableId}'].get.responses['404']")
+                        .exists())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/timetables'].post.responses['409']")
+                        .exists())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/optimizations'].post.responses['422']")
+                        .exists())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/auth/otp/request'].post.responses['429'].content['application/json'].example.code")
+                        .value("TOO_MANY_REQUESTS"))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/auth/csrf'].get.security")
+                        .doesNotExist())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/auth/csrf'].get.responses['200'].content['application/json'].schema['$ref']")
+                        .value(endsWith("ApiResponseCsrfTokenResponse")));
     }
 
     @Test
