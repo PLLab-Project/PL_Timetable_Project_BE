@@ -48,3 +48,5 @@ postgres-data/
 /data/database/*.sql.gz.part-*
 /data/database/academic-data-bundle.tar.gz
 /data/database/academic-data-bundle.tar.gz.tmp
+/data/database/.academic-data-bundle.sha256
+/data/database/.academic-data.*

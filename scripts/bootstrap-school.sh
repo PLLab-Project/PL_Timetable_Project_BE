@@ -14,12 +14,11 @@ docker compose version >/dev/null
 
 if [[ ! -f .env ]]; then
     echo ".env가 없습니다." >&2
-    echo "cp .env.school.example .env 후 운영 값을 입력하세요." >&2
+    echo "./scripts/initialize-school-env.sh로 안전한 운영 설정을 생성하세요." >&2
     exit 1
 fi
 
 payload_directory="data/database"
-payload_bundle="${payload_directory}/academic-data-bundle.tar.gz"
 payload_files=(
     current-catalog.sql.gz
     reference-data.sql.gz.part-00
@@ -27,37 +26,7 @@ payload_files=(
     reference-data.sql.gz.part-02
 )
 
-missing_payload=false
-for payload in "${payload_files[@]}"; do
-    [[ -f "${payload_directory}/${payload}" ]] || missing_payload=true
-done
-
-if [[ "$missing_payload" == true ]]; then
-    if [[ ! -f "$payload_bundle" ]]; then
-        echo "학사 데이터 번들이 없습니다: $payload_bundle" >&2
-        echo "전달받은 단일 번들을 위 경로에 배치하세요." >&2
-        exit 1
-    fi
-
-    expected_entries="$(printf '%s\n' "${payload_files[@]}" | LC_ALL=C sort)"
-    actual_entries="$(
-        tar -tzf "$payload_bundle" \
-            | sed 's#^\./##' \
-            | sed '/\/$/d' \
-            | LC_ALL=C sort
-    )"
-    if [[ "$actual_entries" != "$expected_entries" ]]; then
-        echo "학사 데이터 번들의 파일 구성이 올바르지 않습니다." >&2
-        exit 1
-    fi
-
-    echo "단일 학사 데이터 번들을 풉니다: $payload_bundle"
-    tar -xzf "$payload_bundle" \
-        -C "$payload_directory" \
-        --no-same-owner \
-        --no-same-permissions \
-        "${payload_files[@]}"
-fi
+./scripts/prepare-academic-data.sh
 
 required_payloads=(
     "${payload_directory}/SHA256SUMS"
@@ -83,9 +52,11 @@ database_password="$(env_value POSTGRES_PASSWORD)"
 otp_delivery="$(env_value OTP_DELIVERY)"
 if [[ "$profile" == "prod" ]] \
     && [[ -z "$database_password" \
+        || "${#database_password}" -lt 32 \
         || "$database_password" == "local-only-change-me" \
         || "$database_password" == CHANGE_ME* ]]; then
-    echo "운영 환경에서는 안전한 POSTGRES_PASSWORD가 필요합니다." >&2
+    echo "운영 환경에서는 32자 이상의 안전한 POSTGRES_PASSWORD가 필요합니다." >&2
+    echo "최초 설치라면 ./scripts/initialize-school-env.sh를 사용하세요." >&2
     exit 1
 fi
 
