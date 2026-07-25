@@ -124,15 +124,11 @@ academic-data-bundle.tar.gz
 환경에서는 관리 비용과 장기 자격증명 위험이 더 큽니다. 자동 원격 갱신이 실제로
 필요해질 때 별도로 도입합니다.
 
-Windows의 다운로드 폴더에 파일이 있다면 WSL에서 다음처럼 복사합니다.
+가장 간단한 방법은 파일을 Windows 사용자의 `Downloads` 폴더에 그대로 두는 것입니다.
+원클릭 설치가 파일을 자동으로 찾아 `data/database/`로 복사합니다. 같은 이름의 파일이
+여러 사용자 폴더에 있거나 다른 위치에 있다면 설치 중 경로를 한 번 입력받습니다.
 
-```bash
-mkdir -p data/database
-cp "/mnt/c/Users/<WINDOWS_USER>/Downloads/academic-data-bundle.tar.gz" \
-  data/database/academic-data-bundle.tar.gz
-```
-
-또는 WSL 저장소 폴더를 Windows 탐색기로 열어 파일을 넣을 수 있습니다.
+원한다면 WSL 저장소 폴더를 Windows 탐색기로 열어 직접 넣을 수도 있습니다.
 
 ```bash
 explorer.exe data/database
@@ -142,40 +138,54 @@ explorer.exe data/database
 파일을 검증한 뒤 `expected-row-counts.tsv`의 기대 행 수까지 확인합니다. 손상되거나
 다른 버전의 파일이면 DB 적재 전에 중단합니다.
 
-## 5. 운영 환경과 난수 DB 비밀번호
+## 5. 원클릭 설치
 
-`.env.school.example`을 직접 복사해 비밀번호를 사람이 만들지 않습니다. 다음 스크립트가
-운영 템플릿에서 `.env`를 만들고 `/dev/urandom` 기반 256비트 DB 비밀번호를 자동으로
-설정합니다.
+Docker Desktop이 실행 중이고 학사 데이터 단일 파일이 준비됐다면 Ubuntu 터미널에서
+다음 명령 하나만 실행합니다.
 
 ```bash
-./scripts/initialize-school-env.sh
+./install-school.sh
 ```
 
-안전 동작:
+최초 실행에서 자동으로 알 수 없는 다음 값만 안전하게 입력받습니다.
+
+| 입력 | 설명 |
+|---|---|
+| 프론트 Origin | 실제 프론트 주소와 필요한 로컬 개발 주소 |
+| SMTP 호스트 | OTP 발송 메일 서버 |
+| SMTP 사용자 이름 | OTP 발송 계정 |
+| SMTP 비밀번호 | 화면에 표시하지 않고 입력 |
+| OTP 발신 주소 | 사용자에게 보이는 발신 주소 |
+
+나머지는 설치 스크립트가 자동으로 처리합니다.
+
+1. `.env.school.example`에서 운영 `.env` 생성
+2. `/dev/urandom` 기반 256비트 DB 비밀번호 생성·입력
+3. Windows `Downloads`의 학사 데이터 번들 탐색·복사
+4. 데이터 번들 파일 목록과 SHA-256 검증
+5. PostgreSQL 18.4 시작
+6. Flyway 마이그레이션
+7. 기준 데이터 멱등 적재와 기대 행 수 검증
+8. Spring Boot Docker 이미지 빌드
+9. API 시작과 healthcheck
+
+환경 설정 안전 동작:
 
 - 32바이트 난수를 64자리 소문자 hex로 저장
-- 생성된 비밀번호를 터미널에 출력하지 않음
+- DB·SMTP 비밀번호를 터미널에 출력하지 않음
 - `.env` 권한을 현재 WSL 사용자만 읽을 수 있는 `600`으로 설정
-- 기존 `.env`가 있으면 덮어쓰지 않고 중단
+- 기존 `.env`의 운영값을 자동으로 덮어쓰지 않음
 - `.env`는 `.gitignore`로 공개 Git에서 제외
+- 입력이나 검증이 실패하면 DB·API 기동 전에 중단하고 재실행 시 이어서 진행
 
-생성 후 다음 값을 실제 운영 환경에 맞게 수정합니다.
+환경 설정만 먼저 만들고 Docker 기동을 미루려면 다음 옵션을 사용합니다.
 
 ```bash
-nano .env
+./install-school.sh --configure-only
 ```
 
-| 환경변수 | 설정 |
-|---|---|
-| `ALLOWED_ORIGINS` | 실제 프론트 Origin과 필요한 로컬 개발 Origin |
-| `SMTP_HOST` | OTP 발송 SMTP 서버 |
-| `SMTP_USERNAME` | OTP 발송 계정 |
-| `SMTP_PASSWORD` | SMTP 비밀번호 또는 앱 비밀번호 |
-| `OTP_FROM` | 실제 발신 주소 |
-| `SCHOOL_EMAIL_DOMAIN` | 허용할 학교 이메일 도메인 |
-
-Tunnel이 같은 Windows 컴퓨터의 API로 연결하므로 다음 값은 유지합니다.
+Tunnel이 같은 Windows 컴퓨터의 API로 연결하므로 생성되는 `.env`는 다음 보안 기본값을
+사용합니다.
 
 ```env
 API_BIND_ADDRESS=127.0.0.1
@@ -189,23 +199,7 @@ SESSION_COOKIE_SAME_SITE=lax
 PostgreSQL 볼륨의 비밀번호는 새 `.env`를 만든다고 자동 변경되지 않습니다. `.env`는
 Git이 아닌 승인된 암호 저장소에 별도로 백업합니다.
 
-## 6. 최초 실행
-
-Ubuntu 터미널에서 실행합니다.
-
-```bash
-./start.sh
-```
-
-스크립트 하나가 다음 작업을 수행합니다.
-
-1. Docker·Git·데이터 번들·운영 설정 검사
-2. 단일 데이터 번들 해제와 파일별 SHA-256 검증
-3. PostgreSQL 18.4 시작
-4. Flyway 마이그레이션 적용
-5. 기준 데이터 멱등 적재와 기대 행 수 검증
-6. Spring Boot Docker 이미지 빌드
-7. API 시작과 healthcheck
+## 6. 설치 결과 확인
 
 로컬 확인:
 
@@ -337,11 +331,12 @@ cd ~/services/PL_Timetable_Project_BE
 ./scripts/backup-database.sh
 git switch main
 git pull --ff-only origin main
-./start.sh
+./install-school.sh
 ```
 
 학사 데이터가 변경된 경우에만 담당자가 새 `academic-data-bundle.tar.gz`를 전달합니다.
-기존 파일과 DB 백업을 보존한 상태에서 새 번들을 배치하고 `./start.sh`를 실행합니다.
+기존 파일과 DB 백업을 보존한 상태에서 새 번들을 배치하고 `./install-school.sh`를
+실행합니다.
 
 ## 11. 중지·재시작·로그
 
@@ -393,8 +388,9 @@ Restart-Service cloudflared
 
 - [ ] Windows 10/11, WSL2, Docker Desktop 버전 확인
 - [ ] 저장소를 WSL 홈에 clone
-- [ ] 단일 학사 데이터 번들 배치
-- [ ] 난수 비밀번호 기반 `.env` 생성 및 SMTP·프론트 주소 설정
+- [ ] 단일 학사 데이터 번들을 Windows Downloads에 준비
+- [ ] `./install-school.sh` 원클릭 설치
+- [ ] 난수 비밀번호 기반 `.env`와 SMTP·프론트 주소 설정 확인
 - [ ] 저장소의 전체 Flyway 마이그레이션 적용
 - [ ] 학사 데이터 체크섬·기대 행 수 검증
 - [ ] 로컬 health·OpenAPI·Scalar 확인

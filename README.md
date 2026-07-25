@@ -41,10 +41,11 @@ academic-data-bundle.tar.gz
 학교 서버:
 
 ```bash
-./scripts/initialize-school-env.sh
-# 난수 DB 비밀번호가 설정된 .env의 프론트 주소와 SMTP 설정만 수정
-./start.sh
+./install-school.sh
 ```
+
+원클릭 설치가 `.env`와 256비트 난수 DB 비밀번호를 만들고, 자동으로 알 수 없는 프론트
+Origin·SMTP 값만 최초 1회 안전하게 입력받은 뒤 DB·데이터·API까지 시작합니다.
 
 학교 Windows 컴퓨터의 WSL2·Docker Desktop 설치부터 학사 데이터 단일 파일 배치,
 Cloudflare Tunnel Windows 서비스와 재부팅 검증까지

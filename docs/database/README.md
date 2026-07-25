@@ -82,7 +82,7 @@ volume을 사용합니다.
 | `DATABASE_PASSWORD` | `local-only-change-me` |
 
 기본 비밀번호는 로컬 개발 전용입니다. 배포 환경에서는 환경변수 또는 비밀 관리 도구로
-별도 값을 주입해야 합니다. 학교 서버는 `./scripts/initialize-school-env.sh`가 생성한
+별도 값을 주입해야 합니다. 학교 서버는 `./install-school.sh`가 `.env`에 생성한
 256비트 난수 비밀번호를 사용합니다. Hibernate는 `ddl-auto=validate`로 설정되어 DDL을
 생성하거나 기존 스키마를 수정하지 않습니다.
 

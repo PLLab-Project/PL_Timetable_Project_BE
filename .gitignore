@@ -39,6 +39,7 @@ out/
 
 ### Local database runtime ###
 .env
+.env.install.*
 *.local
 postgres-data/
 /backups/

@@ -14,7 +14,7 @@ docker compose version >/dev/null
 
 if [[ ! -f .env ]]; then
     echo ".env가 없습니다." >&2
-    echo "./scripts/initialize-school-env.sh로 안전한 운영 설정을 생성하세요." >&2
+    echo "./install-school.sh로 안전한 운영 설정과 백엔드를 한 번에 설치하세요." >&2
     exit 1
 fi
 
@@ -56,7 +56,7 @@ if [[ "$profile" == "prod" ]] \
         || "$database_password" == "local-only-change-me" \
         || "$database_password" == CHANGE_ME* ]]; then
     echo "운영 환경에서는 32자 이상의 안전한 POSTGRES_PASSWORD가 필요합니다." >&2
-    echo "최초 설치라면 ./scripts/initialize-school-env.sh를 사용하세요." >&2
+    echo "최초 설치라면 ./install-school.sh를 사용하세요." >&2
     exit 1
 fi
 
