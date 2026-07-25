@@ -78,7 +78,7 @@ Spring Security·Testcontainers 회귀 테스트와 Docker 실서버 요청으�
 | OpenAPI YAML `/v3/api-docs.yaml` | 200 | 통과 |
 | 루트 `/` | 302 | Scalar `/scalar`로 연결 |
 | Scalar `/scalar` | 200 | 전체 도메인 대화형 문서 표시 |
-| Swagger UI `/swagger-ui.html` | 200 | UI HTML로 연결 |
+| Swagger UI `/swagger-ui.html` | 200 | 당시 UI HTML로 연결 |
 | 공개 강의 API 보안 표시 | 없음 | 통과 |
 | 보호된 GET 세션 표시 | `sessionCookie` | 통과 |
 | 보호된 변경 API 표시 | `sessionCookie`, `csrfHeader` | 통과 |
@@ -86,6 +86,10 @@ Spring Security·Testcontainers 회귀 테스트와 Docker 실서버 요청으�
 | 공통 오류 스키마 | 400·401·403·500 | 통과 |
 | 작업 설명·파라미터 설명 | 전체 작업·파라미터 누락 없음 | 통과 |
 | JSON 요청 본문 예제 | 14개 요청 전체 예제 포함 | 통과 |
+
+> 2026-07-25 문서 UI 정리 이후에는 중복 Swagger UI를 제공하지 않습니다.
+> OpenAPI JSON/YAML과 Scalar만 유지하며, 전용 회귀 테스트와 로컬 HTTP 요청으로
+> `/scalar`·`/v3/api-docs`의 200 응답과 Swagger UI 의존성 제거를 확인했습니다.
 
 ### 학과·학기·강의
 

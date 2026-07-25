@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.emptyOrNullString;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.not;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -223,13 +224,12 @@ class OpenApiDocumentationIntegrationTest {
     }
 
     @Test
-    void exposesSwaggerUiWithoutAuthentication() throws Exception {
-        mockMvc.perform(get("/swagger-ui.html"))
-                .andExpect(status().is3xxRedirection());
+    void doesNotExposeRedundantSwaggerUi() throws Exception {
+        mockMvc.perform(get("/swagger-ui.html").with(user("docs-check")))
+                .andExpect(status().isNotFound());
 
-        mockMvc.perform(get("/swagger-ui/index.html"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith("text/html"));
+        mockMvc.perform(get("/swagger-ui/index.html").with(user("docs-check")))
+                .andExpect(status().isNotFound());
     }
 
     @Test

@@ -6,6 +6,7 @@ public enum CommonErrorCode implements ErrorCode {
     VALIDATION_ERROR(400, "VALIDATION_ERROR", "요청값이 올바르지 않습니다."),
     UNAUTHORIZED(401, "AUTH_SESSION_EXPIRED", "로그인이 필요합니다."),
     FORBIDDEN(403, "COMMON_FORBIDDEN", "접근 권한이 없습니다."),
+    RESOURCE_NOT_FOUND(404, "RESOURCE_NOT_FOUND", "요청한 경로를 찾을 수 없습니다."),
     INTERNAL_ERROR(500, "INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다."),
     SERVICE_UNAVAILABLE(503, "SERVICE_UNAVAILABLE", "현재 서비스를 사용할 수 없습니다.");
 

@@ -10,7 +10,6 @@
 
 - 기본 API 문서(Scalar): `https://timetable-api.kdhoon.me/`
 - Scalar 직접 주소: `https://timetable-api.kdhoon.me/scalar`
-- 기존 Swagger UI: `https://timetable-api.kdhoon.me/swagger-ui.html`
 - OpenAPI JSON: `https://timetable-api.kdhoon.me/v3/api-docs`
 - OpenAPI YAML: `https://timetable-api.kdhoon.me/v3/api-docs.yaml`
 
@@ -18,7 +17,6 @@
 
 - 기본 API 문서(Scalar): `http://localhost:8080/`
 - Scalar 직접 주소: `http://localhost:8080/scalar`
-- 기존 Swagger UI: `http://localhost:8080/swagger-ui.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 - OpenAPI YAML: `http://localhost:8080/v3/api-docs.yaml`
 
@@ -43,7 +41,7 @@
 - 브라우저 요청: `credentials: "include"` 사용
 - CSRF 토큰: `GET /api/v1/auth/csrf`의 `data.token`
 - 인증된 상태 변경 요청: 토큰을 `X-XSRF-TOKEN` 헤더에 포함
-- CSRF·OTP 요청·검증, 공개 학사 조회, Scalar·Swagger·OpenAPI 명세는 인증 없이 접근 가능
+- CSRF·OTP 요청·검증, 공개 학사 조회, Scalar·OpenAPI 명세는 인증 없이 접근 가능
 - 다른 사용자의 소유 데이터에는 접근할 수 없음
 
 ## 공통 응답 계약
