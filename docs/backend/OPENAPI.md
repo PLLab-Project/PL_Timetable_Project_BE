@@ -65,8 +65,14 @@ OpenAPI는 자동으로 바뀌지 않습니다. 배포된 애플리케이션이 
 - 보호된 GET: `sessionCookie`
 - 보호된 POST·PATCH·DELETE: `sessionCookie`와 `csrfHeader`
 - 모든 작업: 상세 설명과 파라미터 설명
-- JSON 요청 작업: 실제 요청 예제
+- JSON 요청 작업: 실제 요청 예제와 요청 DTO 필드별 의미·예제·허용 값
+- 공통 응답·페이지·사용자·시간표·자동편성 핵심 스키마: 필드별 의미 표시
 - 업무 규칙에 따라 404·409·422·429·503 오류와 예시 코드 표시
+
+Scalar에서 작업을 열고 **Body → Schema**를 보면 필드별 설명, 필수 여부, 형식과 예제를
+확인할 수 있습니다. **Example**은 그대로 복사해 호출 가능한 요청 본문이며, enum은
+Schema의 허용 값 중 하나를 사용합니다. 전체 응답에서는 `code`와 `message`가 아니라
+`data` 안의 도메인 스키마를 확인합니다.
 
 OpenAPI의 보안 표시는 클라이언트 문서화를 위한 계약이며 실제 접근 제어는 Spring
 Security가 수행합니다.
@@ -89,6 +95,7 @@ OPENAPI_ENABLED=false
 - 인증 흐름·도메인 규칙·알려진 제한: `docs/backend/*.md`가 기준
 - Controller를 추가하거나 경로를 변경하면 `@Operation`,
   `OpenApiDocumentationCatalog`와 관련 Markdown을 함께 수정
+- 요청 DTO를 추가하거나 필드를 변경하면 `@Schema` 설명·예제도 함께 수정
 - CI 또는 로컬에서 `/v3/api-docs` 생성 테스트를 통과시켜 누락된 도메인이 없는지 확인
 - 외부 전달 전 health `data.commit`과 배포 대상 `main` 커밋이 같은지 확인
 

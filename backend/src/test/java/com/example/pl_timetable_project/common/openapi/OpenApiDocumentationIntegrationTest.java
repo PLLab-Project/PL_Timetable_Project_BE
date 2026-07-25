@@ -1,15 +1,19 @@
 package com.example.pl_timetable_project.common.openapi;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.emptyOrNullString;
+import static org.hamcrest.Matchers.endsWith;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.hamcrest.Matchers.endsWith;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.emptyOrNullString;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +30,24 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @Testcontainers
 class OpenApiDocumentationIntegrationTest {
 
+    private static final List<String> REQUEST_SCHEMAS = List.of(
+            "OtpStartRequest",
+            "OtpVerifyRequest",
+            "UserUpdateRequest",
+            "ConsentCreateRequest",
+            "UserDeleteRequest",
+            "ReviewCreateRequest",
+            "ReviewUpdateRequest",
+            "CompletedCourseCreateRequest",
+            "CompletedCourseUpdateRequest",
+            "TimetableCourseRequest",
+            "TimetableCreateRequest",
+            "TimetableSectionsUpdateRequest",
+            "TimetableUpdateRequest",
+            "CourseCandidateRequest",
+            "OptimizationCreateRequest",
+            "TimeRangeRequest");
+
     @Container
     @ServiceConnection
     static final PostgreSQLContainer postgres =
@@ -33,6 +55,8 @@ class OpenApiDocumentationIntegrationTest {
 
     @Autowired
     private WebApplicationContext applicationContext;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private MockMvc mockMvc;
 
@@ -116,6 +140,72 @@ class OpenApiDocumentationIntegrationTest {
                 .andExpect(jsonPath(
                         "$.paths['/api/v1/auth/csrf'].get.responses['200'].content['application/json'].schema['$ref']")
                         .value(endsWith("ApiResponseCsrfTokenResponse")));
+    }
+
+    @Test
+    void documentsRequestFieldsWithMeaningfulDescriptionsAndExamples() throws Exception {
+        String document = mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(
+                        "$.components.schemas.OtpVerifyRequest.properties.studentNumber.description",
+                        not(emptyOrNullString())))
+                .andExpect(jsonPath(
+                        "$.components.schemas.OtpVerifyRequest.properties.studentNumber.example")
+                        .value("20201234"))
+                .andExpect(jsonPath(
+                        "$.components.schemas.UserUpdateRequest.properties.departmentId.description",
+                        not(emptyOrNullString())))
+                .andExpect(jsonPath(
+                        "$.components.schemas.ReviewCreateRequest.properties.rating.example")
+                        .value(5))
+                .andExpect(jsonPath(
+                        "$.components.schemas.CompletedCourseCreateRequest.properties.status.description",
+                        not(emptyOrNullString())))
+                .andExpect(jsonPath(
+                        "$.components.schemas.TimetableCreateRequest.properties.sections.description",
+                        not(emptyOrNullString())))
+                .andExpect(jsonPath(
+                        "$.components.schemas.CourseCandidateRequest.properties.required.description",
+                        not(emptyOrNullString())))
+                .andExpect(jsonPath(
+                        "$.components.schemas.OptimizationCreateRequest.properties.maxDailyClassMinutes.example")
+                        .value(360))
+                .andExpect(jsonPath(
+                        "$.components.schemas.TimeRangeRequest.properties.startTime.description",
+                        not(emptyOrNullString())))
+                .andExpect(jsonPath(
+                        "$.components.schemas.ApiResponseTimetableResponse.properties.code.description",
+                        not(emptyOrNullString())))
+                .andExpect(jsonPath(
+                        "$.components.schemas.AcademicPageResponseCourseSummaryResponse.properties.totalElements.description",
+                        not(emptyOrNullString())))
+                .andExpect(jsonPath(
+                        "$.components.schemas.TimetableResponse.properties.freeTimes.description",
+                        not(emptyOrNullString())))
+                .andExpect(jsonPath(
+                        "$.components.schemas.OptimizationJobResponse.properties.status.description",
+                        not(emptyOrNullString())))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode schemas = objectMapper.readTree(document)
+                .path("components")
+                .path("schemas");
+        for (String schemaName : REQUEST_SCHEMAS) {
+            JsonNode properties = schemas.path(schemaName).path("properties");
+            assertThat(properties.isObject())
+                    .as("%s 요청 스키마가 OpenAPI에 존재해야 함", schemaName)
+                    .isTrue();
+            properties.properties().forEach(entry -> {
+                assertThat(entry.getValue().path("description").asText())
+                        .as("%s.%s 필드 설명", schemaName, entry.getKey())
+                        .isNotBlank();
+                assertThat(entry.getValue().has("example"))
+                        .as("%s.%s 필드 예제", schemaName, entry.getKey())
+                        .isTrue();
+            });
+        }
     }
 
     @Test
