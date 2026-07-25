@@ -45,6 +45,11 @@ cp .env.school.example .env
 ./start.sh
 ```
 
+외부 공개는 고정 IP나 인바운드 포트 개방 대신 같은 호스트의 Cloudflare Tunnel
+systemd 서비스를 권장합니다. Tunnel 생성·방화벽·도메인·검증 절차는
+[학교 서버 배포 런북](docs/deployment/SCHOOL_SERVER.md#5-cloudflare-tunnel로-외부-공개)에
+정리되어 있습니다.
+
 스크립트 하나가 다음 작업을 모두 수행합니다.
 
 1. PostgreSQL 18.4 시작

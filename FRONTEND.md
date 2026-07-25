@@ -69,6 +69,13 @@ VITE_API_BASE_URL=https://timetable-api.kdhoon.me
 `/v3/api-docs.yaml`은 기계 판독 가능한 OpenAPI 3.1 명세입니다. 여기서 `v3`는
 문서 규격 세대이고 서비스 API 버전은 `/api/v1`입니다.
 
+프론트 구현 시에는 Scalar에서 사용할 작업을 연 뒤 다음 순서로 확인합니다.
+
+1. 작업 설명에서 인증 여부와 업무 제약 확인
+2. 요청 Schema에서 각 필드의 의미·형식·필수 여부·허용 값 확인
+3. Example 요청을 복사해 실제 서버에 시험
+4. 성공 응답의 `data` 스키마와 작업별 4xx 오류 `code` 확인
+
 ## 공통 응답 형식
 
 모든 API 성공·실패 응답은 다음 envelope를 사용합니다.

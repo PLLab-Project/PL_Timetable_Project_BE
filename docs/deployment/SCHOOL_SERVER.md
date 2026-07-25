@@ -7,8 +7,9 @@
 
 ```text
 프론트 브라우저
-  └─ HTTPS reverse proxy 또는 Cloudflare Tunnel
-       └─ API 호스트 포트 18082
+  └─ HTTPS Cloudflare Tunnel
+       └─ 학교 서버 cloudflared(systemd)
+            └─ 127.0.0.1:18082
             └─ Docker api:8080 (Spring Boot + JRE 17)
                  └─ Docker db:5432 (PostgreSQL 18.4)
 ```
@@ -33,7 +34,12 @@ API 이미지는 멀티 스테이지로 빌드합니다. 첫 단계의 JDK 17과
 - Docker Compose v2
 - Git
 - 최소 권장 여유 공간 10GB
-- 운영 시 HTTPS 도메인 또는 터널
+- Cloudflare에서 관리 중인 도메인과 Tunnel을 생성할 수 있는 권한
+- 학교 네트워크의 외부 방향 TCP·UDP `7844` 허용
+
+학교 서버의 사설·공인 IP, 공유기 포트포워딩 권한 또는 고정 IP는 필요하지 않습니다.
+`cloudflared`가 학교 서버에서 Cloudflare로 외부 방향 연결을 만들기 때문입니다. API와 DB
+포트를 인터넷에 직접 개방하지 않습니다.
 
 Docker가 부팅 시 자동 시작되도록 설정합니다.
 
@@ -78,6 +84,18 @@ chmod 600 .env
 | `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD` | OTP 메일 발송 계정 |
 | `OTP_FROM` | 발신 주소 |
 | `API_BIND_ADDRESS` | 프록시가 접근할 호스트 인터페이스 |
+
+권장 Tunnel 구성에서는 `cloudflared`를 API와 같은 호스트의 systemd 서비스로
+실행하므로 다음 값을 유지합니다.
+
+```env
+API_BIND_ADDRESS=127.0.0.1
+API_PORT=18082
+SERVER_FORWARD_HEADERS_STRATEGY=framework
+```
+
+`API_BIND_ADDRESS=0.0.0.0`으로 바꾸거나 `18082`, `15432` 포트를 공유기·방화벽에서
+인터넷에 직접 개방하지 않습니다.
 
 API와 프론트가 `api.example.com`, `app.example.com`처럼 같은 사이트의 서브도메인이면
 다음 기본값을 사용합니다.
@@ -126,33 +144,107 @@ docker compose exec -T api \
 
 정상 응답의 `data.commit`은 배포한 Git 커밋입니다.
 
-## 5. 외부 공개
+## 5. Cloudflare Tunnel로 외부 공개
 
-기본 포트는 `127.0.0.1:18082`이므로 인터넷에 직접 공개되지 않습니다. Nginx, Caddy
-또는 Cloudflare Tunnel이 HTTPS를 종료하고 이 포트로 전달하도록 구성합니다.
+### 5.1 로컬 API와 바인딩 확인
 
-Cloudflare Tunnel이 별도 Docker 컨테이너에서 호스트로 접근하는 예:
+먼저 Tunnel 없이 학교 서버 안에서 API가 정상인지 확인합니다.
 
-```env
-API_BIND_ADDRESS=172.17.0.1
-API_PORT=18082
-SERVER_FORWARD_HEADERS_STRATEGY=framework
+```bash
+curl -fsS http://127.0.0.1:18082/api/v1/health/live
+ss -lnt | grep -E '127\\.0\\.0\\.1:(18082|15432)'
 ```
 
-```yaml
-ingress:
-  - hostname: timetable-api.example.com
-    service: http://host.docker.internal:18082
+API `18082`와 DB `15432`가 `127.0.0.1`에만 표시되는 것이 정상입니다. 이 배치에서는
+학교 서버의 IP를 `hostname -I`로 찾아 애플리케이션에 입력할 필요가 없습니다.
+
+### 5.2 Cloudflare에서 Tunnel과 공개 주소 생성
+
+1. Cloudflare Dashboard의 **Networking → Tunnels**에서 remotely-managed Tunnel을
+   생성합니다. 권장 이름은 `pl-timetable-school`입니다.
+2. Tunnel의 **Routes → Add route → Published application**을 선택합니다.
+3. 공개 호스트 이름을 지정합니다. 예: `timetable-api.example.com`
+4. Service URL은 `http://localhost:18082`로 지정합니다.
+5. Connector 추가 화면이 표시하는 Linux 설치 명령의 `<TUNNEL_TOKEN>`을 안전하게
+   보관합니다.
+
+Tunnel 토큰을 가진 사람은 Connector를 실행할 수 있으므로 Git, `.env`, 메신저 또는
+배포 문서에 기록하지 않습니다. 노출되면 Cloudflare Dashboard에서 토큰을 교체합니다.
+
+### 5.3 Ubuntu·Debian에 cloudflared 설치
+
+Cloudflare 공식 패키지 저장소를 사용합니다.
+
+```bash
+sudo mkdir -p --mode=0755 /usr/share/keyrings
+curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \
+  | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
+echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main' \
+  | sudo tee /etc/apt/sources.list.d/cloudflared.list
+sudo apt-get update
+sudo apt-get install -y cloudflared
+cloudflared --version
 ```
 
-DB 포트 `15432`는 계속 `127.0.0.1`에만 바인딩합니다.
+다른 Linux 배포판은 Cloudflare의
+[cloudflared 다운로드 문서](https://developers.cloudflare.com/tunnel/downloads/)에
+있는 해당 패키지를 사용합니다.
 
-외부 검증:
+### 5.4 Connector를 부팅 서비스로 등록
+
+Dashboard가 발급한 실제 토큰으로 한 번만 실행합니다.
+
+```bash
+sudo cloudflared service install '<TUNNEL_TOKEN>'
+sudo systemctl enable --now cloudflared
+sudo systemctl status cloudflared --no-pager
+```
+
+한 서버에는 `cloudflared` systemd 서비스를 하나만 설치합니다. 이미 다른 Tunnel이
+동작 중이면 새 서비스를 중복 설치하지 말고 기존 Tunnel에 공개 Route를 추가합니다.
+
+로그 확인:
+
+```bash
+sudo journalctl -u cloudflared --since '10 minutes ago' --no-pager
+```
+
+학교 방화벽은 Cloudflare Tunnel의 외부 방향 TCP·UDP `7844`와 패키지·관리 API용
+TCP `443`을 허용해야 합니다. UDP가 막히면 HTTP/2 TCP로 대체될 수 있지만, TCP와 UDP
+`7844`가 모두 차단되면 네트워크 관리자에게 외부 방향 허용을 요청해야 합니다.
+
+### 5.5 외부 주소와 생성 명세 확인
+
+학교 서버가 아닌 휴대전화 LTE나 다른 외부 네트워크에서도 확인합니다.
 
 ```bash
 curl -fsS https://timetable-api.example.com/api/v1/health/live
 curl -fsS https://timetable-api.example.com/v3/api-docs
 ```
+
+정상 조건:
+
+- health 응답의 `data.commit`이 배포한 `git rev-parse --short=12 HEAD`와 같음
+- OpenAPI의 `servers[0].url`이 `https://timetable-api.example.com`
+- 브라우저에서 `https://timetable-api.example.com/`을 열면 Scalar 문서 표시
+
+DB 포트 `15432`는 Tunnel Route에 등록하지 않습니다.
+
+### 5.6 Tunnel 문제 해결
+
+| 증상 | 확인 |
+|---|---|
+| 외부 주소가 열리지 않음 | `systemctl status cloudflared`, `journalctl -u cloudflared` |
+| Cloudflare 502 | 먼저 `curl http://127.0.0.1:18082/api/v1/health/live` 확인 |
+| Connector 연결 반복 실패 | 학교 방화벽의 외부 방향 TCP·UDP `7844` 확인 |
+| 다른 앱 또는 이전 Tunnel과 충돌 | 기존 `cloudflared` 서비스와 Dashboard Route 확인 |
+| API 문서의 서버 주소가 HTTP·내부 IP | `SERVER_FORWARD_HEADERS_STRATEGY=framework` 확인 후 API 재시작 |
+| 프론트 요청만 CORS 실패 | 실제 프론트 Origin과 `ALLOWED_ORIGINS`가 정확히 같은지 확인 |
+
+Cloudflare의 최신 동작과 허용 대상은
+[Tunnel 설정](https://developers.cloudflare.com/tunnel/setup/)과
+[Tunnel 방화벽 요구사항](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/tunnel-with-firewall/)을
+기준으로 확인합니다.
 
 ## 6. 프론트 CORS 확인
 
@@ -228,8 +320,10 @@ DB 마이그레이션이 포함된 변경은 애플리케이션만 이전 버전
 ## 배포 완료 기준
 
 - `docker compose ps`에서 `db`, `api`가 healthy
+- `systemctl status cloudflared`에서 Connector가 active
 - health 응답 `data.commit`이 배포 대상 Git 커밋과 동일
 - 외부 Scalar·OpenAPI 200
+- OpenAPI `servers[0].url`이 실제 HTTPS API 도메인과 동일
 - 실제 프론트 Origin의 CORS preflight 성공
 - SMTP OTP 수신·검증과 세션 쿠키 생성 성공
 - 보호된 POST 요청에서 CSRF 토큰 사용 성공
