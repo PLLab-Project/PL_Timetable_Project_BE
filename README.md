@@ -6,8 +6,9 @@ OR-Tools 자동편성 API를 제공합니다.
 
 ## 가장 간단한 실행
 
-호스트에는 **Docker Engine, Docker Compose v2, Git만 필요**합니다.
-Java, Gradle, PostgreSQL은 따로 설치하지 않습니다.
+Linux 호스트에는 Docker Engine과 Docker Compose v2가 필요합니다. Windows 10/11
+학교 컴퓨터에서는 **WSL2와 Docker Desktop**을 사용합니다. Java, Gradle,
+PostgreSQL은 따로 설치하지 않습니다.
 
 ### 1. 저장소 받기
 
@@ -40,15 +41,15 @@ academic-data-bundle.tar.gz
 학교 서버:
 
 ```bash
-cp .env.school.example .env
-# .env의 DB 비밀번호, 프론트 주소와 SMTP 설정을 실제 값으로 수정
-./start.sh
+./install-school.sh
 ```
 
-외부 공개는 고정 IP나 인바운드 포트 개방 대신 같은 호스트의 Cloudflare Tunnel
-systemd 서비스를 권장합니다. Tunnel 생성·방화벽·도메인·검증 절차는
-[학교 서버 배포 런북](docs/deployment/SCHOOL_SERVER.md#5-cloudflare-tunnel로-외부-공개)에
-정리되어 있습니다.
+원클릭 설치가 `.env`와 256비트 난수 DB 비밀번호를 만들고, 자동으로 알 수 없는 프론트
+Origin·SMTP 값만 최초 1회 안전하게 입력받은 뒤 DB·데이터·API까지 시작합니다.
+
+학교 Windows 컴퓨터의 WSL2·Docker Desktop 설치부터 학사 데이터 단일 파일 배치,
+Cloudflare Tunnel Windows 서비스와 재부팅 검증까지
+[Windows 학교 서버 배포 런북](docs/deployment/SCHOOL_SERVER.md)에 정리되어 있습니다.
 
 스크립트 하나가 다음 작업을 모두 수행합니다.
 
@@ -95,7 +96,7 @@ git pull --ff-only origin main
 - [구현 완료·미구현 상태](docs/database/STATUS.md)
 - [DB 구조와 데이터 적재](docs/database/README.md)
 - [전체 ERD](docs/database/ERD.html)
-- [학교 서버 배포 런북](docs/deployment/SCHOOL_SERVER.md)
+- [Windows 학교 서버 배포 런북](docs/deployment/SCHOOL_SERVER.md)
 - [DB 백업·복구](docs/deployment/BACKUP_RESTORE.md)
 
 ## 데이터 번들 생성

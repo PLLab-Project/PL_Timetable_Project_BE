@@ -74,6 +74,7 @@
 - `expected-row-counts.tsv`: 적재 후 기대하는 기준 테이블 행 수
 
 분할은 내부 적재 구현에만 남아 있으며 설치자는 직접 다루지 않습니다.
-`bootstrap-school.sh`가 단일 번들의 파일 목록을 제한하고 자동으로 푼 뒤, 각 조각과
-결합된 전체 gzip의 SHA-256을 확인해 PostgreSQL로 스트리밍합니다. 교수명과 원천
-강의계획서 payload를 포함할 수 있는 번들은 공개 저장소에서 재배포하지 않습니다.
+`prepare-academic-data.sh`가 단일 번들의 변경을 감지하고 파일 목록을 제한한 뒤 임시
+디렉터리에서 각 조각의 SHA-256을 검증합니다. 검증이 끝난 파일만
+`bootstrap-school.sh`가 PostgreSQL로 스트리밍합니다. 교수명과 원천 강의계획서
+payload를 포함할 수 있는 번들은 공개 저장소에서 재배포하지 않습니다.
