@@ -1,11 +1,25 @@
 # OpenAPI·API 문서 사용법
 
 백엔드는 `springdoc-openapi`로 실행 중인 Controller와 DTO에서 OpenAPI 3 명세를
-생성합니다. 프론트 연동용 기본 화면은 Scalar이며, 기존 Swagger UI도 호환성과 디버깅을
-위해 함께 제공합니다.
+생성합니다. OpenAPI JSON/YAML이 프론트와 백엔드 사이의 기계 판독 가능한 API 계약이고,
+Scalar는 그 계약을 사람이 읽고 요청을 시험하는 단일 문서 화면입니다.
 
 `/v3/api-docs`의 `v3`는 OpenAPI 문서 규격 세대를 의미합니다. 서비스 API 버전은
 `/api/v1`이며 OpenAPI `info.version`도 `v1`입니다.
+
+## 프론트 연동에서의 역할
+
+OpenAPI는 특정 언어나 화면 도구에 종속되지 않는 HTTP API 명세 표준입니다. 이
+프로젝트에서는 다음 작업의 공통 입력으로 사용합니다.
+
+- 프론트 개발자가 경로·메서드·파라미터·요청/응답 스키마·인증 요구사항 확인
+- Scalar에서 예제 요청 실행
+- TypeScript 타입과 API 클라이언트 코드 생성
+- Mock 서버, 계약 테스트, API 변경 감지
+
+OpenAPI가 요청·응답의 기술 계약을 담당하고, `FRONTEND.md`와 도메인 Markdown 문서는
+로그인 순서, 화면 분기, 업무 규칙처럼 명세만으로 충분히 전달하기 어려운 흐름을
+보완합니다.
 
 ## 팀 테스트 서버
 
@@ -13,14 +27,12 @@
 |---|---|
 | 기본 API 문서(Scalar) | `https://timetable-api.kdhoon.me/` |
 | Scalar 직접 주소 | `https://timetable-api.kdhoon.me/scalar` |
-| 기존 Swagger UI | `https://timetable-api.kdhoon.me/swagger-ui.html` |
 | OpenAPI JSON | `https://timetable-api.kdhoon.me/v3/api-docs` |
 | OpenAPI YAML | `https://timetable-api.kdhoon.me/v3/api-docs.yaml` |
 | 서버 상태 | `https://timetable-api.kdhoon.me/api/v1/health/live` |
 
-API 전용 호스트의 루트(`/`)는 Scalar로 이동합니다. Scalar와 Swagger UI는 같은 OpenAPI
-명세를 읽으므로 요청·응답 계약은 동일합니다. Scalar는 탐색과 프론트 전달의 기본 화면,
-Swagger UI는 기존 도구 호환이나 요청 시험이 필요할 때 사용할 수 있습니다.
+API 전용 호스트의 루트(`/`)는 Scalar로 이동합니다. Scalar는 `/v3/api-docs`를 읽어
+화면을 만들므로 요청·응답 계약의 원본은 OpenAPI 명세 하나입니다.
 
 이 서버는 Cloudflare Tunnel을 통해 HTTPS로 제공됩니다. 데이터베이스 포트는 외부에
 공개하지 않습니다. 현재 인증 구현은 소셜 로그인이 아니라 OTP 세션 방식이며 테스트
@@ -39,7 +51,6 @@ OpenAPI는 자동으로 바뀌지 않습니다. 배포된 애플리케이션이 
 |---|---|
 | 기본 API 문서(Scalar) | `http://localhost:8080/` |
 | Scalar 직접 주소 | `http://localhost:8080/scalar` |
-| 기존 Swagger UI | `http://localhost:8080/swagger-ui.html` |
 | OpenAPI JSON | `http://localhost:8080/v3/api-docs` |
 | OpenAPI YAML | `http://localhost:8080/v3/api-docs.yaml` |
 
@@ -53,10 +64,10 @@ OpenAPI는 자동으로 바뀌지 않습니다. 배포된 애플리케이션이 
 2. 브라우저가 받은 `JSESSIONID` 쿠키를 유지합니다.
 3. `GET /api/v1/auth/csrf`의 `data.token`을 받습니다.
 4. GET 이외의 보호 API에는 토큰을 `X-XSRF-TOKEN` 헤더로 전송합니다.
-5. Scalar 또는 Swagger UI의 인증 입력란에 `csrfHeader` 값을 입력합니다.
+5. Scalar의 인증 입력란에 `csrfHeader` 값을 입력합니다.
 
-`sessionCookie`는 브라우저가 API 서버 쿠키를 자동으로 전송하므로 보통 Swagger UI에
-직접 입력할 필요가 없습니다. 프론트 애플리케이션에서는 모든 인증 요청에
+`sessionCookie`는 브라우저가 API 서버 쿠키를 자동으로 전송하므로 Scalar에 직접
+입력할 필요가 없습니다. 프론트 애플리케이션에서는 모든 인증 요청에
 `credentials: "include"`를 사용합니다.
 
 ## 생성 명세의 보안 표시
@@ -85,9 +96,9 @@ Security가 수행합니다.
 OPENAPI_ENABLED=false
 ```
 
-이 값은 OpenAPI JSON/YAML, Scalar, Swagger UI를 함께 비활성화합니다. 내부 개발
-서버에서는 기본값 `true`를 사용할 수 있지만 공개 운영 서버에서는 팀의 노출 정책을
-정한 뒤 설정해야 합니다.
+이 값은 OpenAPI JSON/YAML과 Scalar를 함께 비활성화합니다. 내부 개발 서버에서는
+기본값 `true`를 사용할 수 있지만 공개 운영 서버에서는 팀의 노출 정책을 정한 뒤
+설정해야 합니다.
 
 ## 문서 관리 원칙
 

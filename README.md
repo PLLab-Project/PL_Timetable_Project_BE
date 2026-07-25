@@ -64,8 +64,8 @@ systemd 서비스를 권장합니다. Tunnel 생성·방화벽·도메인·검�
 |---|---|
 | API | `http://127.0.0.1:18082` |
 | Scalar API 문서 | `http://127.0.0.1:18082/` |
-| Swagger UI | `http://127.0.0.1:18082/swagger-ui.html` |
 | OpenAPI JSON | `http://127.0.0.1:18082/v3/api-docs` |
+| OpenAPI YAML | `http://127.0.0.1:18082/v3/api-docs.yaml` |
 | 상태·배포 커밋 | `http://127.0.0.1:18082/api/v1/health/live` |
 
 현재 팀 테스트 서버는 [timetable-api.kdhoon.me](https://timetable-api.kdhoon.me/)입니다.
@@ -77,7 +77,7 @@ API 주소, 세션·CSRF 처리, 공통 응답, 오류 분기와 재사용 가�
 `fetch` 래퍼가 한 문서에 정리되어 있습니다.
 
 실행 중인 Scalar 문서에서는 모든 요청·응답 스키마와 예제를 확인하고 직접 요청할 수
-있습니다.
+있습니다. 프론트 도구와 코드 생성기는 같은 OpenAPI JSON/YAML을 사용합니다.
 
 ## 업데이트
 

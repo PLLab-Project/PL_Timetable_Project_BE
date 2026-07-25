@@ -8,7 +8,8 @@
 - API prefix: `/api/v1`
 - 팀 테스트 서버: `https://timetable-api.kdhoon.me`
 - 기본 API 문서(Scalar): `https://timetable-api.kdhoon.me/`
-- Swagger UI: `https://timetable-api.kdhoon.me/swagger-ui.html`
+- OpenAPI JSON: `https://timetable-api.kdhoon.me/v3/api-docs`
+- OpenAPI YAML: `https://timetable-api.kdhoon.me/v3/api-docs.yaml`
 - 로컬 Docker API: `http://127.0.0.1:18082`
 - 소스 직접 실행 API: `http://localhost:8080`
 - 기본 허용 프론트 Origin: `http://localhost:5173`
@@ -65,9 +66,9 @@ VITE_API_BASE_URL=https://timetable-api.kdhoon.me
 - [로컬 실사용 스모크 테스트 결과](docs/backend/LOCAL_API_SMOKE_TEST.md)
 
 실행 중인 서버의 루트(`/`)와 `/scalar`에서 대화형 문서를 확인할 수 있습니다.
-`/swagger-ui.html`은 Swagger UI를 제공하고, `/v3/api-docs`와
-`/v3/api-docs.yaml`은 기계 판독 가능한 OpenAPI 3.1 명세입니다. 여기서 `v3`는
-문서 규격 세대이고 서비스 API 버전은 `/api/v1`입니다.
+`/v3/api-docs`와 `/v3/api-docs.yaml`은 기계 판독 가능한 OpenAPI 3.1 명세입니다.
+여기서 `v3`는 문서 규격 세대이고 서비스 API 버전은 `/api/v1`입니다. Scalar는 이
+명세를 사람이 읽고 요청을 시험하는 화면이며 별도의 API 계약을 만들지 않습니다.
 
 프론트 구현 시에는 Scalar에서 사용할 작업을 연 뒤 다음 순서로 확인합니다.
 
@@ -190,7 +191,7 @@ OTP 로그인 성공으로 세션 ID가 바뀐 뒤에는 `refreshCsrf()`를 다�
 - `429`: OTP 재요청·검증 횟수 제한
 - `500`: 공통 오류 화면과 추적 로그
 
-각 API에 가능한 업무 오류와 실제 요청 예제가 Scalar·Swagger에 표시됩니다.
+각 API에 가능한 업무 오류와 실제 요청 예제가 Scalar에 표시됩니다.
 
 ## 백엔드 인수 완료 조건
 
