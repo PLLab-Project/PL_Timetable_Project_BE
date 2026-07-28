@@ -200,6 +200,7 @@ public class OpenApiConfig {
         return path.startsWith("/api/v1/departments")
                 || path.startsWith("/api/v1/semesters")
                 || path.startsWith("/api/v1/courses")
+                || path.startsWith("/api/v1/sections")
                 || path.equals("/api/v1/graduation/rules");
     }
 
@@ -227,7 +228,8 @@ public class OpenApiConfig {
                 || path.startsWith("/api/v1/reviews")) {
             return "리뷰";
         }
-        if (path.startsWith("/api/v1/courses")) {
+        if (path.startsWith("/api/v1/courses")
+                || path.startsWith("/api/v1/sections")) {
             return "강의";
         }
         if (path.startsWith("/api/v1/completed-courses")) {

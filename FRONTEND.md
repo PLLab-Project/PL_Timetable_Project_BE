@@ -39,6 +39,7 @@ VITE_API_BASE_URL=https://timetable-api.kdhoon.me
 - `GET /departments/**`
 - `GET /semesters/**`
 - `GET /courses/**`
+- `GET /sections/**`
 - `GET /graduation/rules`
 
 인증이 필요한 영역:
@@ -76,6 +77,12 @@ VITE_API_BASE_URL=https://timetable-api.kdhoon.me
 2. 요청 Schema에서 각 필드의 의미·형식·필수 여부·허용 값 확인
 3. Example 요청을 복사해 실제 서버에 시험
 4. 성공 응답의 `data` 스키마와 작업별 4xx 오류 `code` 확인
+
+메인 시간표 화면 하단의 강의 카드와 무한 스크롤은
+`GET /api/v1/sections?semesterId=2026-2&page=0&size=20`을 사용합니다. 검색어나
+필터가 바뀌면 기존 항목을 비우고 `page=0`부터 다시 요청하며, 다음 페이지는
+`data.totalPages` 전까지만 이어 붙입니다. 과목 검색 후 각 과목의 분반 API를 반복
+호출하는 방식은 사용하지 않습니다.
 
 ## 공통 응답 형식
 

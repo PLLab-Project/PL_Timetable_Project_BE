@@ -1,0 +1,55 @@
+package com.example.pl_timetable_project.academic.course;
+
+import com.example.pl_timetable_project.academic.common.AcademicPageResponse;
+import com.example.pl_timetable_project.academic.common.PageSpec;
+import com.example.pl_timetable_project.academic.course.dto.SectionSearchResponse;
+import com.example.pl_timetable_project.common.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import java.math.BigDecimal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/v1/sections")
+@Tag(name = "강의", description = "학기별 강의 검색과 분반 조회")
+public class SectionSearchController {
+
+    private final CourseService courseService;
+
+    public SectionSearchController(CourseService courseService) {
+        this.courseService = courseService;
+    }
+
+    @Operation(summary = "메인 화면 분반 검색·필터·정렬")
+    @GetMapping
+    public ApiResponse<AcademicPageResponse<SectionSearchResponse>> searchSections(
+            @RequestParam String semesterId,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String academicUnitCode,
+            @RequestParam(required = false) String completionCategory,
+            @RequestParam(required = false) String targetGrade,
+            @RequestParam(required = false) String professor,
+            @RequestParam(required = false) BigDecimal credits,
+            @RequestParam(required = false) String day,
+            @RequestParam(defaultValue = "NAME_ASC") String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "" + PageSpec.DEFAULT_SIZE) int size) {
+        return ApiResponse.success(courseService.searchSections(
+                semesterId,
+                query,
+                category,
+                academicUnitCode,
+                completionCategory,
+                targetGrade,
+                professor,
+                credits,
+                day,
+                sort,
+                page,
+                size));
+    }
+}

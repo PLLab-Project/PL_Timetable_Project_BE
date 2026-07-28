@@ -39,6 +39,7 @@
 | Method | Path | 설명 |
 |---|---|---|
 | GET | `/api/v1/courses` | 강의 검색·필터·정렬 |
+| GET | `/api/v1/sections` | 메인 시간표 화면용 분반 카드 검색·필터·정렬 |
 | GET | `/api/v1/courses/{semesterId}/{courseCode}` | 강의 상세 |
 | GET | `/api/v1/courses/{semesterId}/{courseCode}/sections` | 분반 목록 |
 | GET | `/api/v1/courses/{semesterId}/{courseCode}/sections/{sectionCode}` | 분반 상세 |
@@ -47,7 +48,7 @@
 
 - `semesterId`: 필수
 - `query`: 과목코드·과목명·교수명 부분 검색
-- `category`: 이수구분 정확히 일치
+- `category`: 강의 편성 분류 정확히 일치
 - `academicUnitCode`: 학과·전공 코드
 - `professor`: 교수명 부분 검색
 - `credits`: 학점 정확히 일치
@@ -56,15 +57,31 @@
   `POPULARITY_DESC`
 - `page`, `size`: 0부터 시작, 기본 20, 최대 100
 
+메인 시간표 화면의 하단 카드 목록은 과목별 분반 API를 반복 호출하지 말고
+`GET /api/v1/sections`를 사용합니다. 이 API는 위 조건에 더해 다음 분반 조건을
+지원합니다.
+
+- `completionCategory`: 학과 문맥별 이수구분 정확히 일치 (`전필`, `전선`, `교필`,
+  `교선`, `교직`, `전기`, `일선`)
+- `targetGrade`: `1`~`4` 또는 `1학년`~`4학년`
+
+응답의 `items`는 과목명·과목코드·분반·교수·학점·대상 학년·`notes` 비고와
+카드 표시용 `completionCategory`, `sessions` 전체 수업시간·강의실,
+`classifications` 학과별 전체 이수구분 문맥을 포함합니다. `academicUnitCode` 필터를
+사용하면 `completionCategory`는 그 학과 문맥을 우선합니다.
+무한 스크롤은 `page=0&size=20`부터 시작해 `page`를 증가시키고, `totalPages`에
+도달하면 중단합니다. 한 번에 전체 분반을 내려받지 않습니다.
+
 `RATING_DESC`는 해당 학기 전체 리뷰 평균과 최소 표본 5개를 사용하는 베이지안 보정
 점수입니다. `REVIEW_COUNT_DESC`는 리뷰 수만 우선하며, `POPULARITY_DESC`는 리뷰 수를
 우선하고 보정 평점을 보조 기준으로 사용합니다. 리뷰가 없는 강의의 평점과 보정 평점은
 `null`, 리뷰 수는 0입니다.
 
 2026-2 공식 분반은 `targetGrade`, `capacity`, `notes`, `rawLocation`을 제공합니다.
-2026-1에는 원천에 없던 값이므로 `null`일 수 있습니다. 강의 검색의 학년 필터는 아직
-제공하지 않습니다. 졸업요건의 권장 학년은 현재 개설 강의의 수강 대상 학년과 동일한
-데이터 계약이 아닙니다.
+2026-1에는 원천에 없던 값이므로 `null`일 수 있습니다. 과목 단위 `/api/v1/courses`는
+학년 필터를 제공하지 않고, 분반 단위 `/api/v1/sections`만 `targetGrade`를
+지원합니다. 졸업요건의 권장 학년은 현재 개설 강의의 수강 대상 학년과 동일한 데이터
+계약이 아닙니다.
 
 분반 시간은 DB의 자정 기준 분을 API 경계에서 `DayOfWeek`와 `LocalTime`으로 변환합니다.
 수업시간 미정 분반은 `timeToBeAnnounced=true`이며 세션 배열이 비어 있을 수 있습니다.

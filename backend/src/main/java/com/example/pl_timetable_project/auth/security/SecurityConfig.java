@@ -67,6 +67,7 @@ public class SecurityConfig {
                                 "/api/v1/departments/**",
                                 "/api/v1/semesters/**",
                                 "/api/v1/courses/**",
+                                "/api/v1/sections/**",
                                 "/api/v1/graduation/rules").permitAll()
                         .anyRequest().authenticated())
                 .cors(Customizer.withDefaults())

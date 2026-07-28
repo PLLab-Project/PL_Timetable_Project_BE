@@ -87,6 +87,7 @@ class OpenApiDocumentationIntegrationTest {
                 .andExpect(jsonPath("$.paths['/api/v1/departments'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/semesters'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/courses'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/sections'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/reviews'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/completed-courses'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/graduation/rules'].get").exists())
@@ -95,6 +96,9 @@ class OpenApiDocumentationIntegrationTest {
                 .andExpect(jsonPath(
                         "$.paths['/api/v1/courses'].get.responses['200'].content['application/json'].schema['$ref']")
                         .value(endsWith("ApiResponseAcademicPageResponseCourseSummaryResponse")))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/sections'].get.responses['200'].content['application/json'].schema['$ref']")
+                        .value(endsWith("ApiResponseAcademicPageResponseSectionSearchResponse")))
                 .andExpect(jsonPath(
                         "$.paths['/api/v1/timetables'].post.responses['201'].content['application/json'].schema['$ref']")
                         .value(endsWith("ApiResponseTimetableResponse")))
@@ -116,6 +120,12 @@ class OpenApiDocumentationIntegrationTest {
                         not(emptyOrNullString())))
                 .andExpect(jsonPath(
                         "$.paths['/api/v1/courses'].get.parameters[?(@.name == 'semesterId')].description")
+                        .isNotEmpty())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/sections'].get.description",
+                        not(emptyOrNullString())))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/sections'].get.parameters[?(@.name == 'targetGrade')].description")
                         .isNotEmpty())
                 .andExpect(jsonPath(
                         "$.paths['/api/v1/timetables'].post.requestBody.content['application/json'].example.name")
@@ -215,6 +225,8 @@ class OpenApiDocumentationIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath(
                         "$.paths['/api/v1/courses'].get.security").doesNotExist())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/sections'].get.security").doesNotExist())
                 .andExpect(jsonPath(
                         "$.paths['/api/v1/auth/session'].get.security[0].sessionCookie").exists())
                 .andExpect(jsonPath(

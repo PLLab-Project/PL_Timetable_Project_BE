@@ -6,6 +6,7 @@ import com.example.pl_timetable_project.academic.common.TextQuery;
 import com.example.pl_timetable_project.academic.course.dto.CourseDetailResponse;
 import com.example.pl_timetable_project.academic.course.dto.CourseSummaryResponse;
 import com.example.pl_timetable_project.academic.course.dto.SectionDetailResponse;
+import com.example.pl_timetable_project.academic.course.dto.SectionSearchResponse;
 import com.example.pl_timetable_project.academic.course.dto.SectionSummaryResponse;
 import com.example.pl_timetable_project.exception.AcademicResourceNotFoundException;
 import com.example.pl_timetable_project.exception.InvalidAcademicQueryException;
@@ -21,12 +22,15 @@ public class CourseService {
 
     private final CourseQueryRepository repository;
     private final SectionQueryRepository sectionRepository;
+    private final SectionSearchQueryRepository sectionSearchRepository;
 
     public CourseService(
             CourseQueryRepository repository,
-            SectionQueryRepository sectionRepository) {
+            SectionQueryRepository sectionRepository,
+            SectionSearchQueryRepository sectionSearchRepository) {
         this.repository = repository;
         this.sectionRepository = sectionRepository;
+        this.sectionSearchRepository = sectionSearchRepository;
     }
 
     public AcademicPageResponse<CourseSummaryResponse> searchCourses(
@@ -69,6 +73,39 @@ public class CourseService {
             String semesterId, String courseCode) {
         CourseDetailResponse course = getCourse(semesterId, courseCode);
         return sectionRepository.findAll(course.semesterId(), course.courseCode());
+    }
+
+    public AcademicPageResponse<SectionSearchResponse> searchSections(
+            String semesterId,
+            String query,
+            String category,
+            String academicUnitCode,
+            String completionCategory,
+            String targetGrade,
+            String professor,
+            BigDecimal credits,
+            String day,
+            String sort,
+            int page,
+            int size) {
+        String normalizedSemesterId = requireSemester(semesterId);
+        PageSpec pageSpec = PageSpec.of(page, size);
+        SectionSearchCondition condition = new SectionSearchCondition(
+                normalizedSemesterId,
+                TextQuery.optional(query),
+                TextQuery.optional(category),
+                TextQuery.optional(academicUnitCode),
+                TextQuery.optional(completionCategory),
+                parseTargetGrade(targetGrade),
+                TextQuery.optional(professor),
+                validateCredits(credits),
+                parseDay(day));
+        CourseSort courseSort = CourseSort.parse(sort);
+        return AcademicPageResponse.of(
+                sectionSearchRepository.findSections(
+                        condition, courseSort, pageSpec),
+                pageSpec,
+                sectionSearchRepository.countSections(condition));
     }
 
     public SectionDetailResponse getSection(
@@ -116,6 +153,21 @@ public class CourseService {
             case "일", "SUNDAY" -> "일";
             default -> throw new InvalidAcademicQueryException(
                     "day는 요일 한글 한 글자 또는 MONDAY~SUNDAY 형식이어야 합니다.");
+        };
+    }
+
+    private String parseTargetGrade(String targetGrade) {
+        String value = TextQuery.optional(targetGrade);
+        if (value == null) {
+            return null;
+        }
+        return switch (value) {
+            case "1", "1학년" -> "1학년";
+            case "2", "2학년" -> "2학년";
+            case "3", "3학년" -> "3학년";
+            case "4", "4학년" -> "4학년";
+            default -> throw new InvalidAcademicQueryException(
+                    "targetGrade는 1~4 또는 1학년~4학년 형식이어야 합니다.");
         };
     }
 

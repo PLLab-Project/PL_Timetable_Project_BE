@@ -109,6 +109,10 @@ final class OpenApiDocumentationCatalog {
         put(values, HttpMethod.GET, "/api/v1/courses",
                 "학기 강의를 과목명·과목코드·교수·학과·이수구분·학점·요일로 검색하고 정렬합니다. "
                         + "페이지 크기는 최대 100이며 학년 필터는 원본 데이터 부재로 제공하지 않습니다.");
+        put(values, HttpMethod.GET, "/api/v1/sections",
+                "메인 시간표 화면의 강의 카드용 분반 목록입니다. 과목·교수 검색, 학과·이수구분·"
+                        + "대상 학년·학점·요일 필터와 정렬·페이지 조회를 한 요청에서 처리하고, "
+                        + "각 항목에 비고와 전체 수업시간·강의실·분류 문맥을 반환합니다.");
         put(values, HttpMethod.GET, "/api/v1/courses/{semesterId}/{courseCode}",
                 "학기와 과목코드로 강의 기본정보, 연결 학과, 분반 수와 리뷰 집계를 조회합니다.");
         put(values, HttpMethod.GET, "/api/v1/courses/{semesterId}/{courseCode}/sections",
@@ -215,8 +219,10 @@ final class OpenApiDocumentationCatalog {
                 Map.entry("collegeCode", "단과대 코드 정확히 일치 조건입니다."),
                 Map.entry("currentOnly", "true이면 현재 교육과정에 존재하는 공식 학과만 반환합니다."),
                 Map.entry("code", "academic_units의 정규 학과·전공 코드입니다."),
-                Map.entry("category", "강의 이수구분 정확히 일치 조건입니다."),
+                Map.entry("category", "강의 편성 분류 정확히 일치 조건입니다. 예: 전공(컴퓨터공학전공), 교양선택(제1영역:인간과소통)"),
                 Map.entry("academicUnitCode", "분반과 명시적으로 연결된 정규 학과·전공 코드입니다."),
+                Map.entry("completionCategory", "분반의 학과별 이수구분입니다. 예: 전필, 전선, 교필, 교선"),
+                Map.entry("targetGrade", "분반 수강 대상 학년입니다. 1~4 또는 1학년~4학년 형식입니다."),
                 Map.entry("credits", "강의 학점 정확히 일치 조건입니다."),
                 Map.entry("day", "수업 요일입니다. 월~일 또는 MONDAY~SUNDAY를 사용할 수 있습니다."),
                 Map.entry("sort", "NAME_ASC, NAME_DESC, REVIEW_COUNT_DESC, RATING_DESC, POPULARITY_DESC 중 하나입니다."),
@@ -307,6 +313,7 @@ final class OpenApiDocumentationCatalog {
         notFound(values, HttpMethod.GET, "/api/v1/semesters/{semesterId}", "ACADEMIC_RESOURCE_NOT_FOUND", "학기를 찾을 수 없습니다.");
         notFound(values, HttpMethod.GET, "/api/v1/semesters/{semesterId}/version", "ACADEMIC_RESOURCE_NOT_FOUND", "학기 버전을 찾을 수 없습니다.");
         notFound(values, HttpMethod.GET, "/api/v1/courses/{semesterId}/{courseCode}", "ACADEMIC_RESOURCE_NOT_FOUND", "강의를 찾을 수 없습니다.");
+        notFound(values, HttpMethod.GET, "/api/v1/sections", "ACADEMIC_RESOURCE_NOT_FOUND", "학기를 찾을 수 없습니다.");
         notFound(values, HttpMethod.GET, "/api/v1/courses/{semesterId}/{courseCode}/sections", "ACADEMIC_RESOURCE_NOT_FOUND", "강의를 찾을 수 없습니다.");
         notFound(values, HttpMethod.GET, "/api/v1/courses/{semesterId}/{courseCode}/sections/{sectionCode}", "ACADEMIC_RESOURCE_NOT_FOUND", "분반을 찾을 수 없습니다.");
         notFound(values, HttpMethod.PATCH, "/api/v1/reviews/{reviewId}", "ACADEMIC_RESOURCE_NOT_FOUND", "리뷰를 찾을 수 없습니다.");

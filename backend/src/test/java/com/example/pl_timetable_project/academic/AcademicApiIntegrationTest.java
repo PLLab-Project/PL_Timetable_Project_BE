@@ -61,6 +61,10 @@ class AcademicApiIntegrationTest {
         mockMvc.perform(get("/api/v1/semesters"))
                 .andExpect(status().isOk());
 
+        mockMvc.perform(get("/api/v1/sections")
+                        .param("semesterId", "2026-1"))
+                .andExpect(status().isOk());
+
         mockMvc.perform(get("/api/v1/timetables"))
                 .andExpect(status().isUnauthorized());
     }
@@ -393,6 +397,53 @@ class AcademicApiIntegrationTest {
         mockMvc.perform(get("/api/v1/courses/2026-1/UNKNOWN"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ACADEMIC_RESOURCE_NOT_FOUND"));
+    }
+
+    @Test
+    void searchesSectionCardsWithMainScreenFiltersAndPagination() throws Exception {
+        mockMvc.perform(get("/api/v1/sections")
+                        .param("semesterId", "2026-1")
+                        .param("query", "자료")
+                        .param("academicUnitCode", "D1")
+                        .param("completionCategory", "전필")
+                        .param("targetGrade", "2")
+                        .param("professor", "홍")
+                        .param("credits", "3")
+                        .param("day", "MONDAY")
+                        .param("page", "0")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.totalPages").value(1))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.data.items[0].courseName").value("자료구조"))
+                .andExpect(jsonPath("$.data.items[0].sectionCode").value("01"))
+                .andExpect(jsonPath("$.data.items[0].professor").value("홍길동"))
+                .andExpect(jsonPath("$.data.items[0].targetGrade").value("2학년"))
+                .andExpect(jsonPath("$.data.items[0].completionCategory").value("전필"))
+                .andExpect(jsonPath("$.data.items[0].notes").value("컴퓨터공학과 우선"))
+                .andExpect(jsonPath("$.data.items[0].sessions[0].roomCode").value("R101"))
+                .andExpect(jsonPath(
+                        "$.data.items[0].classifications[0].completionCategory")
+                        .value("전필"));
+
+        mockMvc.perform(get("/api/v1/sections")
+                        .param("semesterId", "2026-1")
+                        .param("sort", "RATING_DESC")
+                        .param("page", "0")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(3))
+                .andExpect(jsonPath("$.data.totalPages").value(2))
+                .andExpect(jsonPath("$.data.items.length()").value(2))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE200"))
+                .andExpect(jsonPath("$.data.items[1].courseCode").value("CSE100"));
+
+        mockMvc.perform(get("/api/v1/sections")
+                        .param("semesterId", "2026-1")
+                        .param("targetGrade", "5학년"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_ACADEMIC_QUERY"));
     }
 
     private void insertFixture() {
