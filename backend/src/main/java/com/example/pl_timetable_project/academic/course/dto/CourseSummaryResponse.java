@@ -8,6 +8,8 @@ public record CourseSummaryResponse(
         String name,
         String category,
         BigDecimal credits,
+        BigDecimal lectureHours,
+        BigDecimal practiceHours,
         int sectionCount,
         BigDecimal ratingAverage,
         long reviewCount,

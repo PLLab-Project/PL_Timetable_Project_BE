@@ -55,7 +55,7 @@ Cloudflare Tunnel Windows 서비스와 재부팅 검증까지
 
 1. PostgreSQL 18.4 시작
 2. Flyway 마이그레이션
-3. 학사 데이터 번들 해제·검증·멱등 적재
+3. 2026-1과 공식 2026-2 학사 데이터 번들 해제·검증·멱등 적재
 4. Spring Boot Docker 이미지 빌드
 5. API 시작과 healthcheck
 

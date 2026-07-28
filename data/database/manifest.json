@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "generatedAt": "2026-07-18T18:51:00+09:00",
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-28T13:00:00+09:00",
   "database": {
     "engine": "PostgreSQL",
     "sourceVersion": "18.4",
@@ -24,7 +24,22 @@
     "datasetVersion": "7c89a022ecbb-631a114ce852",
     "sourceChecksum": "bd78610cf34ac3c87111fa7d90e6ce26e6df83794e7b1e631a0c8fbc2b4deb81",
     "file": "current-catalog.sql.gz",
-    "sha256": "4069843dff19862b85e8cbc39669a8145807a569818195042d48002e4ba7cae3"
+    "sha256": "d17b28d5756479d67c8af2660ffc616438313a7d1e2cb000ecae48ee72d335bd"
+  },
+  "officialCatalog": {
+    "semester": "2026-2",
+    "datasetVersion": "official-pdf-v1-7c5f280277b6",
+    "sourceFile": "2026학년도 2학기 종합강의시간표_게시용.pdf",
+    "sourceChecksum": "7c5f280277b63c302d02546a425afa95ea062a420afe178e7cede0af1551283c",
+    "parserVersion": "official-catalog-pdf-v1",
+    "file": "official-catalog-2026-2.sql.gz",
+    "sha256": "482bb681ae14972f280d4f1d83d9d32b83ddd8aa8b4ad41978539607af71802f",
+    "rawRows": 1568,
+    "uniqueSections": 1558,
+    "microMajorRows": 194,
+    "microMajorResolvedRows": 166,
+    "microMajorUnopenedRows": 27,
+    "microMajorSourceNotFoundRows": 1
   },
   "excludedDomains": [
     "email OTP and authentication sessions",

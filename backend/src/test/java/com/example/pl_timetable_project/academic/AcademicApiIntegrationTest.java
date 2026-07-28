@@ -116,6 +116,8 @@ class AcademicApiIntegrationTest {
         mockMvc.perform(get("/api/v1/courses/2026-1/CSE100"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.name").value("자료구조"))
+                .andExpect(jsonPath("$.data.lectureHours").value(3.0))
+                .andExpect(jsonPath("$.data.practiceHours").value(0.0))
                 .andExpect(jsonPath("$.data.academicUnits[0].code").value("D1"));
 
         mockMvc.perform(get("/api/v1/courses")
@@ -345,13 +347,20 @@ class AcademicApiIntegrationTest {
         mockMvc.perform(get("/api/v1/courses/2026-1/CSE100/sections"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].sectionCode").value("01"))
+                .andExpect(jsonPath("$.data[0].targetGrade").value("2학년"))
+                .andExpect(jsonPath("$.data[0].capacity").value(40))
                 .andExpect(jsonPath("$.data[0].sessions[0].dayOfWeek").value("MONDAY"))
-                .andExpect(jsonPath("$.data[0].sessions[0].roomLabel").value("공학관 101호"));
+                .andExpect(jsonPath("$.data[0].sessions[0].roomLabel").value("공학관 101호"))
+                .andExpect(jsonPath("$.data[0].sessions[0].rooms[0].roomCode")
+                        .value("R101"));
 
         mockMvc.perform(get("/api/v1/courses/2026-1/CSE100/sections/01"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.warningCodes[0]").value("SOURCE_TIME_NORMALIZED"))
-                .andExpect(jsonPath("$.data.academicUnits[0].code").value("D1"));
+                .andExpect(jsonPath("$.data.academicUnits[0].code").value("D1"))
+                .andExpect(jsonPath("$.data.classifications[0].completionCategory")
+                        .value("전필"))
+                .andExpect(jsonPath("$.data.classifications[0].sourcePage").value(95));
 
         mockMvc.perform(get("/api/v1/courses")
                         .param("semesterId", "2026-1")
@@ -417,11 +426,12 @@ class AcademicApiIntegrationTest {
                 );
 
                 INSERT INTO courses (
-                    semester_id, course_code, name, category, credits
+                    semester_id, course_code, name, category, credits,
+                    lecture_hours, practice_hours
                 ) VALUES
-                    ('2026-1', 'CSE100', '자료구조', '전공필수', 3.00),
-                    ('2026-1', 'CSE200', '알고리즘', '전공선택', 3.00),
-                    ('2026-1', 'GEN100', '글쓰기', '교양필수', 2.00);
+                    ('2026-1', 'CSE100', '자료구조', '전공필수', 3.00, 3.00, 0.00),
+                    ('2026-1', 'CSE200', '알고리즘', '전공선택', 3.00, 3.00, 0.00),
+                    ('2026-1', 'GEN100', '글쓰기', '교양필수', 2.00, 2.00, 0.00);
 
                 INSERT INTO sections (
                     semester_id, course_code, section_code, professor,
@@ -440,6 +450,17 @@ class AcademicApiIntegrationTest {
                         '미정', true, '[]'::jsonb
                     );
 
+                UPDATE sections
+                   SET raw_location = '공학관101호',
+                       target_grade = '2학년',
+                       capacity = 40,
+                       notes = '컴퓨터공학과 우선',
+                       source_page = 95,
+                       source_row = 1
+                 WHERE semester_id = '2026-1'
+                   AND course_code = 'CSE100'
+                   AND section_code = '01';
+
                 INSERT INTO rooms (
                     semester_id, code, building_code, building_name, label,
                     room_type, capacity
@@ -449,10 +470,38 @@ class AcademicApiIntegrationTest {
 
                 INSERT INTO sessions (
                     semester_id, course_code, section_code, day,
-                    start_minute, end_minute, room_code
+                    start_minute, end_minute, room_code, sequence_no
                 ) VALUES
-                    ('2026-1', 'CSE100', '01', '월', 540, 630, 'R101'),
-                    ('2026-1', 'CSE200', '01', '화', 660, 750, NULL);
+                    ('2026-1', 'CSE100', '01', '월', 540, 630, 'R101', 1),
+                    ('2026-1', 'CSE200', '01', '화', 660, 750, NULL, 1);
+
+                INSERT INTO session_rooms (
+                    session_id, semester_id, room_code, position
+                )
+                SELECT id, semester_id, room_code, 1
+                  FROM sessions
+                 WHERE semester_id = '2026-1'
+                   AND course_code = 'CSE100';
+
+                INSERT INTO catalog_sources (
+                    checksum, semester_id, source_kind, original_file_name,
+                    published_on, parser_version, raw_row_count,
+                    unique_section_count, metadata
+                ) VALUES (
+                    repeat('b', 64), '2026-1', 'OFFICIAL_PDF', 'fixture.pdf',
+                    current_date, 'test-parser', 1, 1, '{}'::jsonb
+                );
+
+                INSERT INTO section_classification_contexts (
+                    semester_id, course_code, section_code, source_checksum,
+                    context_label, context_kind, academic_unit_code,
+                    completion_category, target_grade, is_primary, is_shaded,
+                    source_page, source_row
+                ) VALUES (
+                    '2026-1', 'CSE100', '01', repeat('b', 64),
+                    '컴퓨터공학과', 'ACADEMIC_UNIT', 'D1',
+                    '전필', '2학년', true, false, 95, 1
+                );
 
                 INSERT INTO section_academic_units (
                     semester_id, course_code, section_code, academic_unit_code,

@@ -407,6 +407,88 @@ FROM academic_units units
 WHERE units.normalized_key = rules.academic_unit_key
   AND rules.academic_unit_code IS DISTINCT FROM units.code;
 
+UPDATE section_classification_contexts context
+SET academic_unit_code = (
+    SELECT candidate.code
+    FROM (
+        SELECT units.code, 0 AS priority
+        FROM academic_units units
+        WHERE units.normalized_key =
+              normalize_academic_unit_key(context.context_label)
+
+        UNION ALL
+
+        SELECT aliases.academic_unit_code, 1 AS priority
+        FROM academic_unit_aliases aliases
+        WHERE aliases.alias_key =
+              normalize_academic_unit_key(context.context_label)
+          AND (
+              aliases.valid_from_year IS NULL
+              OR aliases.valid_from_year <=
+                 split_part(context.semester_id, '-', 1)::integer
+          )
+          AND (
+              aliases.valid_to_year IS NULL
+              OR aliases.valid_to_year >=
+                 split_part(context.semester_id, '-', 1)::integer
+          )
+    ) candidate
+    ORDER BY candidate.priority, candidate.code
+    LIMIT 1
+)
+WHERE context.context_kind = 'ACADEMIC_UNIT'
+  AND context.academic_unit_code IS NULL;
+
+UPDATE catalog_program_course_listings listing
+SET offering_academic_unit_code = (
+    SELECT candidate.code
+    FROM (
+        SELECT units.code, 0 AS priority
+        FROM academic_units units
+        WHERE units.normalized_key =
+              normalize_academic_unit_key(listing.offering_unit_label)
+
+        UNION ALL
+
+        SELECT aliases.academic_unit_code, 1 AS priority
+        FROM academic_unit_aliases aliases
+        WHERE aliases.alias_key =
+              normalize_academic_unit_key(listing.offering_unit_label)
+          AND (
+              aliases.valid_from_year IS NULL
+              OR aliases.valid_from_year <=
+                 split_part(listing.semester_id, '-', 1)::integer
+          )
+          AND (
+              aliases.valid_to_year IS NULL
+              OR aliases.valid_to_year >=
+                 split_part(listing.semester_id, '-', 1)::integer
+          )
+    ) candidate
+    ORDER BY candidate.priority, candidate.code
+    LIMIT 1
+)
+WHERE listing.offering_academic_unit_code IS NULL;
+
+INSERT INTO section_academic_units (
+    semester_id,
+    course_code,
+    section_code,
+    academic_unit_code,
+    relation_type,
+    source_kind
+)
+SELECT
+    semester_id,
+    course_code,
+    section_code,
+    academic_unit_code,
+    CASE WHEN is_primary THEN 'OFFERING' ELSE 'CROSS_LISTED' END,
+    'OFFICIAL_CATALOG_PDF'
+FROM section_classification_contexts
+WHERE academic_unit_code IS NOT NULL
+ON CONFLICT DO NOTHING;
+
 DELETE FROM section_academic_units
 WHERE source_kind = 'HISTORICAL_OFFERING_CONTEXT';
 

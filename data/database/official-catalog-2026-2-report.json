@@ -1,0 +1,32 @@
+{
+  "semester": "2026-2",
+  "parserVersion": "official-catalog-pdf-v1",
+  "sourceChecksum": "7c5f280277b63c302d02546a425afa95ea062a420afe178e7cede0af1551283c",
+  "datasetVersion": "official-pdf-v1-7c5f280277b6",
+  "rawRows": 1568,
+  "microMajorRows": 194,
+  "microMajorOfferedRows": 167,
+  "microMajorUnopenedRows": 27,
+  "microMajorResolvedRows": 166,
+  "microMajorSourceNotFoundRows": 1,
+  "microMajorAmbiguousRows": 0,
+  "courses": 1025,
+  "sections": 1558,
+  "duplicateContextRows": 10,
+  "sessions": 1873,
+  "rooms": 261,
+  "sessionRoomLinks": 1886,
+  "timeToBeAnnounced": 12,
+  "shadedRows": 180,
+  "ambiguousRoomMappings": 0,
+  "pageCount": 141,
+  "coursePageCount": 96,
+  "programPageCount": 5,
+  "pdfMetadata": {
+    "CreationDate": "D:20260724153336+09'00'",
+    "Creator": "Hwp 2024 13.0.0.3870",
+    "ModDate": "D:20260724153844+09'00'",
+    "PDFVersion": "1.4",
+    "Producer": "Hancom PDF 1.3.0.550"
+  }
+}

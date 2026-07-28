@@ -41,8 +41,13 @@ DOMAINS = {
             "courses",
             "sections",
             "sessions",
+            "session_rooms",
             "rooms",
             "data_imports",
+            "catalog_sources",
+            "catalog_source_rows",
+            "catalog_program_course_listings",
+            "section_classification_contexts",
         },
     },
     "timetable": {

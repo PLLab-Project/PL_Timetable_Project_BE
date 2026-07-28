@@ -123,6 +123,111 @@ if [ "$normalization_issue_count" != "0" ]; then
     failure=1
 fi
 
+official_catalog_issue_count=$(psql -X -q -v ON_ERROR_STOP=1 -Atc "
+    SELECT
+        (SELECT count(*)
+           FROM catalog_sources source
+          WHERE source.raw_row_count <> (
+                    SELECT count(*)
+                      FROM catalog_source_rows row
+                     WHERE row.source_checksum = source.checksum
+                )
+             OR source.supplemental_row_count <> (
+                    SELECT count(*)
+                      FROM catalog_program_course_listings listing
+                     WHERE listing.source_checksum = source.checksum
+                )
+             OR source.unique_section_count <> (
+                    SELECT count(*)
+                      FROM sections section
+                     WHERE section.semester_id = source.semester_id
+                ))
+      + (SELECT count(*)
+           FROM catalog_sources source
+           LEFT JOIN data_imports import
+             ON import.semester_id = source.semester_id
+            AND import.checksum = source.checksum
+          WHERE import.id IS NULL)
+      + (SELECT count(*)
+           FROM sections section
+           JOIN catalog_sources source
+             ON source.semester_id = section.semester_id
+          WHERE NOT EXISTS (
+                    SELECT 1
+                      FROM catalog_source_rows row
+                     WHERE row.source_checksum = source.checksum
+                       AND row.semester_id = section.semester_id
+                       AND row.course_code = section.course_code
+                       AND row.section_code = section.section_code
+                ))
+      + (SELECT count(*)
+           FROM catalog_source_rows row
+          WHERE NOT EXISTS (
+                    SELECT 1
+                      FROM section_classification_contexts context
+                     WHERE context.source_checksum = row.source_checksum
+                       AND context.semester_id = row.semester_id
+                       AND context.course_code = row.course_code
+                       AND context.section_code = row.section_code
+                       AND context.source_page = row.page_number
+                       AND context.source_row = row.row_number
+                ))
+      + (SELECT count(*)
+           FROM catalog_sources source
+          WHERE (source.metadata ->> 'microMajorResolvedRows')::integer <> (
+                    SELECT count(*)
+                      FROM catalog_program_course_listings listing
+                     WHERE listing.source_checksum = source.checksum
+                       AND listing.resolution_status = 'RESOLVED'
+                )
+             OR (source.metadata ->> 'microMajorUnopenedRows')::integer <> (
+                    SELECT count(*)
+                      FROM catalog_program_course_listings listing
+                     WHERE listing.source_checksum = source.checksum
+                       AND listing.resolution_status = 'NOT_OFFERED'
+                )
+             OR (source.metadata ->> 'microMajorSourceNotFoundRows')::integer <> (
+                    SELECT count(*)
+                      FROM catalog_program_course_listings listing
+                     WHERE listing.source_checksum = source.checksum
+                       AND listing.resolution_status = 'SOURCE_NOT_FOUND'
+                )
+             OR (source.metadata ->> 'microMajorAmbiguousRows')::integer <> (
+                    SELECT count(*)
+                      FROM catalog_program_course_listings listing
+                     WHERE listing.source_checksum = source.checksum
+                       AND listing.resolution_status = 'AMBIGUOUS'
+                ))
+      + (SELECT count(*)
+           FROM section_classification_contexts context
+          WHERE context.context_kind = 'ACADEMIC_UNIT'
+            AND context.academic_unit_code IS NULL)
+      + (SELECT count(*)
+           FROM catalog_program_course_listings listing
+          WHERE listing.offering_academic_unit_code IS NULL)
+      + (SELECT count(*)
+           FROM catalog_source_rows row
+          WHERE row.raw_cells = '{}'::jsonb)
+      + (SELECT count(*)
+           FROM sessions session
+          WHERE session.sequence_no IS NULL)
+      + (SELECT count(*)
+           FROM sessions session
+          WHERE session.room_code IS NOT NULL
+            AND NOT EXISTS (
+                    SELECT 1
+                      FROM session_rooms room
+                     WHERE room.session_id = session.id
+                       AND room.semester_id = session.semester_id
+                       AND room.room_code = session.room_code
+                ));
+")
+
+if [ "$official_catalog_issue_count" != "0" ]; then
+    echo "official catalog preservation check failed: $official_catalog_issue_count issues" >&2
+    failure=1
+fi
+
 flyway_failures=$(psql -X -q -v ON_ERROR_STOP=1 -Atc \
     "SELECT count(*) FROM flyway_schema_history WHERE success IS NOT TRUE")
 if [ "$flyway_failures" != "0" ]; then

@@ -87,15 +87,33 @@ class PlTimetableProjectApplicationTests {
         String optimizationJobs = jdbcTemplate.queryForObject(
                 "SELECT to_regclass('public.optimization_jobs')::text",
                 String.class);
+        String catalogSourceRows = jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.catalog_source_rows')::text",
+                String.class);
+        String sectionClassifications = jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.section_classification_contexts')::text",
+                String.class);
+        String sessionRooms = jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.session_rooms')::text",
+                String.class);
+        String programCourseListings = jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.catalog_program_course_listings')::text",
+                String.class);
 
         assertThat(version).startsWith("18.4");
-        assertThat(successfulMigrations).isEqualTo(8);
+        assertThat(successfulMigrations).isEqualTo(10);
         assertThat(graduationProfiles).isEqualTo("graduation_credit_profiles");
         assertThat(socialIdentities).isEqualTo("social_identities");
         assertThat(academicUnits).isEqualTo("academic_units");
         assertThat(sectionAcademicUnits).isEqualTo("section_academic_units");
         assertThat(timetables).isEqualTo("timetables");
         assertThat(optimizationJobs).isEqualTo("optimization_jobs");
+        assertThat(catalogSourceRows).isEqualTo("catalog_source_rows");
+        assertThat(sectionClassifications)
+                .isEqualTo("section_classification_contexts");
+        assertThat(sessionRooms).isEqualTo("session_rooms");
+        assertThat(programCourseListings)
+                .isEqualTo("catalog_program_course_listings");
     }
 
     @Test
@@ -307,9 +325,10 @@ class PlTimetableProjectApplicationTests {
                 );
 
                 INSERT INTO sessions (
-                    semester_id, course_code, section_code, day, start_minute, end_minute
+                    semester_id, course_code, section_code, day, start_minute,
+                    end_minute, sequence_no
                 ) VALUES (
-                    '2026-1', 'CSE100', '02', '수', 540, 690
+                    '2026-1', 'CSE100', '02', '수', 540, 690, 1
                 );
                 """);
 
@@ -402,10 +421,11 @@ class PlTimetableProjectApplicationTests {
                 );
 
                 INSERT INTO sessions (
-                    semester_id, course_code, section_code, day, start_minute, end_minute
+                    semester_id, course_code, section_code, day, start_minute,
+                    end_minute, sequence_no
                 ) VALUES
-                    ('2026-1', 'CSE100', '01', '월', 540, 630),
-                    ('2026-1', 'CSE100', '01', '금', 780, 830);
+                    ('2026-1', 'CSE100', '01', '월', 540, 630, 1),
+                    ('2026-1', 'CSE100', '01', '금', 780, 830, 2);
                 """);
         return userId;
     }

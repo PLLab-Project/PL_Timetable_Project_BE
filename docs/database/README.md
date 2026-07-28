@@ -3,7 +3,7 @@
 ## 적용된 구성
 
 - PostgreSQL `18.4`
-- Flyway `12.11.0`과 버전 마이그레이션 8개
+- Flyway `12.11.0`과 버전 마이그레이션 10개
 - Spring Data JPA와 PostgreSQL JDBC 드라이버
 - Testcontainers PostgreSQL 통합 테스트
 - Docker Compose의 `db`, `migrate`, `ingest`, `api` 서비스
@@ -28,13 +28,14 @@ Flyway는 테이블·제약조건·인덱스 같은 **DB 구조**를 관리합�
 
 `ingest`는 다음 순서로 동작합니다.
 
-1. 번들에서 풀린 현재 카탈로그와 내부 기준 데이터 조각의 SHA-256 검증
+1. 번들에서 풀린 2026-1·2026-2 카탈로그와 내부 기준 데이터 조각의 SHA-256 검증
 2. `reference_data_imports.package_id`로 기준 데이터 패키지의 기존 적재 여부 확인
-3. `data_imports.checksum`으로 현재 학기 카탈로그의 기존 적재 여부 확인
+3. `data_imports.checksum`으로 학기별 카탈로그의 기존 적재 여부 확인
 4. 미적재 패키지만 트랜잭션으로 적재
 5. 학과·전공 코드, 연도별 별칭, 현재 분반 연결 정규화
-6. `expected-row-counts.tsv`에 정의된 39개 기준·적재관리 테이블의 행 수 확인
-7. 핵심 참조 무결성과 Flyway 실패 이력 확인
+6. `expected-row-counts.tsv`에 정의된 44개 기준·적재관리 테이블의 행 수 확인
+7. 공식 PDF 원본 행·분류 문맥·복수 강의실 보존 여부 확인
+8. 핵심 참조 무결성과 Flyway 실패 이력 확인
 
 동일 패키지를 다시 실행하면 적재 단계는 건너뛰고 검증만 수행합니다. 따라서 같은
 패키지의 재실행은 `users`, `course_reviews`, `completed_courses`를 변경하지 않습니다.
@@ -50,7 +51,42 @@ DB 작업 전에 중단합니다.
 - `academic_units`: 공식 학과·전공 코드와 공식 코드가 없는 과거 요건용 결정적 파생 코드
 - `academic_unit_aliases`: 교육과정·졸업요건에서 사용된 연도별 표기
 - `section_academic_units`: 현재 분반과 명시적으로 제공된 학과 코드의 다대다 관계
+- `section_classification_contexts`: 같은 분반의 학과·융합전공별 이수구분과 대상 학년
 - `student_profiles.academic_unit_code`: 사용자 학과를 `academic_units`에 연결하는 FK
+
+## 공식 2026-2 카탈로그 보존
+
+공식 종합강의시간표 PDF의 1,568개 표 행을 파싱해 1,558개 고유 분반으로 정규화했습니다.
+과목·분반·수업시간 조회용 값뿐 아니라 다음 감사 정보도 함께 저장합니다.
+
+- `catalog_sources`: 원본 파일명, SHA-256, 파서 버전, 원본·고유 행 수
+- `catalog_source_rows`: PDF 페이지·행, 원본 셀 JSON, 음영 여부, 중복 교차표기
+- `catalog_program_course_listings`: 마이크로전공 부록 194행과 개설·미개설 상태
+- `section_classification_contexts`: 학과·융합전공·교양영역별 이수구분과 대상 학년
+- `sections`: 정원, 비고, 원본 강의실, 원본 행 스냅샷
+- `session_rooms`: 같은 수업시간에 강의실과 실험실을 함께 쓰는 경우의 복수 강의실
+
+공식 표에서 시간과 강의실이 비어 있는 12개 분반은 예비 데이터로 채우지 않고
+`time_to_be_announced=true`로 보존합니다. 동일 분반이 여러 학과·융합전공 표에 나오는
+10개 행은 분반을 중복 생성하지 않고 모든 분류 문맥을 원본 행과 함께 남깁니다.
+마이크로전공 부록은 194행 전부를 보존합니다. 부록이 `미개설`로 표시한 27행은
+`NOT_OFFERED`, 실제 강의와 연결된 166행은 `RESOLVED`입니다. 부록에서 개설 페이지를
+제시했지만 본문에 해당 강의가 없는 `반도체소자공정` 1행은 값을 만들지 않고
+`SOURCE_NOT_FOUND`로 명시합니다.
+
+원본 PDF에서 적재 페이로드를 다시 생성할 때는 별도 가상환경에서 실행합니다.
+
+```bash
+python3 -m venv .venv-academic-data
+.venv-academic-data/bin/pip install -r scripts/requirements-academic-data.txt
+.venv-academic-data/bin/python scripts/extract-official-catalog.py \
+  --pdf "/path/to/2026학년도 2학기 종합강의시간표_게시용.pdf" \
+  --output data/database/official-catalog-2026-2.sql.gz \
+  --report data/database/official-catalog-2026-2-report.json
+```
+
+생성 SQL은 교수명과 강의 원본을 포함하므로 Git에서 제외하고 데이터 번들로 전달합니다.
+추출 보고서와 `SHA256SUMS`, `manifest.json`은 검증 가능한 공개 메타데이터로 관리합니다.
 
 `academic_units.is_current`는 최신 교육과정 데이터셋에 코드가 존재한다는 의미이며,
 신입생 모집 또는 행정조직 운영 상태를 보장하지 않습니다. 학과 코드가 없는 교양·공통

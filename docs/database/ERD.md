@@ -20,6 +20,15 @@ erDiagram
     COURSES ||--o{ SECTIONS : offers
     SECTIONS ||--o{ SESSIONS : schedules
     ROOMS ||--o{ SESSIONS : hosts
+    SESSIONS ||--o{ SESSION_ROOMS : uses
+    ROOMS ||--o{ SESSION_ROOMS : assigned
+    SEMESTERS ||--o{ CATALOG_SOURCES : imported_from
+    CATALOG_SOURCES ||--o{ CATALOG_SOURCE_ROWS : preserves
+    CATALOG_SOURCES ||--o{ CATALOG_PROGRAM_COURSE_LISTINGS : preserves
+    SECTIONS ||--o{ CATALOG_SOURCE_ROWS : derived_from
+    COURSES ||--o{ CATALOG_PROGRAM_COURSE_LISTINGS : resolves
+    SECTIONS ||--o{ SECTION_CLASSIFICATION_CONTEXTS : classified_in
+    ACADEMIC_UNITS ||--o{ SECTION_CLASSIFICATION_CONTEXTS : resolves
     ACADEMIC_COLLEGES ||--o{ ACADEMIC_UNITS : contains
     ACADEMIC_UNITS ||--o{ ACADEMIC_UNIT_ALIASES : resolves
     SECTIONS ||--o{ SECTION_ACADEMIC_UNITS : classified_as
@@ -58,8 +67,13 @@ erDiagram
   식별자를 분리합니다. `student_profiles`에는 학번·입학연도 같은 학사 프로필과
   `academic_units`를 참조하는 학과 코드를 둡니다. 학교 이메일 OTP와 Spring Security
   세션은 구현되어 있고 소셜 로그인 공급자 연동은 후속 범위입니다.
-- **현재 강의 카탈로그**: 2026-1 학기의 강의·분반·수업시간·강의실을 정규화합니다.
+- **현재 강의 카탈로그**: 2026-1과 공식 2026-2 학기의
+  강의·분반·수업시간·강의실을 정규화합니다.
   여기서 `sessions`는 로그인 세션이 아니라 요일·시작시간·종료시간을 가진 **수업시간**입니다.
+  `session_rooms`는 하나의 수업시간에 연결되는 복수 강의실을 순서대로 보존합니다.
+- **공식 카탈로그 감사 원장**: `catalog_sources`, `catalog_source_rows`,
+  `catalog_program_course_listings`, `section_classification_contexts`가 PDF 체크섬과
+  원본 행, 마이크로전공 부록, 학과·융합전공별 이수구분을 보존합니다.
 - **학과·전공 기준정보**: 단과대와 학과·전공의 안정적인 코드를 기준으로 최신 명칭과
   연도별 별칭을 분리하고, 원천에 명시된 현재 분반의 학과 문맥만 다대다로 연결합니다.
   공식 코드가 없는 과거 요건 키는 별도의 결정적 파생 코드로 보존해 현재 학과로 임의

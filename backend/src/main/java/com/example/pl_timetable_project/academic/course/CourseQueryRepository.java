@@ -125,6 +125,7 @@ public class CourseQueryRepository {
                 .addValue("offset", pageSpec.offset());
         return jdbcTemplate.query(REVIEW_CTE + """
                 SELECT c.semester_id, c.course_code, c.name, c.category, c.credits,
+                       c.lecture_hours, c.practice_hours,
                        (
                            SELECT count(*)
                              FROM sections section_count
@@ -148,6 +149,8 @@ public class CourseQueryRepository {
                         rs.getString("name"),
                         rs.getString("category"),
                         rs.getBigDecimal("credits"),
+                        rs.getBigDecimal("lecture_hours"),
+                        rs.getBigDecimal("practice_hours"),
                         rs.getInt("section_count"),
                         rs.getBigDecimal("rating_average"),
                         rs.getLong("review_count"),
@@ -168,6 +171,7 @@ public class CourseQueryRepository {
                 Map.of("semesterId", semesterId, "courseCode", courseCode);
         Optional<CourseRow> course = jdbcTemplate.query(REVIEW_CTE + """
                 SELECT c.semester_id, c.course_code, c.name, c.category, c.credits,
+                       c.lecture_hours, c.practice_hours,
                        (
                            SELECT count(*)
                              FROM sections section_count
@@ -189,6 +193,8 @@ public class CourseQueryRepository {
                 rs.getString("name"),
                 rs.getString("category"),
                 rs.getBigDecimal("credits"),
+                rs.getBigDecimal("lecture_hours"),
+                rs.getBigDecimal("practice_hours"),
                 rs.getInt("section_count"),
                 rs.getBigDecimal("rating_average"),
                 rs.getLong("review_count"),
@@ -201,6 +207,8 @@ public class CourseQueryRepository {
                 row.name(),
                 row.category(),
                 row.credits(),
+                row.lectureHours(),
+                row.practiceHours(),
                 row.sectionCount(),
                 row.ratingAverage(),
                 row.reviewCount(),
@@ -256,6 +264,8 @@ public class CourseQueryRepository {
             String name,
             String category,
             BigDecimal credits,
+            BigDecimal lectureHours,
+            BigDecimal practiceHours,
             int sectionCount,
             BigDecimal ratingAverage,
             long reviewCount,

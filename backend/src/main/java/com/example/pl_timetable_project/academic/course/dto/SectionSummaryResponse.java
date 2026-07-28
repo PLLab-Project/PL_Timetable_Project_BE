@@ -8,7 +8,11 @@ public record SectionSummaryResponse(
         String sectionCode,
         String professor,
         String rawLectureTime,
+        String rawLocation,
         boolean timeToBeAnnounced,
+        String targetGrade,
+        Integer capacity,
+        String notes,
         int warningCount,
         List<CourseSessionResponse> sessions) {
 }

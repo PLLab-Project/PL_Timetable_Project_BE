@@ -10,6 +10,7 @@ stamp="${data_directory}/.academic-data-bundle.sha256"
 
 payload_files=(
     current-catalog.sql.gz
+    official-catalog-2026-2.sql.gz
     reference-data.sql.gz.part-00
     reference-data.sql.gz.part-01
     reference-data.sql.gz.part-02

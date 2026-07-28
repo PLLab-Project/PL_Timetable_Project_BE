@@ -2,7 +2,7 @@
 
 학사 조회 API는 인증 없이 읽을 수 있는 기준 데이터 API입니다. DB 원본은
 `academic_units`, `semesters`, `courses`, `sections`, `sessions`,
-`section_academic_units`입니다.
+`session_rooms`, `section_academic_units`, `section_classification_contexts`입니다.
 
 모든 성공 응답은 공통 `ApiResponse<T>` envelope를 사용하며 아래에서 설명하는 목록,
 페이지, 상세 객체는 `data`에 들어갑니다.
@@ -61,12 +61,21 @@
 우선하고 보정 평점을 보조 기준으로 사용합니다. 리뷰가 없는 강의의 평점과 보정 평점은
 `null`, 리뷰 수는 0입니다.
 
-현재 강의 원본의 `courses`, `sections`에는 수강 대상 학년 필드가 없으므로 강의 검색은
-학년 필터를 제공하지 않습니다. 졸업요건의 권장 학년은 현재 개설 강의의 수강 대상
-학년과 동일한 데이터 계약이 아닙니다.
+2026-2 공식 분반은 `targetGrade`, `capacity`, `notes`, `rawLocation`을 제공합니다.
+2026-1에는 원천에 없던 값이므로 `null`일 수 있습니다. 강의 검색의 학년 필터는 아직
+제공하지 않습니다. 졸업요건의 권장 학년은 현재 개설 강의의 수강 대상 학년과 동일한
+데이터 계약이 아닙니다.
 
 분반 시간은 DB의 자정 기준 분을 API 경계에서 `DayOfWeek`와 `LocalTime`으로 변환합니다.
 수업시간 미정 분반은 `timeToBeAnnounced=true`이며 세션 배열이 비어 있을 수 있습니다.
+`sessions[].roomCode`, `roomLabel`, `buildingName`은 기존 클라이언트 호환용 대표
+강의실이고, `sessions[].rooms`가 같은 시간에 사용하는 전체 강의실의 순서 있는
+목록입니다.
+
+분반 상세의 `classifications`는 같은 분반이 서로 다른 학과·융합전공 표에 등장할 때
+각 문맥의 `completionCategory`, `targetGrade`, `academicUnitCode`, 원본 페이지를
+그대로 제공합니다. 따라서 과목의 단일 `category`만으로 학과별 이수구분을 판정하면
+안 됩니다.
 
 ## 강의 리뷰
 
