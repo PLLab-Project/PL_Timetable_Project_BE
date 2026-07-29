@@ -269,6 +269,6 @@ SERVER_PORT=18083 ./gradlew bootRun
 
 이 문서는 2026-07-24 실행 기록을 보존한다. 이후 학사 다중 필터·단과대 코드 조회,
 Google 로그인 백엔드, 졸업 프로필 입력, 복수 선호시간·공강 고정 자동편성, 결과 저장,
-복수 시간표 즐겨찾기, P/N, Cloud Vision OCR, 학번·튜토리얼 상태가 구현됐다.
+복수 시간표 즐겨찾기, P/N, Gemini 3.5 Flash-Lite 비전 OCR, 학번·튜토리얼 상태가 구현됐다.
 최신 항목별 결과는 [REQUIREMENTS_2026_07_29.md](REQUIREMENTS_2026_07_29.md)를
 참조한다.

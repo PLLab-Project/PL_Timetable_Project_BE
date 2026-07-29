@@ -61,12 +61,15 @@
 15. **Google 로그인**
     - 서버 주도 OIDC Authorization Code 흐름, Google `sub` 기반 계정 연결,
       JDBC 세션 저장, 토큰 미보관을 구현했다.
-    - GCP 표준 웹 OAuth 클라이언트는 Google 정책상 Cloud Console에서 사람 계정으로
-      한 번 생성해야 하며, 그 전까지 운영 프로필에서는 비활성 상태다.
+    - GCP 표준 웹 OAuth 클라이언트를 Secret Manager에 연결하고 운영 프로필
+      `prod,gcp,google`을 활성화했다.
+    - `/api/v1/auth/google`에서 Google 승인 화면까지 이어지는 OAuth state,
+      HTTPS 백엔드 콜백, JDBC 세션 쿠키를 운영 환경에서 검증했다.
 16. **OCR**
     - `POST /api/v1/completed-courses/ocr` multipart 이미지 API를 추가했다.
-    - Google Cloud Vision `DOCUMENT_TEXT_DETECTION`을 사용하며 10MB 이하 원본을
-      저장하지 않고 전체 텍스트와 행 목록만 반환한다.
+    - 별도 Cloud Vision 서비스가 아니라 Gemini 3.5 Flash-Lite의 이미지 입력을
+      사용하며, 인라인 입력 한도에 맞춘 7MB 이하 원본을 저장하지 않고 전체
+      텍스트와 행 목록만 반환한다.
     - 인식 결과는 사용자 확인·보정 후 기존 이수과목 등록 API로 저장한다.
 17. **학번 수정**
     - `PATCH /api/v1/users/me`의 `studentNumber`로 수정한다.
@@ -82,5 +85,5 @@
 - 학사 분류는 공식 원본에 존재하는 값만 제공한다.
 - OCR 결과와 최종 졸업사정은 자동 확정하지 않고 사용자 확인 또는 학교 공식
   판정을 거쳐야 한다.
-- Google 로그인 백엔드와 콜백은 구현됐지만 운영 OAuth 클라이언트 생성은
-  Cloud Console 사람 로그인 완료 후 활성화한다.
+- 실제 Google 사용자 선택·동의와 최초 로컬 계정 생성은 사용자 상호작용이 필요한
+  종단 구간이며, 서버 설정 검증은 Google 승인 화면 진입과 콜백 일치까지 수행했다.

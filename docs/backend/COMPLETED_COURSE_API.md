@@ -44,9 +44,9 @@ P/N 과목은 학점을 0으로 보내지 않는다. `credits`에는 실제 인�
 
 `POST /api/v1/completed-courses/ocr`
 
-`multipart/form-data`의 `file`에 10MB 이하 JPEG·PNG·GIF·BMP·WebP 이미지를 보낸다.
-Google Cloud Vision 문서 OCR 결과로 `extractedText`, 빈 줄을 제거한 `lines`,
-`requiresConfirmation=true`를 반환한다. 서버는 원본 이미지를 저장하지 않는다.
+`multipart/form-data`의 `file`에 7MB 이하 JPEG·PNG·WebP·HEIC·HEIF 이미지를 보낸다.
+서버가 원본을 저장하지 않고 Gemini 3.5 Flash-Lite 비전에 직접 전달한 뒤,
+`extractedText`, 빈 줄을 제거한 `lines`, `requiresConfirmation=true`를 반환한다.
 인식 결과를 사용자가 확인·보정한 뒤 직접 등록 API로 저장한다.
 
 ## 조회·수정·삭제

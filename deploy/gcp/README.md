@@ -7,7 +7,8 @@ The production backend uses:
 - Artifact Registry repository `pl-timetable`
 - Secret Manager for database and OAuth secrets
 - A private Cloud Storage bucket for the ignored academic SQL bundle
-- Cloud Vision API for transcript OCR without storing uploaded originals
+- Gemini 3.5 Flash-Lite vision through Vertex AI for transcript OCR without
+  storing uploaded originals
 
 ## Runtime profiles
 
@@ -19,10 +20,28 @@ Google login is server-mediated. The browser starts at
 `/login/oauth2/code/google`, and the backend establishes the JDBC-backed
 application session.
 
-The standard Google web OAuth client itself must be created once in Cloud
-Console by a signed-in human account; Google does not expose that operation
-through a supported provisioning API. Until then, keep `GOOGLE_OAUTH_ENABLED`
-false and use `prod,gcp`.
+Production uses `prod,gcp,google`. The OAuth client ID and secret are mounted
+from Secret Manager, and the registered callback is:
+
+`https://pl-timetable-api-532874992461.asia-northeast3.run.app/login/oauth2/code/google`
+
+The callback is also set explicitly through Spring's Google registration
+redirect URI environment variable so the external HTTPS URI is preserved
+behind Cloud Run's proxy.
+
+## Transcript OCR
+
+`POST /api/v1/completed-courses/ocr` sends the in-memory image directly to
+`gemini-3.5-flash-lite` at the `global` endpoint. It does not use Cloud Vision
+and does not persist the uploaded original.
+
+Required runtime configuration:
+
+- Vertex AI API enabled
+- runtime service account role `roles/aiplatform.user`
+- `GEMINI_PROJECT_ID`
+- `GEMINI_LOCATION=global`
+- `GEMINI_MODEL=gemini-3.5-flash-lite`
 
 ## Academic data loader
 

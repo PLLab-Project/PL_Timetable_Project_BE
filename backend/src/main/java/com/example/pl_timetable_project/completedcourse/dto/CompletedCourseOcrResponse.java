@@ -5,7 +5,7 @@ import java.util.List;
 
 @Schema(description = "성적표 이미지 OCR 결과. 사용자가 확인·보정한 뒤 이수과목을 저장해야 합니다.")
 public record CompletedCourseOcrResponse(
-        @Schema(description = "OCR 공급자", example = "GOOGLE_CLOUD_VISION")
+        @Schema(description = "OCR 공급자", example = "GEMINI_3_5_FLASH_LITE")
         String provider,
 
         @Schema(description = "문서 전체 인식 텍스트")

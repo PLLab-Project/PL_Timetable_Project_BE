@@ -153,8 +153,8 @@ final class OpenApiDocumentationCatalog {
                 "이수·수강 중 과목을 직접 등록합니다. P/N 과목도 credits에는 실제 인정 학점을 넣고 "
                         + "gradingBasis=PASS_FAIL, gradeValue=P 또는 N으로 분리합니다.");
         put(values, HttpMethod.POST, "/api/v1/completed-courses/ocr",
-                "성적표 이미지(JPEG·PNG·GIF·BMP·WebP)를 Google Cloud Vision 문서 OCR로 인식합니다. "
-                        + "10MB 이하 원본은 저장하지 않으며, 반환 텍스트를 확인·보정한 뒤 직접 등록 API로 저장합니다.");
+                "성적표 이미지(JPEG·PNG·WebP·HEIC·HEIF)를 Gemini 3.5 Flash-Lite 비전으로 인식합니다. "
+                        + "7MB 이하 원본은 저장하지 않으며, 반환 텍스트를 확인·보정한 뒤 직접 등록 API로 저장합니다.");
         put(values, HttpMethod.GET, "/api/v1/completed-courses",
                 "로그인 사용자의 이수과목을 상태와 학기 조건으로 조회합니다.");
         put(values, HttpMethod.GET, "/api/v1/completed-courses/summary",
@@ -251,7 +251,7 @@ final class OpenApiDocumentationCatalog {
                 Map.entry("sectionCode", "학기·과목 안에서 분반을 식별하는 코드입니다."),
                 Map.entry("timetableCourseId", "시간표 상세 sections[].id로 반환되는 시간표 항목 ID입니다."),
                 Map.entry("rank", "자동편성 결과의 1부터 시작하는 순위입니다."),
-                Map.entry("file", "10MB 이하 성적표 이미지 파일입니다. JPEG, PNG, GIF, BMP, WebP를 지원합니다."));
+                Map.entry("file", "7MB 이하 성적표 이미지 파일입니다. JPEG, PNG, WebP, HEIC, HEIF를 지원합니다."));
     }
 
     private static Map<OperationKey, Object> requestExamples() {
