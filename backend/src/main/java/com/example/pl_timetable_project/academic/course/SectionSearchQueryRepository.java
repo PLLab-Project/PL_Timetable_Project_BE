@@ -97,6 +97,23 @@ public class SectionSearchQueryRepository {
                AND (
                     CAST(:targetGradesEmpty AS boolean) = true
                     OR section.target_grade IN (:targetGrades)
+                    OR EXISTS (
+                        SELECT 1
+                          FROM section_classification_contexts grade_classification
+                         WHERE grade_classification.semester_id =
+                                   section.semester_id
+                           AND grade_classification.course_code =
+                                   section.course_code
+                           AND grade_classification.section_code =
+                                   section.section_code
+                           AND grade_classification.target_grade
+                               IN (:targetGrades)
+                           AND (
+                                CAST(:academicUnitCodesEmpty AS boolean) = true
+                                OR grade_classification.academic_unit_code
+                                    IN (:academicUnitCodes)
+                           )
+                    )
                )
                AND (
                     CAST(:professor AS text) IS NULL
@@ -206,7 +223,8 @@ public class SectionSearchQueryRepository {
                         sessions.getOrDefault(row.key(), List.of()),
                         classifications.getOrDefault(row.key(), List.of()),
                         condition.preferredAcademicUnitCode(),
-                        condition.completionCategories()))
+                        condition.completionCategories(),
+                        condition.targetGrades()))
                 .toList();
     }
 
@@ -457,7 +475,8 @@ public class SectionSearchQueryRepository {
                 List<CourseSessionResponse> sessions,
                 List<SectionClassificationResponse> classifications,
                 String preferredAcademicUnitCode,
-                List<String> requestedCompletionCategories) {
+                List<String> requestedCompletionCategories,
+                List<String> requestedTargetGrades) {
             return new SectionSearchResponse(
                     semesterId,
                     courseCode,
@@ -471,7 +490,10 @@ public class SectionSearchQueryRepository {
                     rawLectureTime,
                     rawLocation,
                     timeToBeAnnounced,
-                    targetGrade,
+                    selectTargetGrade(
+                            classifications,
+                            preferredAcademicUnitCode,
+                            requestedTargetGrades),
                     selectCompletionCategory(
                             classifications,
                             preferredAcademicUnitCode,
@@ -484,6 +506,53 @@ public class SectionSearchQueryRepository {
                     bayesianRating,
                     sessions,
                     classifications);
+        }
+
+        private String selectTargetGrade(
+                List<SectionClassificationResponse> classifications,
+                String preferredAcademicUnitCode,
+                List<String> requestedTargetGrades) {
+            if (requestedTargetGrades.isEmpty() && targetGrade != null) {
+                return targetGrade;
+            }
+            if (preferredAcademicUnitCode != null) {
+                for (SectionClassificationResponse classification : classifications) {
+                    if (preferredAcademicUnitCode.equals(
+                                    classification.academicUnitCode())
+                            && classification.targetGrade() != null
+                            && (requestedTargetGrades.isEmpty()
+                            || requestedTargetGrades.contains(
+                                    classification.targetGrade()))) {
+                        return classification.targetGrade();
+                    }
+                }
+            }
+            if (!requestedTargetGrades.isEmpty()) {
+                if (requestedTargetGrades.contains(targetGrade)) {
+                    return targetGrade;
+                }
+                for (SectionClassificationResponse classification : classifications) {
+                    if (requestedTargetGrades.contains(
+                            classification.targetGrade())) {
+                        return classification.targetGrade();
+                    }
+                }
+            }
+            if (targetGrade != null) {
+                return targetGrade;
+            }
+            for (SectionClassificationResponse classification : classifications) {
+                if (classification.primary()
+                        && classification.targetGrade() != null) {
+                    return classification.targetGrade();
+                }
+            }
+            for (SectionClassificationResponse classification : classifications) {
+                if (classification.targetGrade() != null) {
+                    return classification.targetGrade();
+                }
+            }
+            return null;
         }
 
         private String selectCompletionCategory(

@@ -501,6 +501,14 @@ class AcademicApiIntegrationTest {
                 .andExpect(jsonPath("$.data.items[1].courseCode").value("CSE200"));
 
         mockMvc.perform(get("/api/v1/sections")
+                        .param("semesterId", "2026-1")
+                        .param("targetGrade", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("GEN100"))
+                .andExpect(jsonPath("$.data.items[0].targetGrade").value("1학년"));
+
+        mockMvc.perform(get("/api/v1/sections")
                         .with(signedInAs("00000000-0000-0000-0000-000000000003"))
                         .param("semesterId", "2026-1")
                         .param("completionCategory", "교양필수"))
@@ -591,8 +599,7 @@ class AcademicApiIntegrationTest {
                    AND section_code = '01';
 
                 UPDATE sections
-                   SET target_grade = '1학년',
-                       source_page = 10,
+                   SET source_page = 10,
                        source_row = 1
                  WHERE semester_id = '2026-1'
                    AND course_code = 'GEN100'
