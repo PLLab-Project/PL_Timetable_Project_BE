@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-@Schema(description = "시간표 이름 부분 수정 요청")
+@Schema(description = "시간표 이름·즐겨찾기 부분 수정 요청")
 @Getter
 @NoArgsConstructor
 public class TimetableUpdateRequest {
@@ -14,7 +14,11 @@ public class TimetableUpdateRequest {
     @Size(min = 1, max = 120)
     private String name;
 
-    public TimetableUpdateRequest(String name) {
+    @Schema(description = "즐겨찾기 여부. 여러 시간표를 동시에 true로 둘 수 있음", example = "true")
+    private Boolean favorite;
+
+    public TimetableUpdateRequest(String name, Boolean favorite) {
         this.name = name;
+        this.favorite = favorite;
     }
 }

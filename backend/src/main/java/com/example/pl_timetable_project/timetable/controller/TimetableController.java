@@ -4,6 +4,7 @@ import com.example.pl_timetable_project.auth.security.AuthenticatedUser;
 import com.example.pl_timetable_project.common.response.ApiResponse;
 import com.example.pl_timetable_project.timetable.dto.request.TimetableCourseRequest;
 import com.example.pl_timetable_project.timetable.dto.request.TimetableCreateRequest;
+import com.example.pl_timetable_project.timetable.dto.request.TimetableFavoriteUpdateRequest;
 import com.example.pl_timetable_project.timetable.dto.request.TimetableSectionsUpdateRequest;
 import com.example.pl_timetable_project.timetable.dto.request.TimetableUpdateRequest;
 import com.example.pl_timetable_project.timetable.dto.response.TimetableResponse;
@@ -70,6 +71,16 @@ public class TimetableController {
             @Valid @RequestBody TimetableUpdateRequest request) {
         return ApiResponse.success(
                 timetableService.updateTimetable(principal.userId(), timetableId, request));
+    }
+
+    @Operation(summary = "시간표 즐겨찾기 설정")
+    @PatchMapping("/{timetableId}/favorite")
+    public ApiResponse<TimetableResponse> updateFavorite(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable Long timetableId,
+            @Valid @RequestBody TimetableFavoriteUpdateRequest request) {
+        return ApiResponse.success(timetableService.updateFavorite(
+                principal.userId(), timetableId, request.favorite()));
     }
 
     @Operation(summary = "시간표 분반 구성 전체 교체")

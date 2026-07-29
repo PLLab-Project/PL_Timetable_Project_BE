@@ -59,7 +59,7 @@ public class TimetableService {
 
     public List<TimetableSummaryResponse> getTimetables(UUID userId) {
         validateUserId(userId);
-        return timetableRepository.findAllByUserIdOrderByUpdatedAtDesc(userId).stream()
+        return timetableRepository.findAllByUserIdOrderByFavoriteDescUpdatedAtDesc(userId).stream()
                 .map(timetable -> TimetableSummaryResponse.of(
                         timetable, calculateTotalCredits(timetable.getTimetableCourses())))
                 .toList();
@@ -76,6 +76,17 @@ public class TimetableService {
         if (request.getName() != null) {
             timetable.rename(request.getName().trim());
         }
+        if (request.getFavorite() != null) {
+            timetable.setFavorite(request.getFavorite());
+        }
+        return toResponse(timetable);
+    }
+
+    @Transactional
+    public TimetableResponse updateFavorite(
+            UUID userId, Long timetableId, boolean favorite) {
+        Timetable timetable = getOwnedTimetable(userId, timetableId);
+        timetable.setFavorite(favorite);
         return toResponse(timetable);
     }
 

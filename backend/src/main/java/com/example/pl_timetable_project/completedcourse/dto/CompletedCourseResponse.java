@@ -1,6 +1,7 @@
 package com.example.pl_timetable_project.completedcourse.dto;
 
 import com.example.pl_timetable_project.completedcourse.CompletedCourseInputSource;
+import com.example.pl_timetable_project.completedcourse.CompletedCourseGradingBasis;
 import com.example.pl_timetable_project.completedcourse.CompletedCourseStatus;
 import com.example.pl_timetable_project.completedcourse.entity.CompletedCourse;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -14,6 +15,8 @@ public record CompletedCourseResponse(
         String courseCode,
         String courseName,
         BigDecimal credits,
+        CompletedCourseGradingBasis gradingBasis,
+        String gradeValue,
         String category,
         String area,
         String semester,
@@ -35,6 +38,8 @@ public record CompletedCourseResponse(
                 course.getCourseCode(),
                 course.getCourseName(),
                 course.getCredits(),
+                course.getGradingBasis(),
+                course.getGradeValue(),
                 course.getCategory(),
                 course.getArea(),
                 course.getSemester(),

@@ -1,6 +1,8 @@
 package com.example.pl_timetable_project.optimization.entity;
 
 import com.example.pl_timetable_project.academic.section.SectionReference;
+import com.example.pl_timetable_project.optimization.algorithm.CourseTimeSlot;
+import com.example.pl_timetable_project.optimization.algorithm.OptimizationTimeRange;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
@@ -14,6 +16,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
@@ -75,6 +78,20 @@ public class OptimizationJob {
             joinColumns = @JoinColumn(name = "job_id"))
     private Set<SectionReference> requiredSections = new HashSet<>();
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "optimization_job_available_times",
+            joinColumns = @JoinColumn(name = "job_id"))
+    @OrderColumn(name = "position")
+    private List<OptimizationAvailableTime> availableTimes = new ArrayList<>();
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "optimization_job_blocked_times",
+            joinColumns = @JoinColumn(name = "job_id"))
+    @OrderColumn(name = "position")
+    private List<OptimizationBlockedTime> blockedTimes = new ArrayList<>();
+
     @Column(name = "available_start_minute", nullable = false)
     private Short availableStartMinute;
 
@@ -108,8 +125,8 @@ public class OptimizationJob {
             BigDecimal targetCredits,
             Set<DayOfWeek> excludedDays,
             Set<SectionReference> requiredSections,
-            LocalTime availableTimeStart,
-            LocalTime availableTimeEnd,
+            List<OptimizationTimeRange> availableTimes,
+            List<CourseTimeSlot> blockedTimes,
             LocalTime lunchTimeStart,
             LocalTime lunchTimeEnd,
             Integer maxDailyClassMinutes) {
@@ -124,8 +141,20 @@ public class OptimizationJob {
                 ? new HashSet<>() : new HashSet<>(excludedDays);
         this.requiredSections = requiredSections == null
                 ? new HashSet<>() : new HashSet<>(requiredSections);
-        this.availableStartMinute = toMinute(availableTimeStart);
-        this.availableEndMinute = toMinute(availableTimeEnd);
+        this.availableTimes = availableTimes.stream()
+                .map(OptimizationAvailableTime::new)
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        this.blockedTimes = blockedTimes.stream()
+                .map(OptimizationBlockedTime::new)
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        this.availableStartMinute = toMinute(availableTimes.stream()
+                .map(OptimizationTimeRange::startTime)
+                .min(LocalTime::compareTo)
+                .orElseThrow());
+        this.availableEndMinute = toMinute(availableTimes.stream()
+                .map(OptimizationTimeRange::endTime)
+                .max(LocalTime::compareTo)
+                .orElseThrow());
         this.lunchStartMinute = toMinute(lunchTimeStart);
         this.lunchEndMinute = toMinute(lunchTimeEnd);
         this.maxDailyClassMinutes = maxDailyClassMinutes;

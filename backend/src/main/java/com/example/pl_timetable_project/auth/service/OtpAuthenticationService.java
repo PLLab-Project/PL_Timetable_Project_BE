@@ -100,17 +100,36 @@ public class OtpAuthenticationService {
         }
 
         challenge.consume(now); // 성공한 OTP는 재사용할 수 없게 즉시 소모 처리합니다.
-        UserAccount user = userRepository.findByPrimaryEmailIgnoreCase(challenge.email()).orElse(null);
-        boolean newUser = user == null;
-        if (newUser) {
-            user = userRepository.save(new UserAccount(challenge.email()));
-            profileRepository.save(new StudentProfile(user.id(), studentNumber));
+        StudentProfile profile = profileRepository.findByStudentNumber(studentNumber)
+                .orElse(null);
+        UserAccount user;
+        boolean newUser = false;
+        if (profile != null) {
+            user = userRepository.findById(profile.userId())
+                    .orElseThrow(() -> new BusinessException(AuthErrorCode.SESSION_EXPIRED));
+        } else {
+            user = userRepository.findByPrimaryEmailIgnoreCase(challenge.email()).orElse(null);
+            if (user == null) {
+                user = userRepository.save(new UserAccount(challenge.email()));
+                profile = profileRepository.save(new StudentProfile(user.id(), studentNumber));
+                newUser = true;
+            } else {
+                profile = profileRepository.findById(user.id()).orElse(null);
+                if (profile == null) {
+                    profile = profileRepository.save(
+                            new StudentProfile(user.id(), studentNumber));
+                }
+                if (profile.studentNumber() == null) {
+                    profile.update(
+                            studentNumber, null, null, null, null, null, null);
+                } else if (!profile.studentNumber().equals(studentNumber)) {
+                    throw new BusinessException(AuthErrorCode.INVALID_OR_EXPIRED_CODE);
+                }
+            }
         }
         if (!"ACTIVE".equals(user.status())) {
             throw new BusinessException(AuthErrorCode.ACCOUNT_DISABLED);
         }
-        StudentProfile profile = profileRepository.findById(user.id())
-                .orElseThrow(() -> new BusinessException(AuthErrorCode.SESSION_EXPIRED));
 
         return new VerificationResult(
                 new AuthUserResponse(user.id(), profile.studentNumber(), user.displayName()),

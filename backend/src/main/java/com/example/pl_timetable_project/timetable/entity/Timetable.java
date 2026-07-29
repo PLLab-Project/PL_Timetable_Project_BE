@@ -37,6 +37,9 @@ public class Timetable {
     @Column(length = 120, nullable = false)
     private String name;
 
+    @Column(name = "is_favorite", nullable = false)
+    private boolean favorite;
+
     @OneToMany(mappedBy = "timetable", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TimetableCourse> timetableCourses = new ArrayList<>();
 
@@ -56,6 +59,10 @@ public class Timetable {
         if (name != null) {
             this.name = name;
         }
+    }
+
+    public void setFavorite(boolean favorite) {
+        this.favorite = favorite;
     }
 
     public void addCourse(TimetableCourse course) {

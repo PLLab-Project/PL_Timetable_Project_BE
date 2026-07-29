@@ -5,6 +5,8 @@ import com.example.pl_timetable_project.academic.common.PageSpec;
 import com.example.pl_timetable_project.academic.common.TextQuery;
 import com.example.pl_timetable_project.academic.department.dto.DepartmentDetailResponse;
 import com.example.pl_timetable_project.academic.department.dto.DepartmentSummaryResponse;
+import com.example.pl_timetable_project.academic.department.dto.CollegeResponse;
+import java.util.List;
 import com.example.pl_timetable_project.exception.AcademicResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,5 +42,9 @@ public class DepartmentService {
         return repository.findByCode(normalizedCode)
                 .orElseThrow(() -> new AcademicResourceNotFoundException(
                         "학과를 찾을 수 없습니다. code=" + normalizedCode));
+    }
+
+    public List<CollegeResponse> getColleges(boolean currentOnly) {
+        return repository.findColleges(currentOnly);
     }
 }

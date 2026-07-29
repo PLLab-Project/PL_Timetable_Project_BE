@@ -4,6 +4,7 @@ import com.example.pl_timetable_project.academic.common.AcademicPageResponse;
 import com.example.pl_timetable_project.academic.common.PageSpec;
 import com.example.pl_timetable_project.academic.department.dto.DepartmentDetailResponse;
 import com.example.pl_timetable_project.academic.department.dto.DepartmentSummaryResponse;
+import com.example.pl_timetable_project.academic.department.dto.CollegeResponse;
 import com.example.pl_timetable_project.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/departments")
@@ -34,6 +36,13 @@ public class DepartmentController {
             @RequestParam(defaultValue = "" + PageSpec.DEFAULT_SIZE) int size) {
         return ApiResponse.success(departmentService.getDepartments(
                 query, collegeCode, currentOnly, page, size));
+    }
+
+    @Operation(summary = "단과대 목록과 소속 학과 수 조회")
+    @GetMapping("/colleges")
+    public ApiResponse<List<CollegeResponse>> getColleges(
+            @RequestParam(defaultValue = "true") boolean currentOnly) {
+        return ApiResponse.success(departmentService.getColleges(currentOnly));
     }
 
     @Operation(summary = "학과·전공 상세 조회")

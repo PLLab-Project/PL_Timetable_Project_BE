@@ -1,6 +1,7 @@
 package com.example.pl_timetable_project.completedcourse.dto;
 
 import com.example.pl_timetable_project.completedcourse.CompletedCourseStatus;
+import com.example.pl_timetable_project.completedcourse.CompletedCourseGradingBasis;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -21,6 +22,16 @@ public record CompletedCourseUpdateRequest(
         @DecimalMin("0.00")
         @Digits(integer = 3, fraction = 2)
         BigDecimal credits,
+
+        @Schema(
+                description = "변경할 성적 표기 방식",
+                example = "PASS_FAIL",
+                allowableValues = {"LETTER", "PASS_FAIL"})
+        CompletedCourseGradingBasis gradingBasis,
+
+        @Schema(description = "변경할 성적 표기. PASS_FAIL이면 P 또는 N", example = "P")
+        @Size(max = 12)
+        String gradeValue,
 
         @Schema(description = "변경할 이수구분", example = "전공선택")
         @Size(max = 160)

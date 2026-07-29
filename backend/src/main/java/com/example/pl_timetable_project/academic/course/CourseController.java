@@ -33,12 +33,13 @@ public class CourseController {
     public ApiResponse<AcademicPageResponse<CourseSummaryResponse>> searchCourses(
             @RequestParam String semesterId,
             @RequestParam(required = false) String query,
-            @RequestParam(required = false) String category,
-            @RequestParam(required = false) String academicUnitCode,
+            @RequestParam(required = false) List<String> category,
+            @RequestParam(required = false) List<String> academicUnitCode,
+            @RequestParam(required = false) List<String> collegeCode,
             @RequestParam(required = false) String professor,
             @RequestParam(required = false) BigDecimal credits,
             @RequestParam(required = false) String day,
-            @RequestParam(defaultValue = "NAME_ASC") String sort,
+            @RequestParam(defaultValue = "DEFAULT") String sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "" + PageSpec.DEFAULT_SIZE) int size) {
         return ApiResponse.success(courseService.searchCourses(
@@ -46,6 +47,7 @@ public class CourseController {
                 query,
                 category,
                 academicUnitCode,
+                collegeCode,
                 professor,
                 credits,
                 day,

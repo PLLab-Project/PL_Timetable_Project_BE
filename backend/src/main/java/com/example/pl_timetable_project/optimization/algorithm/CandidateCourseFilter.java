@@ -15,6 +15,8 @@ public class CandidateCourseFilter {
                 .filter(course -> !course.timeSlots().isEmpty())
                 .filter(course -> course.timeSlots().stream().noneMatch(slot -> isExcludedDay(slot, constraints)))
                 .filter(course -> course.timeSlots().stream().allMatch(slot -> isWithinAvailableTime(slot, constraints)))
+                .filter(course -> course.timeSlots().stream().noneMatch(slot ->
+                        constraints.blockedTimes().stream().anyMatch(slot::overlaps)))
                 .toList();
     }
 
@@ -23,7 +25,6 @@ public class CandidateCourseFilter {
     }
 
     private boolean isWithinAvailableTime(CourseTimeSlot slot, OptimizationConstraints constraints) {
-        return !slot.startTime().isBefore(constraints.availableTimeStart())
-                && !slot.endTime().isAfter(constraints.availableTimeEnd());
+        return constraints.availableTimes().stream().anyMatch(range -> range.contains(slot));
     }
 }

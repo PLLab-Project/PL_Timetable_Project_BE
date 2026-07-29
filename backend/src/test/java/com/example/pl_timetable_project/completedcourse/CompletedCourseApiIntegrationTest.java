@@ -165,6 +165,46 @@ class CompletedCourseApiIntegrationTest {
     }
 
     @Test
+    void storesPassFailGradeSeparatelyFromRecognizedCredits() throws Exception {
+        mockMvc.perform(post("/api/v1/completed-courses")
+                        .with(authenticatedAs(USER_ONE))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "courseCode": "GEN-PN",
+                                  "courseName": "봉사활동",
+                                  "credits": 2.00,
+                                  "gradingBasis": "PASS_FAIL",
+                                  "gradeValue": "p",
+                                  "category": "교양선택",
+                                  "status": "COMPLETED"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.credits").value(2.0))
+                .andExpect(jsonPath("$.data.gradingBasis").value("PASS_FAIL"))
+                .andExpect(jsonPath("$.data.gradeValue").value("P"));
+
+        mockMvc.perform(post("/api/v1/completed-courses")
+                        .with(authenticatedAs(USER_ONE))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "courseName": "잘못된 P/N",
+                                  "credits": 1.00,
+                                  "gradingBasis": "PASS_FAIL",
+                                  "gradeValue": "A+",
+                                  "category": "교양선택",
+                                  "status": "COMPLETED"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMPLETED_COURSE_INVALID_REQUEST"));
+    }
+
+    @Test
     void importsOwnedTimetableSectionsIdempotentlyAsInProgress() throws Exception {
         Long timetableId = insertTimetableFixture();
 

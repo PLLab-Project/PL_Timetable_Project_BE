@@ -12,7 +12,7 @@ import org.springframework.data.repository.query.Param;
 public interface TimetableRepository extends JpaRepository<Timetable, Long> {
 
     @EntityGraph(attributePaths = "timetableCourses")
-    List<Timetable> findAllByUserIdOrderByUpdatedAtDesc(UUID userId);
+    List<Timetable> findAllByUserIdOrderByFavoriteDescUpdatedAtDesc(UUID userId);
 
     @EntityGraph(attributePaths = "timetableCourses")
     @Query("select t from Timetable t where t.id = :id")

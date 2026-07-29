@@ -49,22 +49,34 @@ public class CourseQueryRepository {
                     )
                )
                AND (
-                    CAST(:category AS text) IS NULL
-                    OR c.category = CAST(:category AS text)
+                    CAST(:categoriesEmpty AS boolean) = true
+                    OR c.category IN (:categories)
                )
                AND (
                     CAST(:credits AS numeric) IS NULL
                     OR c.credits = CAST(:credits AS numeric)
                )
                AND (
-                    CAST(:academicUnitCode AS text) IS NULL
+                    CAST(:academicUnitCodesEmpty AS boolean) = true
                     OR EXISTS (
                         SELECT 1
                           FROM section_academic_units sau
                          WHERE sau.semester_id = c.semester_id
                            AND sau.course_code = c.course_code
-                           AND sau.academic_unit_code =
-                               CAST(:academicUnitCode AS text)
+                           AND sau.academic_unit_code IN (:academicUnitCodes)
+                    )
+               )
+               AND (
+                    CAST(:collegeCodesEmpty AS boolean) = true
+                    OR EXISTS (
+                        SELECT 1
+                          FROM section_academic_units college_section
+                          JOIN academic_units college_unit
+                            ON college_unit.code =
+                               college_section.academic_unit_code
+                         WHERE college_section.semester_id = c.semester_id
+                           AND college_section.course_code = c.course_code
+                           AND college_unit.college_code IN (:collegeCodes)
                     )
                )
                AND (
@@ -236,8 +248,12 @@ public class CourseQueryRepository {
         return new MapSqlParameterSource()
                 .addValue("semesterId", condition.semesterId())
                 .addValue("query", condition.query())
-                .addValue("category", condition.category())
-                .addValue("academicUnitCode", condition.academicUnitCode())
+                .addValue("categoriesEmpty", condition.categories().isEmpty())
+                .addValue("categories", placeholder(condition.categories()))
+                .addValue("academicUnitCodesEmpty", condition.academicUnitCodes().isEmpty())
+                .addValue("academicUnitCodes", placeholder(condition.academicUnitCodes()))
+                .addValue("collegeCodesEmpty", condition.collegeCodes().isEmpty())
+                .addValue("collegeCodes", placeholder(condition.collegeCodes()))
                 .addValue("professor", condition.professor())
                 .addValue("credits", condition.credits())
                 .addValue("dayCode", condition.dayCode());
@@ -245,6 +261,7 @@ public class CourseQueryRepository {
 
     private String orderBy(CourseSort sort) {
         return switch (sort) {
+            case DEFAULT -> "c.course_code ASC";
             case NAME_ASC -> "c.name ASC, c.course_code ASC";
             case NAME_DESC -> "c.name DESC, c.course_code DESC";
             case REVIEW_COUNT_DESC ->
@@ -256,6 +273,10 @@ public class CourseQueryRepository {
                     "coalesce(rs.review_count, 0) DESC, bayesian_rating DESC NULLS LAST, "
                             + "c.name ASC, c.course_code ASC";
         };
+    }
+
+    private List<String> placeholder(List<String> values) {
+        return values.isEmpty() ? List.of("") : values;
     }
 
     private record CourseRow(

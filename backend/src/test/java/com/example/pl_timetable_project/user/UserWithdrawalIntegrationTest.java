@@ -3,6 +3,7 @@ package com.example.pl_timetable_project.user;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.pl_timetable_project.user.dto.UserDeleteResponse;
+import com.example.pl_timetable_project.user.dto.UserUpdateRequest;
 import com.example.pl_timetable_project.user.service.UserService;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -118,6 +119,43 @@ class UserWithdrawalIntegrationTest {
                 STUDENT_NUMBER
         );
         assertThat(otpCount).isZero();
+    }
+
+    @Test
+    void updatesStudentNumberGraduationProfileAndTutorialState() {
+        jdbcTemplate.execute("""
+                INSERT INTO academic_colleges (
+                    code, name, first_seen_year, last_seen_year, is_current
+                ) VALUES ('C1', '공과대학', 2020, 2026, true);
+
+                INSERT INTO academic_units (
+                    code, college_code, name, code_source,
+                    first_seen_year, last_seen_year, is_current
+                ) VALUES (
+                    'D1', 'C1', '컴퓨터공학과', 'OFFICIAL_CURRICULUM',
+                    2020, 2026, true
+                );
+                """);
+
+        var response = userService.update(
+                USER_ID,
+                new UserUpdateRequest(
+                        "2026123456",
+                        "수정 사용자",
+                        (short) 3,
+                        "D1",
+                        2022,
+                        "domestic",
+                        "ADVANCED_MAJOR",
+                        true));
+
+        assertThat(response.studentNumber()).isEqualTo("2026123456");
+        assertThat(response.admissionYear()).isEqualTo(2022);
+        assertThat(response.studentType()).isEqualTo("DOMESTIC");
+        assertThat(response.programPath()).isEqualTo("ADVANCED_MAJOR");
+        assertThat(response.profileCompleted()).isTrue();
+        assertThat(response.graduationProfileCompleted()).isTrue();
+        assertThat(response.tutorialCompleted()).isTrue();
     }
 
     private void assertCount(String table, String column, UUID value, int expected) {

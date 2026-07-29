@@ -11,7 +11,8 @@
 | POST | `/api/v1/timetables` | 201 | 시간표 생성 |
 | GET | `/api/v1/timetables` | 200 | 내 시간표 목록 |
 | GET | `/api/v1/timetables/{timetableId}` | 200 | 시간표 상세 |
-| PATCH | `/api/v1/timetables/{timetableId}` | 200 | 시간표 이름 변경 |
+| PATCH | `/api/v1/timetables/{timetableId}` | 200 | 시간표 이름·즐겨찾기 변경 |
+| PATCH | `/api/v1/timetables/{timetableId}/favorite` | 200 | 즐겨찾기 변경 |
 | PATCH | `/api/v1/timetables/{timetableId}/sections` | 200 | 분반 구성 전체 교체 |
 | POST | `/api/v1/timetables/{timetableId}/sections` | 201 | 분반 하나 추가 |
 | DELETE | `/api/v1/timetables/{timetableId}/sections/{timetableCourseId}` | 200 | 분반 제거 |
@@ -50,6 +51,7 @@
     "userId": "3c8fb145-a10f-4df8-818a-a213ef8b3fc5",
     "name": "2026년 1학기",
     "semesterId": "2026-1",
+    "favorite": true,
     "totalCredits": 3.0,
     "sections": [
       {
@@ -80,7 +82,8 @@
   이 값을 사용합니다.
 - `freeTimes`는 같은 요일의 수업과 수업 사이 공강이며
   `dayOfWeek`, `startTime`, `endTime`, `durationMinutes`를 반환합니다.
-- 목록 응답은 `id`, `name`, `semesterId`, `totalCredits`, `sectionCount`만 반환합니다.
+- 목록 응답은 `id`, `name`, `semesterId`, `favorite`, `totalCredits`,
+  `sectionCount`를 반환하며 즐겨찾기 시간표가 먼저 정렬됩니다.
 
 ## 수정 요청
 
@@ -88,9 +91,13 @@
 
 ```json
 {
-  "name": "전공 중심 시간표"
+  "name": "전공 중심 시간표",
+  "favorite": true
 }
 ```
+
+여러 시간표의 `favorite`를 동시에 `true`로 둘 수 있다. 즐겨찾기만 변경할 때는
+`PATCH /api/v1/timetables/{timetableId}/favorite`에 `{"favorite": true}`를 보낸다.
 
 분반 전체 교체:
 

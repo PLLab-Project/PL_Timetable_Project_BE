@@ -4,6 +4,7 @@ import com.example.pl_timetable_project.academic.common.PageSpec;
 import com.example.pl_timetable_project.academic.department.dto.DepartmentAliasResponse;
 import com.example.pl_timetable_project.academic.department.dto.DepartmentDetailResponse;
 import com.example.pl_timetable_project.academic.department.dto.DepartmentSummaryResponse;
+import com.example.pl_timetable_project.academic.department.dto.CollegeResponse;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -100,6 +101,25 @@ public class DepartmentQueryRepository {
                 row.lastSeenYear(),
                 row.current(),
                 findAliases(code)));
+    }
+
+    public List<CollegeResponse> findColleges(boolean currentOnly) {
+        return jdbcTemplate.query("""
+                SELECT college.code, college.name, count(unit.code) AS department_count
+                  FROM academic_colleges college
+                  JOIN academic_units unit ON unit.college_code = college.code
+                 WHERE unit.code_source = 'OFFICIAL_CURRICULUM'
+                   AND (
+                        CAST(:currentOnly AS boolean) = false
+                        OR (college.is_current = true AND unit.is_current = true)
+                   )
+                 GROUP BY college.code, college.name
+                 ORDER BY college.name, college.code
+                """, Map.of("currentOnly", currentOnly),
+                (rs, rowNum) -> new CollegeResponse(
+                        rs.getString("code"),
+                        rs.getString("name"),
+                        rs.getInt("department_count")));
     }
 
     private List<DepartmentAliasResponse> findAliases(String code) {

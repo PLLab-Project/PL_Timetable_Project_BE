@@ -25,6 +25,7 @@ OpenAPI가 요청·응답의 기술 계약을 담당하고, `FRONTEND.md`와 도
 
 | 용도 | URL |
 |---|---|
+| Cloud Run API·Scalar | `https://pl-timetable-api-532874992461.asia-northeast3.run.app/` |
 | 기본 API 문서(Scalar) | `https://timetable-api.kdhoon.me/` |
 | Scalar 직접 주소 | `https://timetable-api.kdhoon.me/scalar` |
 | OpenAPI JSON | `https://timetable-api.kdhoon.me/v3/api-docs` |
@@ -34,9 +35,9 @@ OpenAPI가 요청·응답의 기술 계약을 담당하고, `FRONTEND.md`와 도
 API 전용 호스트의 루트(`/`)는 Scalar로 이동합니다. Scalar는 `/v3/api-docs`를 읽어
 화면을 만들므로 요청·응답 계약의 원본은 OpenAPI 명세 하나입니다.
 
-이 서버는 Cloudflare Tunnel을 통해 HTTPS로 제공됩니다. 데이터베이스 포트는 외부에
-공개하지 않습니다. 현재 인증 구현은 소셜 로그인이 아니라 OTP 세션 방식이며 테스트
-서버의 OTP 전달 방식은 운영 메일 발송 설정이 확정되기 전까지 개발 설정을 사용합니다.
+Cloud Run 서비스와 기존 Cloudflare Tunnel 주소는 HTTPS로 제공되며 데이터베이스
+포트는 공개하지 않습니다. 인증은 OTP 또는 Google OIDC 뒤 동일한 서버 세션을
+사용합니다. Google 운영 로그인은 표준 웹 OAuth 클라이언트 생성 뒤 활성화합니다.
 
 health 응답의 `data.commit`으로 외부 서버가 어느 Git 커밋을 실행 중인지 확인할 수
 있습니다. GitHub `main`이 변경되어도 실행 서버를 다시 빌드·배포하기 전까지 외부
@@ -58,9 +59,10 @@ OpenAPI는 자동으로 바뀌지 않습니다. 배포된 애플리케이션이 
 
 ## 인증된 API 시험
 
-현재 인증은 OAuth가 아니라 OTP 세션 방식입니다.
+OTP 또는 Google 로그인으로 애플리케이션 세션을 만든 뒤 시험합니다.
 
-1. `/api/v1/auth/otp/request`와 `/api/v1/auth/otp/verify`를 호출합니다.
+1. `/api/v1/auth/otp/request`·`/api/v1/auth/otp/verify`를 호출하거나 브라우저를
+   `/api/v1/auth/google`로 이동합니다.
 2. 브라우저가 받은 `JSESSIONID` 쿠키를 유지합니다.
 3. `GET /api/v1/auth/csrf`의 `data.token`을 받습니다.
 4. GET 이외의 보호 API에는 토큰을 `X-XSRF-TOKEN` 헤더로 전송합니다.
@@ -110,4 +112,5 @@ OPENAPI_ENABLED=false
 - CI 또는 로컬에서 `/v3/api-docs` 생성 테스트를 통과시켜 누락된 도메인이 없는지 확인
 - 외부 전달 전 health `data.commit`과 배포 대상 `main` 커밋이 같은지 확인
 
-현재 소셜 로그인은 구현되지 않았으므로 OpenAPI에도 OAuth authorization flow가 없습니다.
+Google 로그인은 브라우저 리다이렉트 경로로 문서화한다. 보호된 업무 API는 외부
+access token이 아니라 로그인 뒤 발급한 `sessionCookie` 보안 계약을 계속 사용한다.

@@ -7,14 +7,18 @@ import com.example.pl_timetable_project.auth.dto.OtpStartRequest;
 import com.example.pl_timetable_project.auth.dto.OtpStartResponse;
 import com.example.pl_timetable_project.auth.dto.OtpVerifyRequest;
 import com.example.pl_timetable_project.auth.dto.OtpVerifyResponse;
+import com.example.pl_timetable_project.auth.AuthErrorCode;
+import com.example.pl_timetable_project.auth.config.GoogleAuthProperties;
 import com.example.pl_timetable_project.auth.security.AuthenticatedUser;
 import com.example.pl_timetable_project.auth.service.OtpAuthenticationService;
+import com.example.pl_timetable_project.common.exception.BusinessException;
 import com.example.pl_timetable_project.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -36,9 +40,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final OtpAuthenticationService authenticationService;
+    private final GoogleAuthProperties googleAuthProperties;
 
-    public AuthController(OtpAuthenticationService authenticationService) {
+    public AuthController(
+            OtpAuthenticationService authenticationService,
+            GoogleAuthProperties googleAuthProperties
+    ) {
         this.authenticationService = authenticationService;
+        this.googleAuthProperties = googleAuthProperties;
     }
 
     @Operation(
@@ -56,6 +65,25 @@ public class AuthController {
     @PostMapping("/otp/request")
     public ApiResponse<OtpStartResponse> requestOtp(@Valid @RequestBody OtpStartRequest request) {
         return ApiResponse.success(authenticationService.start(request.studentNumber()));
+    }
+
+    @Operation(
+            summary = "Google 로그인 시작",
+            description = "Google OIDC Authorization Code 로그인 화면으로 이동합니다.")
+    @GetMapping("/google")
+    public void googleLogin(jakarta.servlet.http.HttpServletResponse response) throws IOException {
+        if (!googleAuthProperties.enabled()) {
+            throw new BusinessException(AuthErrorCode.GOOGLE_LOGIN_NOT_CONFIGURED);
+        }
+        response.sendRedirect("/oauth2/authorization/google");
+    }
+
+    @Operation(
+            summary = "Google 로그인 실패",
+            description = "Google 인증 또는 로컬 계정 연결 실패를 표준 오류 응답으로 반환합니다.")
+    @GetMapping("/google/failure")
+    public ApiResponse<Void> googleFailure() {
+        throw new BusinessException(AuthErrorCode.GOOGLE_LOGIN_FAILED);
     }
 
     @Operation(summary = "OTP 검증 및 로그인")

@@ -8,6 +8,7 @@
 
 팀 테스트 서버:
 
+- Cloud Run API: `https://pl-timetable-api-532874992461.asia-northeast3.run.app`
 - 기본 API 문서(Scalar): `https://timetable-api.kdhoon.me/`
 - Scalar 직접 주소: `https://timetable-api.kdhoon.me/scalar`
 - OpenAPI JSON: `https://timetable-api.kdhoon.me/v3/api-docs`
@@ -34,6 +35,7 @@
 | 자동 편성 | [OPTIMIZATION_API.md](OPTIMIZATION_API.md) |
 | 프론트 연동 공통사항 | [루트 FRONTEND.md](../../FRONTEND.md) |
 | 실제 HTTP 스모크 테스트 | [LOCAL_API_SMOKE_TEST.md](LOCAL_API_SMOKE_TEST.md) |
+| 2026-07-29 요구사항 반영 결과 | [REQUIREMENTS_2026_07_29.md](REQUIREMENTS_2026_07_29.md) |
 
 ## 공통 인증 규칙
 
@@ -70,11 +72,9 @@ OpenAPI는 Controller·DTO와 문서 카탈로그에서 서버 실행 시 자동
 Git `main`에 병합되기만 해서는 외부 문서가 바뀌지 않으며, 최신 JAR 또는 Docker 이미지를
 테스트 서버에 배포하고 재시작해야 `/v3/api-docs`도 최신화됩니다.
 
-## 아직 구현되지 않은 주요 기능
+## 남은 주요 기능
 
-- 소셜 로그인
-- 졸업판정용 `admissionYear`, `studentType`, `programPath` 사용자 프로필 입력
 - 시간표 복사, 공유 링크, 이전 학기 조회, 대체 분반 추천
-- OCR
+- Google 표준 웹 OAuth 클라이언트의 Cloud Console 수동 생성과 운영 프로필 활성화
 
 이 목록은 현재 구현 범위를 구분하기 위한 것이며, 구현된 API의 동작 여부와는 별개입니다.
