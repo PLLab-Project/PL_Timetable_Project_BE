@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -26,7 +28,10 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @SpringBootTest(properties = {
         "app.security.csrf-cookie-secure=true",
-        "app.security.csrf-cookie-same-site=None"
+        "app.security.csrf-cookie-same-site=None",
+        "app.security.allowed-origins=https://legacy-frontend.example/",
+        "app.security.allowed-origin-patterns=https://pl-timetable-project-fe.vercel.app,"
+                + "http://localhost:[*],http://127.0.0.1:[*]"
 })
 @Testcontainers
 class SpaCsrfIntegrationTest {
@@ -74,5 +79,37 @@ class SpaCsrfIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/logout")
                         .with(user("smoke-user")))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void allowsLocalDevelopmentOriginsOnDynamicPorts() throws Exception {
+        assertCorsPreflightAllowed("http://localhost:5174");
+        assertCorsPreflightAllowed("http://127.0.0.1:3000");
+    }
+
+    @Test
+    void normalizesConfiguredOriginAndRejectsUnknownSites() throws Exception {
+        assertCorsPreflightAllowed("https://pl-timetable-project-fe.vercel.app");
+
+        mockMvc.perform(options("/api/v1/semesters")
+                        .header("Origin", "https://evil.example")
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "content-type,x-xsrf-token"))
+                .andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+    }
+
+    private void assertCorsPreflightAllowed(String origin) throws Exception {
+        mockMvc.perform(options("/api/v1/semesters")
+                        .header("Origin", origin)
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers",
+                                "content-type,x-xsrf-token,x-client-version"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", origin))
+                .andExpect(header().string("Access-Control-Allow-Credentials", "true"))
+                .andExpect(header().string(
+                        "Access-Control-Allow-Headers",
+                        "content-type, x-xsrf-token, x-client-version"));
     }
 }

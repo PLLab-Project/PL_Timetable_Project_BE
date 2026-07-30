@@ -90,17 +90,32 @@ public class SecurityConfig {
     /** 허용된 프론트엔드 주소만 세션 쿠키를 포함한 API 요청을 보낼 수 있습니다. */
     @Bean
     CorsConfigurationSource corsConfigurationSource(
-            @Value("${app.security.allowed-origins:http://localhost:5173}") List<String> allowedOrigins) {
+            @Value("${app.security.allowed-origins:}") List<String> allowedOrigins,
+            @Value("${app.security.allowed-origin-patterns:}") List<String> allowedOriginPatterns) {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(allowedOrigins);
-        configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN"));
+        configuration.setAllowedOrigins(normalizeCorsValues(allowedOrigins));
+        configuration.setAllowedOriginPatterns(normalizeCorsValues(allowedOriginPatterns));
+        configuration.setAllowedMethods(
+                List.of("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        // 브라우저가 추가하는 헤더 때문에 정상적인 preflight가 차단되지 않게 허용합니다.
+        // Origin과 credentials는 위의 제한된 목록 및 패턴으로 계속 검증됩니다.
+        configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", configuration);
         return source;
+    }
+
+    private static List<String> normalizeCorsValues(List<String> values) {
+        return values.stream()
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                // Origin 값에는 마지막 슬래시가 없으므로 흔한 환경 변수 입력 실수를 보정합니다.
+                .map(value -> value.endsWith("/") ? value.substring(0, value.length() - 1) : value)
+                .distinct()
+                .toList();
     }
 
     private static void writeError(

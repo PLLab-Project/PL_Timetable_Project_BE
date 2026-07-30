@@ -287,8 +287,9 @@ VITE_API_BASE_URL=https://timetable-api.example.com
 
 ```env
 ALLOWED_ORIGINS=https://frontend.example.com,http://localhost:5173
+ALLOWED_ORIGIN_PATTERNS=https://pl-timetable-project-fe.vercel.app,http://localhost:[*],http://127.0.0.1:[*]
 SESSION_COOKIE_SECURE=true
-SESSION_COOKIE_SAME_SITE=lax
+SESSION_COOKIE_SAME_SITE=none
 ```
 
 허용 Origin 확인:

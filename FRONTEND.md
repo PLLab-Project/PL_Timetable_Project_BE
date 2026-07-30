@@ -12,7 +12,8 @@
 - OpenAPI YAML: `https://timetable-api.kdhoon.me/v3/api-docs.yaml`
 - 로컬 Docker API: `http://127.0.0.1:18082`
 - 소스 직접 실행 API: `http://localhost:8080`
-- 기본 허용 프론트 Origin: `http://localhost:5173`
+- 배포 프론트 Origin: `https://pl-timetable-project-fe.vercel.app`
+- 기본 허용 패턴: 공식 Vercel Origin, `http://localhost:[*]`, `http://127.0.0.1:[*]`
 - 세션 인증: 브라우저 요청에 쿠키 포함 (`credentials: "include"`)
 - CSRF 초기화: `GET /api/v1/auth/csrf` 응답의 `data.token`을 메모리에 저장
 - 상태 변경 요청: CSRF 토큰을 `X-XSRF-TOKEN` 헤더로 전송
@@ -24,9 +25,11 @@
 VITE_API_BASE_URL=https://timetable-api.kdhoon.me
 ```
 
-로컬 프론트에서 팀 테스트 서버를 호출하려면 백엔드의 `ALLOWED_ORIGINS`에
-`http://localhost:5173`이 포함되어 있어야 합니다. 세션 쿠키를 사용하는 CORS에서는
-`*`를 허용 Origin으로 사용할 수 없습니다.
+배포 프론트는 백엔드의 `ALLOWED_ORIGINS`에 정확히 등록합니다. 로컬 프론트는
+공식 Vercel Origin은 기본 허용 패턴에도 포함되어 기존 서버 환경 변수가 남아 있어도
+연결됩니다. 로컬 프론트는 `ALLOWED_ORIGIN_PATTERNS`의 localhost/127.0.0.1 패턴으로
+개발 포트가 바뀌어도 연결됩니다. 세션 쿠키를 사용하는 CORS에서는 임의의 외부
+Origin을 `*`로 허용할 수 없습니다.
 
 ## 인증 경계
 
@@ -184,6 +187,7 @@ OTP 로그인 성공으로 세션 ID가 바뀐 뒤에는 `refreshCsrf()`를 다�
 - 프론트와 API가 같은 사이트의 서브도메인이면 `SameSite=Lax`를 권장합니다.
 - 서로 다른 최상위 사이트면 HTTPS와 `SameSite=None; Secure`가 필요합니다.
 - 실제 프론트 Origin은 `ALLOWED_ORIGINS`에 정확히 등록해야 합니다.
+- 로컬 개발 Origin만 `ALLOWED_ORIGIN_PATTERNS`의 제한된 패턴으로 허용합니다.
 - 세션 쿠키는 `HttpOnly`이므로 JavaScript에서 읽는 것이 정상 동작이 아닙니다.
 - 개발자 도구의 Network 탭에서 요청 쿠키와 CORS 응답 헤더를 확인합니다.
 

@@ -85,9 +85,10 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_AUTH: ${SMTP_AUTH:-true}
       SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://pl-timetable-project-fe.vercel.app}
+      ALLOWED_ORIGIN_PATTERNS: "${ALLOWED_ORIGIN_PATTERNS:-https://pl-timetable-project-fe.vercel.app,http://localhost:[*],http://127.0.0.1:[*]}"
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
-      SESSION_COOKIE_SAME_SITE: ${SESSION_COOKIE_SAME_SITE:-lax}
+      SESSION_COOKIE_SAME_SITE: ${SESSION_COOKIE_SAME_SITE:-none}
       OPENAPI_ENABLED: ${OPENAPI_ENABLED:-true}
     ports:
       - "${API_BIND_ADDRESS:-127.0.0.1}:${API_PORT:-18082}:8080"
