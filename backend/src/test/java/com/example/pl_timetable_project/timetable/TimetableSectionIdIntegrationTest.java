@@ -14,12 +14,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @SpringBootTest
 @Testcontainers
+@Transactional
 class TimetableSectionIdIntegrationTest {
 
     @Container
@@ -81,5 +83,23 @@ class TimetableSectionIdIntegrationTest {
 
         assertThat(replaced.sections()).allSatisfy(section -> assertThat(section.id()).isNotNull());
         assertThat(added.sections()).allSatisfy(section -> assertThat(section.id()).isNotNull());
+    }
+
+    @Test
+    void allowsMultipleFavoriteTimetablesAndOrdersThemFirst() {
+        TimetableResponse first = timetableService.createTimetable(
+                userId,
+                new TimetableCreateRequest("first", "2099-1", List.of()));
+        TimetableResponse second = timetableService.createTimetable(
+                userId,
+                new TimetableCreateRequest("second", "2099-1", List.of()));
+
+        assertThat(timetableService.updateFavorite(userId, first.id(), true).favorite())
+                .isTrue();
+        assertThat(timetableService.updateFavorite(userId, second.id(), true).favorite())
+                .isTrue();
+        assertThat(timetableService.getTimetables(userId))
+                .extracting(summary -> summary.favorite())
+                .containsExactly(true, true);
     }
 }

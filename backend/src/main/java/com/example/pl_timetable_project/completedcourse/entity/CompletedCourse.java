@@ -1,6 +1,7 @@
 package com.example.pl_timetable_project.completedcourse.entity;
 
 import com.example.pl_timetable_project.completedcourse.CompletedCourseInputSource;
+import com.example.pl_timetable_project.completedcourse.CompletedCourseGradingBasis;
 import com.example.pl_timetable_project.completedcourse.CompletedCourseStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -44,6 +45,13 @@ public class CompletedCourse {
     @Column(precision = 5, scale = 2, nullable = false)
     private BigDecimal credits;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "grading_basis", length = 20, nullable = false)
+    private CompletedCourseGradingBasis gradingBasis;
+
+    @Column(name = "grade_value", length = 12)
+    private String gradeValue;
+
     @Column(length = 160, nullable = false)
     private String category;
 
@@ -82,6 +90,8 @@ public class CompletedCourse {
             String courseCode,
             String courseName,
             BigDecimal credits,
+            CompletedCourseGradingBasis gradingBasis,
+            String gradeValue,
             String category,
             String area,
             String semester,
@@ -94,6 +104,8 @@ public class CompletedCourse {
         this.courseCode = courseCode;
         this.courseName = courseName;
         this.credits = credits;
+        this.gradingBasis = gradingBasis;
+        this.gradeValue = gradeValue;
         this.category = category;
         this.area = area;
         this.semester = semester;
@@ -108,6 +120,8 @@ public class CompletedCourse {
             String courseCode,
             String courseName,
             BigDecimal credits,
+            CompletedCourseGradingBasis gradingBasis,
+            String gradeValue,
             String category,
             String area,
             String semester,
@@ -120,6 +134,12 @@ public class CompletedCourse {
         }
         if (credits != null) {
             this.credits = credits;
+        }
+        if (gradingBasis != null) {
+            this.gradingBasis = gradingBasis;
+            this.gradeValue = gradeValue;
+        } else if (gradeValue != null) {
+            this.gradeValue = gradeValue;
         }
         if (category != null) {
             this.category = category;

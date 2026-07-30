@@ -1,7 +1,7 @@
 # 인증·사용자 API
 
-현재 인증 방식은 학교 이메일 OTP와 서버 세션입니다. **소셜 로그인은 아직 구현되지
-않았습니다.**
+인증 방식은 학교 이메일 OTP와 서버 주도 Google OIDC 로그인입니다. 두 방식 모두
+로그인 뒤 JDBC에 저장되는 동일한 `JSESSIONID` 애플리케이션 세션을 사용합니다.
 
 ## 공통 응답
 
@@ -22,6 +22,7 @@
 | GET | `/api/v1/auth/csrf` | 불필요 | 불필요 | SPA 상태 변경 요청용 CSRF 토큰 발급 |
 | POST | `/api/v1/auth/otp/request` | 불필요 | 제외 | 학교 이메일로 OTP 요청 |
 | POST | `/api/v1/auth/otp/verify` | 불필요 | 제외 | OTP 검증 후 세션 생성 |
+| GET | `/api/v1/auth/google` | 불필요 | 불필요 | Google 로그인 시작 |
 | GET | `/api/v1/auth/session` | 필요 | 불필요 | 현재 로그인 세션 조회 |
 | POST | `/api/v1/auth/logout` | 필요 | 필요 | 세션 무효화 및 로그아웃 |
 
@@ -94,6 +95,14 @@
 }
 ```
 
+### Google 로그인
+
+브라우저를 `GET /api/v1/auth/google`로 이동시키면 Google 인증 뒤
+`/login/oauth2/code/google` 콜백에서 로컬 계정과 연결하고 세션을 만든다. 외부
+access/refresh token은 저장하지 않으며 불변 Google `sub`만 `social_identities`에
+저장한다. 운영 사용 전 GCP Cloud Console의 표준 웹 OAuth 클라이언트에 배포 콜백
+주소를 등록해야 한다.
+
 ## 사용자
 
 모든 사용자 API는 로그인 세션이 필요하고, GET이 아닌 요청은 CSRF 헤더가 필요합니다.
@@ -112,15 +121,23 @@
 
 ```json
 {
+  "studentNumber": "20261234",
   "name": "홍길동",
   "grade": 3,
-  "departmentId": "CSE"
+  "departmentId": "CSE",
+  "admissionYear": 2022,
+  "studentType": "DOMESTIC",
+  "programPath": "ADVANCED_MAJOR",
+  "tutorialCompleted": true
 }
 ```
 
 - `name`: 최대 120자
 - `grade`: 1~6
 - `departmentId`: 최대 40자
+- `studentNumber`: 숫자 6~20자리, 다른 사용자와 중복 불가
+- `admissionYear`: 1900~2100
+- `programPath`: `ADVANCED_MAJOR`, `DOUBLE_MAJOR`, `MINOR`, `MICRO_MAJOR`
 
 사용자 응답의 `data`:
 
@@ -132,14 +149,15 @@
   "grade": 3,
   "departmentId": "CSE",
   "department": "컴퓨터공학과",
+  "admissionYear": 2022,
+  "studentType": "DOMESTIC",
+  "programPath": "ADVANCED_MAJOR",
+  "profileCompleted": true,
+  "graduationProfileCompleted": true,
+  "tutorialCompleted": true,
   "createdAt": "2026-07-24T04:00:00Z"
 }
 ```
-
-현재 사용자 API에는 졸업판정 입력인 `admissionYear`, `studentType`, `programPath`를
-저장하는 필드가 없습니다. 해당 값이 `student_profiles`에 없는 사용자는 졸업판정 API에서
-`INVALID_ACADEMIC_QUERY`를 받습니다. 프론트 온보딩에서 판정까지 연결하려면 이 입력
-계약을 별도로 추가해야 합니다.
 
 ### 개인정보 동의
 

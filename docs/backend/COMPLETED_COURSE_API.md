@@ -25,6 +25,8 @@
   "courseCode": "CSE100",
   "courseName": "자료구조",
   "credits": 3.00,
+  "gradingBasis": "LETTER",
+  "gradeValue": "A+",
   "category": "전공필수",
   "area": "전공핵심",
   "semester": "2026-1",
@@ -34,6 +36,18 @@
 
 `courseCode`, `area`, `semester`는 선택값이다. 학점은 `0` 이상,
 소수점 둘째 자리까지 허용한다.
+
+P/N 과목은 학점을 0으로 보내지 않는다. `credits`에는 실제 인정 학점을 넣고
+`gradingBasis=PASS_FAIL`, `gradeValue=P` 또는 `N`으로 보낸다.
+
+## 성적표 OCR
+
+`POST /api/v1/completed-courses/ocr`
+
+`multipart/form-data`의 `file`에 7MB 이하 JPEG·PNG·WebP·HEIC·HEIF 이미지를 보낸다.
+서버가 원본을 저장하지 않고 Gemini 3.5 Flash-Lite 비전에 직접 전달한 뒤,
+`extractedText`, 빈 줄을 제거한 `lines`, `requiresConfirmation=true`를 반환한다.
+인식 결과를 사용자가 확인·보정한 뒤 직접 등록 API로 저장한다.
 
 ## 조회·수정·삭제
 

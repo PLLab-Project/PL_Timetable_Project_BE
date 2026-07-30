@@ -2,6 +2,7 @@ package com.example.pl_timetable_project.auth.security;
 
 import com.example.pl_timetable_project.auth.AuthErrorCode;
 import com.example.pl_timetable_project.auth.config.AuthProperties;
+import com.example.pl_timetable_project.auth.config.GoogleAuthProperties;
 import com.example.pl_timetable_project.common.exception.CommonErrorCode;
 import com.example.pl_timetable_project.common.exception.ErrorCode;
 import com.example.pl_timetable_project.common.response.ApiResponse;
@@ -28,7 +29,7 @@ import tools.jackson.databind.ObjectMapper;
 
 /** 세션 인증, 공개 API, CSRF 정책을 한곳에서 관리합니다. */
 @Configuration
-@EnableConfigurationProperties(AuthProperties.class)
+@EnableConfigurationProperties({AuthProperties.class, GoogleAuthProperties.class})
 public class SecurityConfig {
 
     @Bean
@@ -40,6 +41,9 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             ObjectMapper objectMapper,
+            GoogleAuthProperties googleAuthProperties,
+            GoogleOAuth2SuccessHandler googleSuccessHandler,
+            GoogleOAuth2FailureHandler googleFailureHandler,
             @Value("${app.security.csrf-cookie-secure:false}") boolean csrfCookieSecure,
             @Value("${app.security.csrf-cookie-same-site:Lax}") String csrfCookieSameSite)
             throws Exception {
@@ -49,11 +53,15 @@ public class SecurityConfig {
                 .secure(csrfCookieSecure)
                 .sameSite(csrfCookieSameSite));
 
-        return http
+        http
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
                                 "/api/v1/auth/otp/**",
+                                "/api/v1/auth/google",
+                                "/api/v1/auth/google/failure",
                                 "/api/v1/auth/csrf",
+                                "/oauth2/**",
+                                "/login/oauth2/**",
                                 "/api/v1/health/**",
                                 "/v3/api-docs/**",
                                 "/v3/api-docs.yaml",
@@ -83,8 +91,14 @@ public class SecurityConfig {
                         .authenticationEntryPoint((request, response, error) ->
                                 writeError(response, objectMapper, AuthErrorCode.SESSION_EXPIRED))
                         .accessDeniedHandler((request, response, error) ->
-                                writeError(response, objectMapper, CommonErrorCode.FORBIDDEN)))
-                .build();
+                                writeError(response, objectMapper, CommonErrorCode.FORBIDDEN)));
+
+        if (googleAuthProperties.enabled()) {
+            http.oauth2Login(oauth2 -> oauth2
+                    .successHandler(googleSuccessHandler)
+                    .failureHandler(googleFailureHandler));
+        }
+        return http.build();
     }
 
     /** 허용된 프론트엔드 주소만 세션 쿠키를 포함한 API 요청을 보낼 수 있습니다. */

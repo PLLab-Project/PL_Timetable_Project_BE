@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface StudentProfileRepository extends JpaRepository<StudentProfile, UUID> {
 
     Optional<StudentProfile> findByStudentNumber(String studentNumber);
+
+    boolean existsByStudentNumberAndUserIdNot(String studentNumber, UUID userId);
 }

@@ -7,6 +7,7 @@ public record TimetableSummaryResponse(
         Long id,
         String name,
         String semesterId,
+        boolean favorite,
         BigDecimal totalCredits,
         int sectionCount) {
 
@@ -15,6 +16,7 @@ public record TimetableSummaryResponse(
                 timetable.getId(),
                 timetable.getName(),
                 timetable.getSemesterId(),
+                timetable.isFavorite(),
                 totalCredits,
                 timetable.getTimetableCourses().size());
     }

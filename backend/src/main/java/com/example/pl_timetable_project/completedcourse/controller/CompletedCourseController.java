@@ -6,7 +6,9 @@ import com.example.pl_timetable_project.completedcourse.dto.CompletedCourseCreat
 import com.example.pl_timetable_project.completedcourse.dto.CompletedCourseCreditSummaryResponse;
 import com.example.pl_timetable_project.completedcourse.dto.CompletedCourseResponse;
 import com.example.pl_timetable_project.completedcourse.dto.CompletedCourseUpdateRequest;
+import com.example.pl_timetable_project.completedcourse.dto.CompletedCourseOcrResponse;
 import com.example.pl_timetable_project.completedcourse.dto.TimetableImportResponse;
+import com.example.pl_timetable_project.completedcourse.service.CompletedCourseOcrService;
 import com.example.pl_timetable_project.completedcourse.service.CompletedCourseService;
 import com.example.pl_timetable_project.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/completed-courses")
@@ -33,9 +36,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class CompletedCourseController {
 
     private final CompletedCourseService completedCourseService;
+    private final CompletedCourseOcrService completedCourseOcrService;
 
-    public CompletedCourseController(CompletedCourseService completedCourseService) {
+    public CompletedCourseController(
+            CompletedCourseService completedCourseService,
+            CompletedCourseOcrService completedCourseOcrService) {
         this.completedCourseService = completedCourseService;
+        this.completedCourseOcrService = completedCourseOcrService;
     }
 
     @Operation(summary = "이수과목 직접 등록")
@@ -63,6 +70,17 @@ public class CompletedCourseController {
     public ApiResponse<CompletedCourseCreditSummaryResponse> summarize(
             @AuthenticationPrincipal AuthenticatedUser principal) {
         return ApiResponse.success(completedCourseService.summarize(principal.userId()));
+    }
+
+    @Operation(
+            summary = "성적표 이미지 OCR",
+            description = "이미지 원본은 저장하지 않습니다. 반환된 텍스트를 사용자가 확인·보정한 뒤 "
+                    + "이수과목 직접 등록 API로 저장해야 합니다.")
+    @PostMapping(value = "/ocr", consumes = "multipart/form-data")
+    public ApiResponse<CompletedCourseOcrResponse> recognizeTranscript(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @RequestParam("file") MultipartFile file) {
+        return ApiResponse.success(completedCourseOcrService.recognize(file));
     }
 
     @Operation(summary = "이수과목 단건 조회")

@@ -18,6 +18,7 @@ import com.example.pl_timetable_project.user.repository.StudentProfileRepository
 import com.example.pl_timetable_project.user.repository.UserAccountRepository;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,7 +61,21 @@ public class UserService {
                     .map(AcademicUnit::code)
                     .orElseThrow(() -> new BusinessException(UserErrorCode.DEPARTMENT_NOT_FOUND));
         }
-        profile.update(request.grade(), academicUnitCode);
+        String studentNumber = normalizeOptional(request.studentNumber());
+        if (studentNumber != null
+                && profileRepository.existsByStudentNumberAndUserIdNot(studentNumber, userId)) {
+            throw new BusinessException(UserErrorCode.STUDENT_NUMBER_DUPLICATE);
+        }
+        String studentType = uppercaseOptional(request.studentType());
+        String programPath = uppercaseOptional(request.programPath());
+        profile.update(
+                studentNumber,
+                request.grade(),
+                academicUnitCode,
+                request.admissionYear(),
+                studentType,
+                programPath,
+                request.tutorialCompleted());
         return toResponse(user, profile);
     }
 
@@ -119,10 +134,29 @@ public class UserService {
         AcademicUnit academicUnit = profile.academicUnitCode() == null
                 ? null
                 : academicUnitRepository.findByCode(profile.academicUnitCode()).orElse(null);
+        boolean graduationProfileCompleted = profile.admissionYear() != null
+                && profile.academicUnitCode() != null
+                && profile.studentType() != null
+                && profile.programPath() != null;
         return new UserInfoResponse(user.id(), profile.studentNumber(), user.displayName(), profile.grade(),
                 academicUnit == null ? null : academicUnit.code(),
                 academicUnit == null ? null : academicUnit.name(),
+                profile.admissionYear(),
+                profile.studentType(),
+                profile.programPath(),
+                profile.profileCompleted(),
+                graduationProfileCompleted,
+                profile.tutorialCompleted(),
                 user.createdAt());
+    }
+
+    private String normalizeOptional(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String uppercaseOptional(String value) {
+        String normalized = normalizeOptional(value);
+        return normalized == null ? null : normalized.toUpperCase(Locale.ROOT);
     }
 
     private ConsentResponse toConsentResponse(PrivacyConsent consent) {

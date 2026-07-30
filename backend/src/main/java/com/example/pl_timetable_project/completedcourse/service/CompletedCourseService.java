@@ -3,6 +3,7 @@ package com.example.pl_timetable_project.completedcourse.service;
 import com.example.pl_timetable_project.common.exception.BusinessException;
 import com.example.pl_timetable_project.completedcourse.CompletedCourseErrorCode;
 import com.example.pl_timetable_project.completedcourse.CompletedCourseInputSource;
+import com.example.pl_timetable_project.completedcourse.CompletedCourseGradingBasis;
 import com.example.pl_timetable_project.completedcourse.CompletedCourseStatus;
 import com.example.pl_timetable_project.completedcourse.dto.CompletedCourseCreateRequest;
 import com.example.pl_timetable_project.completedcourse.dto.CompletedCourseCreditSummaryResponse;
@@ -43,6 +44,9 @@ public class CompletedCourseService {
                 normalizeOptional(request.courseCode()),
                 normalizeRequired(request.courseName()),
                 request.credits(),
+                request.gradingBasis() == null
+                        ? CompletedCourseGradingBasis.LETTER : request.gradingBasis(),
+                normalizeGradeValue(request.gradeValue(), request.gradingBasis()),
                 normalizeRequired(request.category()),
                 normalizeOptional(request.area()),
                 normalizeOptional(request.semester()),
@@ -78,6 +82,11 @@ public class CompletedCourseService {
                 normalizeOptionalUpdate(request.courseCode()),
                 normalizeRequiredUpdate(request.courseName()),
                 request.credits(),
+                request.gradingBasis(),
+                normalizeGradeValueForUpdate(
+                        request.gradeValue(),
+                        request.gradingBasis() == null
+                                ? course.getGradingBasis() : request.gradingBasis()),
                 normalizeRequiredUpdate(request.category()),
                 normalizeOptionalUpdate(request.area()),
                 normalizeOptionalUpdate(request.semester()),
@@ -147,6 +156,8 @@ public class CompletedCourseService {
                     snapshot.courseCode(),
                     snapshot.courseName(),
                     snapshot.credits(),
+                    CompletedCourseGradingBasis.LETTER,
+                    null,
                     snapshot.category(),
                     null,
                     snapshot.semesterId(),
@@ -216,5 +227,27 @@ public class CompletedCourseService {
 
     private String normalizeOptionalUpdate(String value) {
         return value == null ? null : normalizeOptional(value);
+    }
+
+    private String normalizeGradeValue(
+            String value, CompletedCourseGradingBasis requestedBasis) {
+        String normalized = normalizeOptional(value);
+        CompletedCourseGradingBasis basis = requestedBasis == null
+                ? CompletedCourseGradingBasis.LETTER : requestedBasis;
+        if (basis == CompletedCourseGradingBasis.PASS_FAIL
+                && normalized != null
+                && !normalized.equalsIgnoreCase("P")
+                && !normalized.equalsIgnoreCase("N")) {
+            throw new BusinessException(CompletedCourseErrorCode.INVALID_REQUEST);
+        }
+        return normalized == null ? null : normalized.toUpperCase(java.util.Locale.ROOT);
+    }
+
+    private String normalizeGradeValueForUpdate(
+            String value, CompletedCourseGradingBasis requestedBasis) {
+        if (value == null) {
+            return null;
+        }
+        return normalizeGradeValue(value, requestedBasis);
     }
 }

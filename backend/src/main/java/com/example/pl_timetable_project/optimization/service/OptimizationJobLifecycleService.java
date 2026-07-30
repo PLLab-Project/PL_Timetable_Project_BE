@@ -47,8 +47,8 @@ public class OptimizationJobLifecycleService {
                 request.getTargetCredits(),
                 constraints.excludedDays(),
                 constraints.requiredSections(),
-                request.getAvailableTime().getStartTime(),
-                request.getAvailableTime().getEndTime(),
+                constraints.availableTimes(),
+                constraints.blockedTimes(),
                 request.getLunchTime().getStartTime(),
                 request.getLunchTime().getEndTime(),
                 request.getMaxDailyClassMinutes());

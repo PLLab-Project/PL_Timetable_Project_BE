@@ -13,8 +13,11 @@ import com.example.pl_timetable_project.exception.InvalidAcademicQueryException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
+import java.util.function.Function;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.pl_timetable_project.user.repository.StudentProfileRepository;
 
 @Service
 @Transactional(readOnly = true)
@@ -23,21 +26,25 @@ public class CourseService {
     private final CourseQueryRepository repository;
     private final SectionQueryRepository sectionRepository;
     private final SectionSearchQueryRepository sectionSearchRepository;
+    private final StudentProfileRepository studentProfileRepository;
 
     public CourseService(
             CourseQueryRepository repository,
             SectionQueryRepository sectionRepository,
-            SectionSearchQueryRepository sectionSearchRepository) {
+            SectionSearchQueryRepository sectionSearchRepository,
+            StudentProfileRepository studentProfileRepository) {
         this.repository = repository;
         this.sectionRepository = sectionRepository;
         this.sectionSearchRepository = sectionSearchRepository;
+        this.studentProfileRepository = studentProfileRepository;
     }
 
     public AcademicPageResponse<CourseSummaryResponse> searchCourses(
             String semesterId,
             String query,
-            String category,
-            String academicUnitCode,
+            List<String> categories,
+            List<String> academicUnitCodes,
+            List<String> collegeCodes,
             String professor,
             BigDecimal credits,
             String day,
@@ -49,8 +56,9 @@ public class CourseService {
         CourseSearchCondition condition = new CourseSearchCondition(
                 normalizedSemesterId,
                 TextQuery.optional(query),
-                TextQuery.optional(category),
-                TextQuery.optional(academicUnitCode),
+                normalizeValues(categories, this::normalizeCategory),
+                normalizeValues(academicUnitCodes, TextQuery::optional),
+                normalizeValues(collegeCodes, TextQuery::optional),
                 TextQuery.optional(professor),
                 validateCredits(credits),
                 parseDay(day));
@@ -76,12 +84,15 @@ public class CourseService {
     }
 
     public AcademicPageResponse<SectionSearchResponse> searchSections(
+            UUID userId,
             String semesterId,
             String query,
-            String category,
-            String academicUnitCode,
-            String completionCategory,
-            String targetGrade,
+            List<String> categories,
+            List<String> academicUnitCodes,
+            List<String> collegeCodes,
+            List<String> completionCategories,
+            List<String> targetGrades,
+            String preferredAcademicUnitCode,
             String professor,
             BigDecimal credits,
             String day,
@@ -93,10 +104,12 @@ public class CourseService {
         SectionSearchCondition condition = new SectionSearchCondition(
                 normalizedSemesterId,
                 TextQuery.optional(query),
-                TextQuery.optional(category),
-                TextQuery.optional(academicUnitCode),
-                TextQuery.optional(completionCategory),
-                parseTargetGrade(targetGrade),
+                normalizeValues(categories, this::normalizeCategory),
+                normalizeValues(academicUnitCodes, TextQuery::optional),
+                normalizeValues(collegeCodes, TextQuery::optional),
+                normalizeValues(completionCategories, this::normalizeCompletionCategory),
+                normalizeValues(targetGrades, this::parseTargetGrade),
+                resolvePreferredAcademicUnitCode(userId, preferredAcademicUnitCode),
                 TextQuery.optional(professor),
                 validateCredits(credits),
                 parseDay(day));
@@ -169,6 +182,60 @@ public class CourseService {
             default -> throw new InvalidAcademicQueryException(
                     "targetGrade는 1~4 또는 1학년~4학년 형식이어야 합니다.");
         };
+    }
+
+    private String normalizeCategory(String category) {
+        String value = TextQuery.optional(category);
+        if (value == null) {
+            return null;
+        }
+        String compact = value.replace(" ", "");
+        if (compact.equalsIgnoreCase("디지털리터러시")
+                || compact.equalsIgnoreCase("AI디지털리터러시")
+                || compact.equalsIgnoreCase("AI·디지털리터러시")) {
+            return "교양선택(제6영역:AI·디지털리터러시)";
+        }
+        return value;
+    }
+
+    private String normalizeCompletionCategory(String category) {
+        String value = TextQuery.optional(category);
+        if (value == null) {
+            return null;
+        }
+        return switch (value.replace(" ", "")) {
+            case "전공필수" -> "전필";
+            case "전공선택" -> "전선";
+            case "전공기초" -> "전기";
+            case "교양필수" -> "교필";
+            case "교양선택" -> "교선";
+            case "일반선택" -> "일선";
+            default -> value;
+        };
+    }
+
+    private String resolvePreferredAcademicUnitCode(
+            UUID userId, String requestedCode) {
+        String normalized = TextQuery.optional(requestedCode);
+        if (normalized != null || userId == null) {
+            return normalized;
+        }
+        return studentProfileRepository.findById(userId)
+                .map(profile -> profile.academicUnitCode())
+                .orElse(null);
+    }
+
+    private List<String> normalizeValues(
+            List<String> values, Function<String, String> normalizer) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        return values.stream()
+                .flatMap(value -> java.util.Arrays.stream(value.split(",")))
+                .map(normalizer)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
     }
 
     private AcademicResourceNotFoundException courseNotFound(

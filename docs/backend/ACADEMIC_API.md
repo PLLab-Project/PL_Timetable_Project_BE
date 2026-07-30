@@ -12,6 +12,7 @@
 | Method | Path | 설명 |
 |---|---|---|
 | GET | `/api/v1/departments` | 공식 학과·전공 목록 |
+| GET | `/api/v1/departments/colleges` | 단과대 코드·이름·현재 학과 수 |
 | GET | `/api/v1/departments/{code}` | 학과·전공 상세와 연도별 별칭 |
 
 목록 파라미터:
@@ -48,12 +49,13 @@
 
 - `semesterId`: 필수
 - `query`: 과목코드·과목명·교수명 부분 검색
-- `category`: 강의 편성 분류 정확히 일치
-- `academicUnitCode`: 학과·전공 코드
+- `category`: 강의 편성 분류 다중 선택. `디지털리터러시` 별칭 지원
+- `academicUnitCode`: 학과·전공 코드 다중 선택
+- `collegeCode`: 단과대 코드 다중 선택
 - `professor`: 교수명 부분 검색
 - `credits`: 학점 정확히 일치
 - `day`: `월`~`일` 또는 `MONDAY`~`SUNDAY`
-- `sort`: `NAME_ASC`, `NAME_DESC`, `REVIEW_COUNT_DESC`, `RATING_DESC`,
+- `sort`: `DEFAULT`, `NAME_ASC`, `NAME_DESC`, `REVIEW_COUNT_DESC`, `RATING_DESC`,
   `POPULARITY_DESC`
 - `page`, `size`: 0부터 시작, 기본 20, 최대 100
 
@@ -61,9 +63,14 @@
 `GET /api/v1/sections`를 사용합니다. 이 API는 위 조건에 더해 다음 분반 조건을
 지원합니다.
 
-- `completionCategory`: 학과 문맥별 이수구분 정확히 일치 (`전필`, `전선`, `교필`,
+- `completionCategory`: 학과 문맥별 이수구분 다중 선택 (`전필`, `전선`, `교필`,
   `교선`, `교직`, `전기`, `일선`)
-- `targetGrade`: `1`~`4` 또는 `1학년`~`4학년`
+- `targetGrade`: `1`~`4` 또는 `1학년`~`4학년` 다중 선택
+- `preferredAcademicUnitCode`: 공개 호출에서 우선 정렬할 학과. 로그인 시 프로필 사용
+
+다중 파라미터는 같은 이름을 반복하거나 쉼표로 구분한다. `DEFAULT`는 분반의 원본
+카탈로그 페이지·행 순이고 `NAME_ASC`는 별도 이름순이다. 이수구분 필터가 있으면 로그인
+사용자 학과의 분류 문맥을 먼저 반환한다.
 
 응답의 `items`는 과목명·과목코드·분반·교수·학점·대상 학년·`notes` 비고와
 카드 표시용 `completionCategory`, `sessions` 전체 수업시간·강의실,

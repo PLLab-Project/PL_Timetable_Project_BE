@@ -170,6 +170,48 @@ class AcademicApiIntegrationTest {
     }
 
     @Test
+    void supportsMultiSelectCollegeDigitalLiteracyAndDistinctDefaultSort()
+            throws Exception {
+        mockMvc.perform(get("/api/v1/departments/colleges"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].code").value("C1"))
+                .andExpect(jsonPath("$.data[1].code").value("C2"));
+
+        mockMvc.perform(get("/api/v1/departments")
+                        .param("collegeCode", "C2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.items[0].code").value("D2"));
+
+        mockMvc.perform(get("/api/v1/courses")
+                        .param("semesterId", "2026-1")
+                        .param("collegeCode", "C2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("GEN100"));
+
+        mockMvc.perform(get("/api/v1/courses")
+                        .param("semesterId", "2026-1")
+                        .param("category", "전공필수", "디지털리터러시"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(2))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.data.items[1].courseCode").value("GEN100"));
+
+        mockMvc.perform(get("/api/v1/courses")
+                        .param("semesterId", "2026-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE100"));
+
+        mockMvc.perform(get("/api/v1/courses")
+                        .param("semesterId", "2026-1")
+                        .param("sort", "NAME_ASC"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("GEN100"));
+    }
+
+    @Test
     void exposesPublicReviewListsWithoutAuthorIdentity() throws Exception {
         mockMvc.perform(get("/api/v1/courses/reviews")
                         .param("semesterId", "2026-1"))
@@ -446,19 +488,51 @@ class AcademicApiIntegrationTest {
                 .andExpect(jsonPath("$.code").value("INVALID_ACADEMIC_QUERY"));
     }
 
+    @Test
+    void supportsMultiGradeAndCompletionFiltersAndPrioritizesMyDepartment()
+            throws Exception {
+        mockMvc.perform(get("/api/v1/sections")
+                        .param("semesterId", "2026-1")
+                        .param("targetGrade", "2", "3학년")
+                        .param("completionCategory", "전공필수", "전공선택"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(2))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.data.items[1].courseCode").value("CSE200"));
+
+        mockMvc.perform(get("/api/v1/sections")
+                        .param("semesterId", "2026-1")
+                        .param("targetGrade", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("GEN100"))
+                .andExpect(jsonPath("$.data.items[0].targetGrade").value("1학년"));
+
+        mockMvc.perform(get("/api/v1/sections")
+                        .with(signedInAs("00000000-0000-0000-0000-000000000003"))
+                        .param("semesterId", "2026-1")
+                        .param("completionCategory", "교양필수"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(2))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE200"))
+                .andExpect(jsonPath("$.data.items[0].completionCategory").value("교필"))
+                .andExpect(jsonPath("$.data.items[1].courseCode").value("GEN100"));
+    }
+
     private void insertFixture() {
         jdbcTemplate.execute("""
                 INSERT INTO academic_colleges (
                     code, name, first_seen_year, last_seen_year, is_current
-                ) VALUES (
-                    'C1', '공과대학', 2020, 2026, true
-                );
+                ) VALUES
+                    ('C1', '공과대학', 2020, 2026, true),
+                    ('C2', '인문대학', 2020, 2026, true);
 
                 INSERT INTO academic_units (
                     code, college_code, name, code_source,
                     first_seen_year, last_seen_year, is_current
                 ) VALUES
                     ('D1', 'C1', '컴퓨터공학과', 'OFFICIAL_CURRICULUM', 2020, 2026, true),
+                    ('D2', 'C2', '교양학부', 'OFFICIAL_CURRICULUM', 2020, 2026, true),
                     ('D-OLD', 'C1', '구컴퓨터공학과', 'OFFICIAL_CURRICULUM', 2016, 2019, false),
                     ('REQ-TEST', NULL, '요건파생전공', 'REQUIREMENT_DERIVED', 2020, 2026, true);
 
@@ -482,7 +556,11 @@ class AcademicApiIntegrationTest {
                 ) VALUES
                     ('2026-1', 'CSE100', '자료구조', '전공필수', 3.00, 3.00, 0.00),
                     ('2026-1', 'CSE200', '알고리즘', '전공선택', 3.00, 3.00, 0.00),
-                    ('2026-1', 'GEN100', '글쓰기', '교양필수', 2.00, 2.00, 0.00);
+                    (
+                        '2026-1', 'GEN100', '글쓰기',
+                        '교양선택(제6영역:AI·디지털리터러시)',
+                        2.00, 2.00, 0.00
+                    );
 
                 INSERT INTO sections (
                     semester_id, course_code, section_code, professor,
@@ -510,6 +588,21 @@ class AcademicApiIntegrationTest {
                        source_row = 1
                  WHERE semester_id = '2026-1'
                    AND course_code = 'CSE100'
+                   AND section_code = '01';
+
+                UPDATE sections
+                   SET target_grade = '3학년',
+                       source_page = 96,
+                       source_row = 1
+                 WHERE semester_id = '2026-1'
+                   AND course_code = 'CSE200'
+                   AND section_code = '01';
+
+                UPDATE sections
+                   SET source_page = 10,
+                       source_row = 1
+                 WHERE semester_id = '2026-1'
+                   AND course_code = 'GEN100'
                    AND section_code = '01';
 
                 INSERT INTO rooms (
@@ -548,23 +641,48 @@ class AcademicApiIntegrationTest {
                     context_label, context_kind, academic_unit_code,
                     completion_category, target_grade, is_primary, is_shaded,
                     source_page, source_row
-                ) VALUES (
-                    '2026-1', 'CSE100', '01', repeat('b', 64),
-                    '컴퓨터공학과', 'ACADEMIC_UNIT', 'D1',
-                    '전필', '2학년', true, false, 95, 1
-                );
+                ) VALUES
+                    (
+                        '2026-1', 'CSE100', '01', repeat('b', 64),
+                        '컴퓨터공학과', 'ACADEMIC_UNIT', 'D1',
+                        '전필', '2학년', true, false, 95, 1
+                    ),
+                    (
+                        '2026-1', 'CSE200', '01', repeat('b', 64),
+                        '컴퓨터공학과', 'ACADEMIC_UNIT', 'D1',
+                        '전선', '3학년', true, false, 96, 1
+                    ),
+                    (
+                        '2026-1', 'CSE200', '01', repeat('b', 64),
+                        '컴퓨터공학과 교양', 'ACADEMIC_UNIT', 'D1',
+                        '교필', '3학년', false, false, 96, 2
+                    ),
+                    (
+                        '2026-1', 'GEN100', '01', repeat('b', 64),
+                        '교양학부', 'ACADEMIC_UNIT', 'D2',
+                        '교필', '1학년', true, false, 10, 1
+                    );
 
                 INSERT INTO section_academic_units (
                     semester_id, course_code, section_code, academic_unit_code,
                     relation_type, source_kind
                 ) VALUES
                     ('2026-1', 'CSE100', '01', 'D1', 'OFFERING', 'CURRICULUM'),
-                    ('2026-1', 'CSE200', '01', 'D1', 'OFFERING', 'CURRICULUM');
+                    ('2026-1', 'CSE200', '01', 'D1', 'OFFERING', 'CURRICULUM'),
+                    ('2026-1', 'GEN100', '01', 'D2', 'OFFERING', 'CURRICULUM');
 
                 INSERT INTO users (id, display_name, primary_email) VALUES
                     ('00000000-0000-0000-0000-000000000001', '리뷰어1', 'reviewer1@example.com'),
                     ('00000000-0000-0000-0000-000000000002', '리뷰어2', 'reviewer2@example.com'),
                     ('00000000-0000-0000-0000-000000000003', '리뷰어3', 'reviewer3@example.com');
+
+                INSERT INTO student_profiles (
+                    user_id, student_number, academic_unit_code, grade,
+                    profile_completed
+                ) VALUES (
+                    '00000000-0000-0000-0000-000000000003',
+                    '20260003', 'D1', 3, true
+                );
 
                 INSERT INTO course_reviews (
                     user_id, course_code, course_name, professor,

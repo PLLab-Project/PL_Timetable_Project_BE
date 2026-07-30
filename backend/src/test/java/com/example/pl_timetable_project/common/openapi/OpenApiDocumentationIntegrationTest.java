@@ -45,8 +45,10 @@ class OpenApiDocumentationIntegrationTest {
             "TimetableCreateRequest",
             "TimetableSectionsUpdateRequest",
             "TimetableUpdateRequest",
+            "TimetableFavoriteUpdateRequest",
             "CourseCandidateRequest",
             "OptimizationCreateRequest",
+            "BlockedTimeRequest",
             "TimeRangeRequest");
 
     @Container
@@ -85,14 +87,19 @@ class OpenApiDocumentationIntegrationTest {
                 .andExpect(jsonPath("$.paths['/api/v1/auth/otp/request'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/users/me'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/departments'].get").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/departments/colleges'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/semesters'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/courses'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/sections'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/reviews'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/completed-courses'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/completed-courses/ocr'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/graduation/rules'].get").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/timetables'].post").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/optimizations'].post").exists())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/optimizations/{jobId}/results/{rank}/apply'].post")
+                        .exists())
                 .andExpect(jsonPath(
                         "$.paths['/api/v1/courses'].get.responses['200'].content['application/json'].schema['$ref']")
                         .value(endsWith("ApiResponseAcademicPageResponseCourseSummaryResponse")))

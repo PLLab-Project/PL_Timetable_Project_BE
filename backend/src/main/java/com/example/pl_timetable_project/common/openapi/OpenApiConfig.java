@@ -190,6 +190,7 @@ public class OpenApiConfig {
 
     private boolean isPublic(String path, HttpMethod method) {
         if (path.startsWith("/api/v1/auth/otp/")
+                || path.startsWith("/api/v1/auth/google")
                 || path.equals("/api/v1/auth/csrf")
                 || path.startsWith("/api/v1/health/")) {
             return true;
@@ -208,7 +209,8 @@ public class OpenApiConfig {
         return method != HttpMethod.GET
                 && method != HttpMethod.HEAD
                 && method != HttpMethod.OPTIONS
-                && !path.startsWith("/api/v1/auth/otp/");
+                && !path.startsWith("/api/v1/auth/otp/")
+                && !path.startsWith("/api/v1/auth/google");
     }
 
     private String tagFor(String path) {

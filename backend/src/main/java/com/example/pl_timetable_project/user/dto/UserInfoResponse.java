@@ -25,6 +25,24 @@ public record UserInfoResponse(
         @Schema(description = "학과 코드에 대응하는 현재 표시명", example = "컴퓨터공학과")
         String department,
 
+        @Schema(description = "졸업요건 기준 입학연도", example = "2022")
+        Integer admissionYear,
+
+        @Schema(description = "졸업요건 학생 구분", example = "DOMESTIC")
+        String studentType,
+
+        @Schema(description = "전공 이수 경로", example = "ADVANCED_MAJOR")
+        String programPath,
+
+        @Schema(description = "학년·학과 기본 프로필 입력 완료 여부")
+        boolean profileCompleted,
+
+        @Schema(description = "졸업판정에 필요한 필드 입력 완료 여부")
+        boolean graduationProfileCompleted,
+
+        @Schema(description = "최초 사용 튜토리얼 완료 여부")
+        boolean tutorialCompleted,
+
         @Schema(description = "회원 레코드 생성 시각", example = "2026-07-25T03:00:00Z")
         Instant createdAt) {
 }

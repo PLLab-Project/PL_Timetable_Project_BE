@@ -7,6 +7,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import com.example.pl_timetable_project.completedcourse.CompletedCourseErrorCode;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -46,6 +49,22 @@ public class GlobalExceptionHandler {
             MissingServletRequestParameterException exception) {
         return validationError(
                 exception.getParameterName() + ": 필수 요청 값입니다.");
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingPart(
+            MissingServletRequestPartException exception) {
+        return validationError(
+                exception.getRequestPartName() + ": 필수 요청 파일입니다.");
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleOversizedUpload(
+            MaxUploadSizeExceededException exception) {
+        return ResponseEntity.status(
+                        CompletedCourseErrorCode.OCR_FILE_TOO_LARGE.status())
+                .body(ApiResponse.error(
+                        CompletedCourseErrorCode.OCR_FILE_TOO_LARGE));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

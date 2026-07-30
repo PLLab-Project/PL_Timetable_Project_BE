@@ -25,7 +25,7 @@ final class OpenApiDocumentationCatalog {
 
     static List<Tag> tags() {
         return List.of(
-                tag("인증", "학교 이메일 OTP 요청·검증과 서버 세션 관리"),
+                tag("인증", "학교 이메일 OTP·Google 로그인과 서버 세션 관리"),
                 tag("사용자", "내 학생 프로필, 개인정보 동의와 회원 탈퇴"),
                 tag("학과", "정규화된 대학·학과·전공 코드와 연도별 별칭 조회"),
                 tag("학기", "학기 목록과 적재 데이터 버전 조회"),
@@ -72,6 +72,11 @@ final class OpenApiDocumentationCatalog {
         put(values, HttpMethod.POST, "/api/v1/auth/otp/verify",
                 "학번과 OTP를 검증하고 JSESSIONID 로그인 세션을 생성합니다. "
                         + "성공 응답의 Set-Cookie를 브라우저가 보관해야 이후 보호 API를 호출할 수 있습니다.");
+        put(values, HttpMethod.GET, "/api/v1/auth/google",
+                "Google OIDC Authorization Code 로그인을 시작합니다. "
+                        + "브라우저는 Google 동의 화면으로 이동하고 성공하면 로컬 JSESSIONID 세션을 발급받습니다.");
+        put(values, HttpMethod.GET, "/api/v1/auth/google/failure",
+                "Google 인증 또는 로컬 계정 연결 실패를 GOOGLE_LOGIN_FAILED 표준 오류로 반환합니다.");
         put(values, HttpMethod.GET, "/api/v1/auth/csrf",
                 "상태 변경 요청에 사용할 CSRF 토큰과 헤더 이름을 반환합니다. "
                         + "프론트와 API의 Origin이 달라도 쿠키를 직접 읽지 않고 응답의 data.token을 메모리에 보관해 사용할 수 있습니다.");
@@ -86,7 +91,8 @@ final class OpenApiDocumentationCatalog {
                 "로그인 사용자의 회원 정보와 학생 프로필을 조회합니다. "
                         + "departmentId는 academic_units의 정규 학과 코드입니다.");
         put(values, HttpMethod.PATCH, "/api/v1/users/me",
-                "전달한 이름·학년·학과 코드만 부분 수정합니다. null이거나 생략한 필드는 기존 값을 유지합니다.");
+                "학번·이름·학년·학과·입학연도·학생구분·전공방식·튜토리얼 상태를 부분 수정합니다. "
+                        + "null이거나 생략한 필드는 기존 값을 유지합니다.");
         put(values, HttpMethod.POST, "/api/v1/users/me/privacy-consents",
                 "개인정보 처리방침 버전별 동의 여부를 저장합니다. 동일 버전의 기존 동의가 있으면 그 기록을 반환합니다.");
         put(values, HttpMethod.GET, "/api/v1/users/me/privacy-consents",
@@ -97,6 +103,9 @@ final class OpenApiDocumentationCatalog {
         put(values, HttpMethod.GET, "/api/v1/departments",
                 "현재 공식 학과·전공 코드를 페이지 단위로 조회합니다. "
                         + "과거 졸업요건 보존용 파생 코드는 기본 목록에서 제외됩니다.");
+        put(values, HttpMethod.GET, "/api/v1/departments/colleges",
+                "단과대 정규 코드와 이름, 현재 소속 학과 수를 반환합니다. "
+                        + "선택한 코드는 /departments?collegeCode=...와 강의 필터에 사용합니다.");
         put(values, HttpMethod.GET, "/api/v1/departments/{code}",
                 "정규 학과 코드의 단과대 정보와 연도별 명칭·별칭을 조회합니다.");
         put(values, HttpMethod.GET, "/api/v1/semesters",
@@ -107,11 +116,13 @@ final class OpenApiDocumentationCatalog {
                 "프론트 캐시 무효화와 데이터 갱신 판단에 사용할 학기 데이터 버전과 체크섬을 반환합니다.");
 
         put(values, HttpMethod.GET, "/api/v1/courses",
-                "학기 강의를 과목명·과목코드·교수·학과·이수구분·학점·요일로 검색하고 정렬합니다. "
-                        + "페이지 크기는 최대 100이며 학년 필터는 원본 데이터 부재로 제공하지 않습니다.");
+                "학기 강의를 과목명·과목코드·교수·학과·단과대·영역·학점·요일로 검색합니다. "
+                        + "category, academicUnitCode, collegeCode는 반복 또는 쉼표 구분 다중값을 허용하고, "
+                        + "디지털리터러시 별칭은 공식 제6영역 분류로 변환합니다.");
         put(values, HttpMethod.GET, "/api/v1/sections",
                 "메인 시간표 화면의 강의 카드용 분반 목록입니다. 과목·교수 검색, 학과·이수구분·"
-                        + "대상 학년·학점·요일 필터와 정렬·페이지 조회를 한 요청에서 처리하고, "
+                        + "대상 학년·학점·요일 필터를 다중값으로 처리합니다. 교필 등 이수구분 조회 시 "
+                        + "로그인 사용자의 학과 분류를 우선 정렬하고, "
                         + "각 항목에 비고와 전체 수업시간·강의실·분류 문맥을 반환합니다.");
         put(values, HttpMethod.GET, "/api/v1/courses/{semesterId}/{courseCode}",
                 "학기와 과목코드로 강의 기본정보, 연결 학과, 분반 수와 리뷰 집계를 조회합니다.");
@@ -139,7 +150,11 @@ final class OpenApiDocumentationCatalog {
                 "로그인 사용자가 소유한 리뷰를 삭제합니다. 성공 시 data는 null입니다.");
 
         put(values, HttpMethod.POST, "/api/v1/completed-courses",
-                "이수·수강 중 과목을 직접 등록합니다. 사용자 ID와 inputSource=MANUAL은 서버가 결정합니다.");
+                "이수·수강 중 과목을 직접 등록합니다. P/N 과목도 credits에는 실제 인정 학점을 넣고 "
+                        + "gradingBasis=PASS_FAIL, gradeValue=P 또는 N으로 분리합니다.");
+        put(values, HttpMethod.POST, "/api/v1/completed-courses/ocr",
+                "성적표 이미지(JPEG·PNG·WebP·HEIC·HEIF)를 Gemini 3.5 Flash-Lite 비전으로 인식합니다. "
+                        + "7MB 이하 원본은 저장하지 않으며, 반환 텍스트를 확인·보정한 뒤 직접 등록 API로 저장합니다.");
         put(values, HttpMethod.GET, "/api/v1/completed-courses",
                 "로그인 사용자의 이수과목을 상태와 학기 조건으로 조회합니다.");
         put(values, HttpMethod.GET, "/api/v1/completed-courses/summary",
@@ -173,7 +188,9 @@ final class OpenApiDocumentationCatalog {
         put(values, HttpMethod.GET, "/api/v1/timetables/{timetableId}",
                 "내 시간표의 검증된 분반, 수업시간, 총학점과 수업 사이 공강을 조회합니다.");
         put(values, HttpMethod.PATCH, "/api/v1/timetables/{timetableId}",
-                "내 시간표 이름을 변경합니다.");
+                "내 시간표 이름 또는 즐겨찾기 상태를 부분 변경합니다.");
+        put(values, HttpMethod.PATCH, "/api/v1/timetables/{timetableId}/favorite",
+                "시간표 한 개의 즐겨찾기 상태를 변경합니다. 여러 시간표를 동시에 즐겨찾기할 수 있습니다.");
         put(values, HttpMethod.PATCH, "/api/v1/timetables/{timetableId}/sections",
                 "내 시간표의 분반 구성을 요청 목록으로 전체 교체합니다. 중복 과목이나 시간 충돌은 409를 반환합니다.");
         put(values, HttpMethod.POST, "/api/v1/timetables/{timetableId}/sections",
@@ -186,11 +203,15 @@ final class OpenApiDocumentationCatalog {
 
         put(values, HttpMethod.POST, "/api/v1/optimizations",
                 "내 시간표 학기의 후보 분반과 학점·요일·시간 제약으로 비동기 자동편성 작업을 생성합니다. "
-                        + "후보는 최대 100개이며 과목 정보는 서버가 학사 DB에서 다시 조회합니다.");
+                        + "candidateCourses를 비우면 서버가 전체 분반을 직접 조회하므로 100개 제한이 없고, "
+                        + "availableTimes 다중 선호 시간과 blockedTimes 공강 고정을 지원합니다.");
         put(values, HttpMethod.GET, "/api/v1/optimizations/{jobId}",
                 "내 자동편성 작업의 진행 상태, 실패 이유와 점수순 최대 3개 결과를 조회합니다.");
         put(values, HttpMethod.DELETE, "/api/v1/optimizations/{jobId}",
                 "완료 전인 내 자동편성 작업을 취소합니다. 이미 종료된 작업은 409를 반환합니다.");
+        put(values, HttpMethod.POST, "/api/v1/optimizations/{jobId}/results/{rank}/apply",
+                "성공한 자동편성 결과의 분반을 작업 생성 시 지정한 내 시간표에 전체 저장합니다. "
+                        + "학사 DB 분반을 다시 검증하고 중복·충돌이 있으면 저장하지 않습니다.");
 
         put(values, HttpMethod.GET, "/api/v1/health/live",
                 "서버 프로세스 생존 여부와 현재 배포된 애플리케이션 버전·Git 커밋을 반환합니다. 인증이 필요하지 않습니다.");
@@ -216,18 +237,21 @@ final class OpenApiDocumentationCatalog {
                 Map.entry("academicUnit", "정규 학과 코드, 학과명 또는 등록된 연도별 별칭입니다."),
                 Map.entry("studentType", "졸업요건 원천 데이터의 학생 구분입니다."),
                 Map.entry("programPath", "전공 방식입니다: ADVANCED_MAJOR, DOUBLE_MAJOR, MINOR, MICRO_MAJOR"),
-                Map.entry("collegeCode", "단과대 코드 정확히 일치 조건입니다."),
+                Map.entry("collegeCode", "단과대 코드 다중 선택 조건입니다. 반복 파라미터 또는 쉼표 구분값을 사용합니다."),
                 Map.entry("currentOnly", "true이면 현재 교육과정에 존재하는 공식 학과만 반환합니다."),
                 Map.entry("code", "academic_units의 정규 학과·전공 코드입니다."),
-                Map.entry("category", "강의 편성 분류 정확히 일치 조건입니다. 예: 전공(컴퓨터공학전공), 교양선택(제1영역:인간과소통)"),
-                Map.entry("academicUnitCode", "분반과 명시적으로 연결된 정규 학과·전공 코드입니다."),
-                Map.entry("completionCategory", "분반의 학과별 이수구분입니다. 예: 전필, 전선, 교필, 교선"),
-                Map.entry("targetGrade", "분반 수강 대상 학년입니다. 1~4 또는 1학년~4학년 형식입니다."),
+                Map.entry("category", "강의 편성 분류 다중 선택 조건입니다. 디지털리터러시 별칭도 사용할 수 있습니다."),
+                Map.entry("academicUnitCode", "분반과 연결된 정규 학과·전공 코드 다중 선택 조건입니다."),
+                Map.entry("preferredAcademicUnitCode", "이수구분 필터 결과에서 우선 정렬할 학과 코드입니다. 로그인 프로필이 있으면 생략할 수 있습니다."),
+                Map.entry("completionCategory", "분반의 학과별 이수구분 다중 선택 조건입니다. 전공필수/전필 등 긴 이름과 축약형을 모두 허용합니다."),
+                Map.entry("targetGrade", "분반 수강 대상 학년 다중 선택 조건입니다. 1~4 또는 1학년~4학년 형식입니다."),
                 Map.entry("credits", "강의 학점 정확히 일치 조건입니다."),
                 Map.entry("day", "수업 요일입니다. 월~일 또는 MONDAY~SUNDAY를 사용할 수 있습니다."),
-                Map.entry("sort", "NAME_ASC, NAME_DESC, REVIEW_COUNT_DESC, RATING_DESC, POPULARITY_DESC 중 하나입니다."),
+                Map.entry("sort", "DEFAULT(원본 카탈로그 순), NAME_ASC, NAME_DESC, REVIEW_COUNT_DESC, RATING_DESC, POPULARITY_DESC 중 하나입니다."),
                 Map.entry("sectionCode", "학기·과목 안에서 분반을 식별하는 코드입니다."),
-                Map.entry("timetableCourseId", "시간표 상세 sections[].id로 반환되는 시간표 항목 ID입니다."));
+                Map.entry("timetableCourseId", "시간표 상세 sections[].id로 반환되는 시간표 항목 ID입니다."),
+                Map.entry("rank", "자동편성 결과의 1부터 시작하는 순위입니다."),
+                Map.entry("file", "7MB 이하 성적표 이미지 파일입니다. JPEG, PNG, WebP, HEIC, HEIF를 지원합니다."));
     }
 
     private static Map<OperationKey, Object> requestExamples() {
@@ -237,7 +261,15 @@ final class OpenApiDocumentationCatalog {
         example(values, HttpMethod.POST, "/api/v1/auth/otp/verify",
                 Map.of("studentNumber", "20201234", "code", "123456"));
         example(values, HttpMethod.PATCH, "/api/v1/users/me",
-                ordered("name", "홍길동", "grade", 3, "departmentId", "AA0846"));
+                ordered(
+                        "studentNumber", "20261234",
+                        "name", "홍길동",
+                        "grade", 3,
+                        "departmentId", "AA0846",
+                        "admissionYear", 2022,
+                        "studentType", "DOMESTIC",
+                        "programPath", "ADVANCED_MAJOR",
+                        "tutorialCompleted", true));
         example(values, HttpMethod.POST, "/api/v1/users/me/privacy-consents",
                 Map.of("consentVersion", "privacy-v1", "agreed", true));
         example(values, HttpMethod.DELETE, "/api/v1/users/me",
@@ -256,6 +288,8 @@ final class OpenApiDocumentationCatalog {
                         "courseCode", "855121",
                         "courseName", "1인미디어제작실습",
                         "credits", 2.0,
+                        "gradingBasis", "PASS_FAIL",
+                        "gradeValue", "P",
                         "category", "전공선택",
                         "area", "전공심화",
                         "semester", "2026-1",
@@ -270,7 +304,9 @@ final class OpenApiDocumentationCatalog {
                         "sections", List.of(
                                 Map.of("courseCode", "855121", "sectionCode", "01"))));
         example(values, HttpMethod.PATCH, "/api/v1/timetables/{timetableId}",
-                Map.of("name", "공강 우선 시간표"));
+                Map.of("name", "공강 우선 시간표", "favorite", true));
+        example(values, HttpMethod.PATCH, "/api/v1/timetables/{timetableId}/favorite",
+                Map.of("favorite", true));
         example(values, HttpMethod.PATCH,
                 "/api/v1/timetables/{timetableId}/sections",
                 Map.of("sections", List.of(
@@ -286,12 +322,18 @@ final class OpenApiDocumentationCatalog {
                         "maxCredits", 18.0,
                         "targetCredits", 15.0,
                         "excludedDays", List.of("FRIDAY"),
-                        "availableTime", Map.of(
-                                "startTime", "09:00:00", "endTime", "18:00:00"),
+                        "availableTimes", List.of(
+                                Map.of("startTime", "09:00:00", "endTime", "12:00:00"),
+                                Map.of("startTime", "13:00:00", "endTime", "18:00:00")),
+                        "blockedTimes", List.of(Map.of(
+                                "dayOfWeek", "WEDNESDAY",
+                                "startTime", "15:00:00",
+                                "endTime", "17:00:00")),
                         "lunchTime", Map.of(
                                 "startTime", "12:00:00", "endTime", "13:00:00"),
                         "maxDailyClassMinutes", 360,
-                        "candidateCourses", List.of(
+                        "candidateCourses", List.of(),
+                        "requiredCourses", List.of(
                                 Map.of(
                                         "courseCode", "855121",
                                         "sectionCode", "01",
@@ -306,6 +348,10 @@ final class OpenApiDocumentationCatalog {
                 error(503, "EMAIL_SEND_FAILED", "인증 이메일을 전송하지 못했습니다."));
         errors(values, HttpMethod.POST, "/api/v1/auth/otp/verify",
                 error(429, "TOO_MANY_ATTEMPTS", "인증번호 확인 횟수를 초과했습니다."));
+        errors(values, HttpMethod.GET, "/api/v1/auth/google",
+                error(503, "GOOGLE_LOGIN_NOT_CONFIGURED", "배포 환경에 Google OAuth 클라이언트가 설정되지 않았습니다."));
+        errors(values, HttpMethod.GET, "/api/v1/auth/google/failure",
+                error(401, "GOOGLE_LOGIN_FAILED", "Google 인증 또는 계정 연결에 실패했습니다."));
 
         notFound(values, HttpMethod.GET, "/api/v1/users/me", "USER_NOT_FOUND", "사용자 정보를 찾을 수 없습니다.");
         notFound(values, HttpMethod.PATCH, "/api/v1/users/me", "DEPARTMENT_NOT_FOUND", "학과 정보를 찾을 수 없습니다.");
@@ -326,6 +372,11 @@ final class OpenApiDocumentationCatalog {
                 "COMPLETED_COURSE_TIMETABLE_NOT_FOUND", "가져올 시간표를 찾을 수 없습니다.");
         addError(values, HttpMethod.POST, "/api/v1/completed-courses/{completedCourseId}/complete",
                 error(409, "COMPLETED_COURSE_INVALID_STATUS_TRANSITION", "수강 중인 과목만 이수 완료로 전환할 수 있습니다."));
+        errors(values, HttpMethod.POST, "/api/v1/completed-courses/ocr",
+                error(413, "COMPLETED_COURSE_OCR_FILE_TOO_LARGE", "성적표 이미지 크기가 허용 범위를 초과했습니다."),
+                error(415, "COMPLETED_COURSE_OCR_UNSUPPORTED_MEDIA_TYPE", "지원하지 않는 성적표 이미지 형식입니다."),
+                error(502, "COMPLETED_COURSE_OCR_RECOGNITION_FAILED", "성적표 이미지를 인식하지 못했습니다."),
+                error(503, "COMPLETED_COURSE_OCR_NOT_CONFIGURED", "OCR 서비스가 설정되지 않았습니다."));
 
         for (HttpMethod method : List.of(
                 HttpMethod.GET, HttpMethod.PATCH, HttpMethod.DELETE)) {
@@ -341,6 +392,9 @@ final class OpenApiDocumentationCatalog {
         notFound(values, HttpMethod.DELETE,
                 "/api/v1/timetables/{timetableId}/sections/{timetableCourseId}",
                 "TIMETABLE_NOT_FOUND", "시간표 또는 분반 항목을 찾을 수 없습니다.");
+        notFound(values, HttpMethod.PATCH,
+                "/api/v1/timetables/{timetableId}/favorite",
+                "TIMETABLE_NOT_FOUND", "시간표를 찾을 수 없습니다.");
         addError(values, HttpMethod.POST, "/api/v1/timetables",
                 error(409, "SECTION_CONFLICT", "같은 과목이 중복되거나 강의 시간이 겹칩니다."));
 
@@ -353,6 +407,9 @@ final class OpenApiDocumentationCatalog {
         addError(values, HttpMethod.POST, "/api/v1/optimizations",
                 error(409, "REQUIRED_COURSE_CONFLICT", "필수 강의끼리 시간이 겹칩니다."),
                 error(422, "NO_FEASIBLE_TIMETABLE", "조건에 맞는 시간표를 찾을 수 없습니다."));
+        notFound(values, HttpMethod.POST,
+                "/api/v1/optimizations/{jobId}/results/{rank}/apply",
+                "OPTIMIZATION_JOB_NOT_FOUND", "편성 작업을 찾을 수 없습니다.");
         return Map.copyOf(values);
     }
 

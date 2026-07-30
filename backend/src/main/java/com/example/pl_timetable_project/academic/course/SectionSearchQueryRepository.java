@@ -49,41 +49,71 @@ public class SectionSearchQueryRepository {
                         || lower(CAST(:query AS text)) || '%'
                )
                AND (
-                    CAST(:category AS text) IS NULL
-                    OR course.category = CAST(:category AS text)
+                    CAST(:categoriesEmpty AS boolean) = true
+                    OR course.category IN (:categories)
                )
                AND (
-                    CAST(:academicUnitCode AS text) IS NULL
+                    CAST(:academicUnitCodesEmpty AS boolean) = true
                     OR EXISTS (
                         SELECT 1
                           FROM section_academic_units unit
                          WHERE unit.semester_id = section.semester_id
                            AND unit.course_code = section.course_code
                            AND unit.section_code = section.section_code
-                           AND unit.academic_unit_code =
-                               CAST(:academicUnitCode AS text)
+                           AND unit.academic_unit_code IN (:academicUnitCodes)
                     )
                )
                AND (
-                    CAST(:completionCategory AS text) IS NULL
+                    CAST(:collegeCodesEmpty AS boolean) = true
+                    OR EXISTS (
+                        SELECT 1
+                          FROM section_academic_units college_section
+                          JOIN academic_units college_unit
+                            ON college_unit.code =
+                               college_section.academic_unit_code
+                         WHERE college_section.semester_id = section.semester_id
+                           AND college_section.course_code = section.course_code
+                           AND college_section.section_code = section.section_code
+                           AND college_unit.college_code IN (:collegeCodes)
+                    )
+               )
+               AND (
+                    CAST(:completionCategoriesEmpty AS boolean) = true
                     OR EXISTS (
                         SELECT 1
                           FROM section_classification_contexts classification
                          WHERE classification.semester_id = section.semester_id
                            AND classification.course_code = section.course_code
                            AND classification.section_code = section.section_code
-                           AND classification.completion_category =
-                               CAST(:completionCategory AS text)
+                           AND classification.completion_category
+                               IN (:completionCategories)
                            AND (
-                                CAST(:academicUnitCode AS text) IS NULL
-                                OR classification.academic_unit_code =
-                                    CAST(:academicUnitCode AS text)
+                                CAST(:academicUnitCodesEmpty AS boolean) = true
+                                OR classification.academic_unit_code
+                                    IN (:academicUnitCodes)
                            )
                     )
                )
                AND (
-                    CAST(:targetGrade AS text) IS NULL
-                    OR section.target_grade = CAST(:targetGrade AS text)
+                    CAST(:targetGradesEmpty AS boolean) = true
+                    OR section.target_grade IN (:targetGrades)
+                    OR EXISTS (
+                        SELECT 1
+                          FROM section_classification_contexts grade_classification
+                         WHERE grade_classification.semester_id =
+                                   section.semester_id
+                           AND grade_classification.course_code =
+                                   section.course_code
+                           AND grade_classification.section_code =
+                                   section.section_code
+                           AND grade_classification.target_grade
+                               IN (:targetGrades)
+                           AND (
+                                CAST(:academicUnitCodesEmpty AS boolean) = true
+                                OR grade_classification.academic_unit_code
+                                    IN (:academicUnitCodes)
+                           )
+                    )
                )
                AND (
                     CAST(:professor AS text) IS NULL
@@ -154,7 +184,7 @@ public class SectionSearchQueryRepository {
                     ON review.course_code = section.course_code
                   CROSS JOIN global_review_stats global_review
                 """ + SEARCH_FILTER
-                + " ORDER BY " + orderBy(sort)
+                + " ORDER BY " + orderBy(condition, sort)
                 + " LIMIT :limit OFFSET :offset",
                 parameters,
                 (result, rowNumber) -> new SectionRow(
@@ -192,8 +222,9 @@ public class SectionSearchQueryRepository {
                 .map(row -> row.toResponse(
                         sessions.getOrDefault(row.key(), List.of()),
                         classifications.getOrDefault(row.key(), List.of()),
-                        condition.academicUnitCode(),
-                        condition.completionCategory()))
+                        condition.preferredAcademicUnitCode(),
+                        condition.completionCategories(),
+                        condition.targetGrades()))
                 .toList();
     }
 
@@ -333,17 +364,50 @@ public class SectionSearchQueryRepository {
         return new MapSqlParameterSource()
                 .addValue("semesterId", condition.semesterId())
                 .addValue("query", condition.query())
-                .addValue("category", condition.category())
-                .addValue("academicUnitCode", condition.academicUnitCode())
-                .addValue("completionCategory", condition.completionCategory())
-                .addValue("targetGrade", condition.targetGrade())
+                .addValue("categoriesEmpty", condition.categories().isEmpty())
+                .addValue("categories", placeholder(condition.categories()))
+                .addValue("academicUnitCodesEmpty", condition.academicUnitCodes().isEmpty())
+                .addValue("academicUnitCodes", placeholder(condition.academicUnitCodes()))
+                .addValue("collegeCodesEmpty", condition.collegeCodes().isEmpty())
+                .addValue("collegeCodes", placeholder(condition.collegeCodes()))
+                .addValue(
+                        "completionCategoriesEmpty",
+                        condition.completionCategories().isEmpty())
+                .addValue(
+                        "completionCategories",
+                        placeholder(condition.completionCategories()))
+                .addValue("targetGradesEmpty", condition.targetGrades().isEmpty())
+                .addValue("targetGrades", placeholder(condition.targetGrades()))
+                .addValue(
+                        "preferredAcademicUnitCode",
+                        condition.preferredAcademicUnitCode())
                 .addValue("professor", condition.professor())
                 .addValue("credits", condition.credits())
                 .addValue("dayCode", condition.dayCode());
     }
 
-    private String orderBy(CourseSort sort) {
-        return switch (sort) {
+    private String orderBy(SectionSearchCondition condition, CourseSort sort) {
+        String preference = condition.preferredAcademicUnitCode() != null
+                        && !condition.completionCategories().isEmpty()
+                ? """
+                  CASE WHEN EXISTS (
+                      SELECT 1
+                        FROM section_classification_contexts preferred
+                       WHERE preferred.semester_id = section.semester_id
+                         AND preferred.course_code = section.course_code
+                         AND preferred.section_code = section.section_code
+                         AND preferred.academic_unit_code =
+                             :preferredAcademicUnitCode
+                         AND preferred.completion_category
+                             IN (:completionCategories)
+                  ) THEN 0 ELSE 1 END,
+                  """
+                : "";
+        return preference + switch (sort) {
+            case DEFAULT ->
+                    "section.source_page ASC NULLS LAST, "
+                            + "section.source_row ASC NULLS LAST, "
+                            + "course.course_code ASC, section.section_code ASC";
             case NAME_ASC ->
                     "course.name ASC, course.course_code ASC, section.section_code ASC";
             case NAME_DESC ->
@@ -359,6 +423,10 @@ public class SectionSearchQueryRepository {
                             + "bayesian_rating DESC NULLS LAST, course.name ASC, "
                             + "course.course_code ASC, section.section_code ASC";
         };
+    }
+
+    private List<String> placeholder(List<String> values) {
+        return values.isEmpty() ? List.of("") : values;
     }
 
     private static DayOfWeek toDayOfWeek(String day) {
@@ -407,7 +475,8 @@ public class SectionSearchQueryRepository {
                 List<CourseSessionResponse> sessions,
                 List<SectionClassificationResponse> classifications,
                 String preferredAcademicUnitCode,
-                String requestedCompletionCategory) {
+                List<String> requestedCompletionCategories,
+                List<String> requestedTargetGrades) {
             return new SectionSearchResponse(
                     semesterId,
                     courseCode,
@@ -421,11 +490,14 @@ public class SectionSearchQueryRepository {
                     rawLectureTime,
                     rawLocation,
                     timeToBeAnnounced,
-                    targetGrade,
+                    selectTargetGrade(
+                            classifications,
+                            preferredAcademicUnitCode,
+                            requestedTargetGrades),
                     selectCompletionCategory(
                             classifications,
                             preferredAcademicUnitCode,
-                            requestedCompletionCategory),
+                            requestedCompletionCategories),
                     capacity,
                     notes,
                     warningCount,
@@ -436,24 +508,71 @@ public class SectionSearchQueryRepository {
                     classifications);
         }
 
-        private String selectCompletionCategory(
+        private String selectTargetGrade(
                 List<SectionClassificationResponse> classifications,
                 String preferredAcademicUnitCode,
-                String requestedCompletionCategory) {
+                List<String> requestedTargetGrades) {
+            if (requestedTargetGrades.isEmpty() && targetGrade != null) {
+                return targetGrade;
+            }
             if (preferredAcademicUnitCode != null) {
                 for (SectionClassificationResponse classification : classifications) {
                     if (preferredAcademicUnitCode.equals(
                                     classification.academicUnitCode())
-                            && (requestedCompletionCategory == null
-                            || requestedCompletionCategory.equals(
+                            && classification.targetGrade() != null
+                            && (requestedTargetGrades.isEmpty()
+                            || requestedTargetGrades.contains(
+                                    classification.targetGrade()))) {
+                        return classification.targetGrade();
+                    }
+                }
+            }
+            if (!requestedTargetGrades.isEmpty()) {
+                if (requestedTargetGrades.contains(targetGrade)) {
+                    return targetGrade;
+                }
+                for (SectionClassificationResponse classification : classifications) {
+                    if (requestedTargetGrades.contains(
+                            classification.targetGrade())) {
+                        return classification.targetGrade();
+                    }
+                }
+            }
+            if (targetGrade != null) {
+                return targetGrade;
+            }
+            for (SectionClassificationResponse classification : classifications) {
+                if (classification.primary()
+                        && classification.targetGrade() != null) {
+                    return classification.targetGrade();
+                }
+            }
+            for (SectionClassificationResponse classification : classifications) {
+                if (classification.targetGrade() != null) {
+                    return classification.targetGrade();
+                }
+            }
+            return null;
+        }
+
+        private String selectCompletionCategory(
+                List<SectionClassificationResponse> classifications,
+                String preferredAcademicUnitCode,
+                List<String> requestedCompletionCategories) {
+            if (preferredAcademicUnitCode != null) {
+                for (SectionClassificationResponse classification : classifications) {
+                    if (preferredAcademicUnitCode.equals(
+                                    classification.academicUnitCode())
+                            && (requestedCompletionCategories.isEmpty()
+                            || requestedCompletionCategories.contains(
                                     classification.completionCategory()))) {
                         return classification.completionCategory();
                     }
                 }
             }
-            if (requestedCompletionCategory != null) {
+            if (!requestedCompletionCategories.isEmpty()) {
                 for (SectionClassificationResponse classification : classifications) {
-                    if (requestedCompletionCategory.equals(
+                    if (requestedCompletionCategories.contains(
                             classification.completionCategory())) {
                         return classification.completionCategory();
                     }

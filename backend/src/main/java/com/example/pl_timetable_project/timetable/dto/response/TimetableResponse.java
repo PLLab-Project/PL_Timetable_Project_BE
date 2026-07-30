@@ -21,6 +21,9 @@ public record TimetableResponse(
         @Schema(description = "시간표가 속한 학기 ID", example = "2026-1")
         String semesterId,
 
+        @Schema(description = "즐겨찾기 여부")
+        boolean favorite,
+
         @Schema(description = "포함된 분반의 총학점", example = "15.0")
         BigDecimal totalCredits,
 
@@ -46,6 +49,7 @@ public record TimetableResponse(
                 timetable.getUserId(),
                 timetable.getName(),
                 timetable.getSemesterId(),
+                timetable.isFavorite(),
                 totalCredits,
                 sections,
                 freeTimes,

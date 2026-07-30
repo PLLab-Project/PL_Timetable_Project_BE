@@ -5,6 +5,7 @@ import com.example.pl_timetable_project.common.response.ApiResponse;
 import com.example.pl_timetable_project.optimization.dto.request.OptimizationCreateRequest;
 import com.example.pl_timetable_project.optimization.dto.response.OptimizationJobResponse;
 import com.example.pl_timetable_project.optimization.service.OptimizationService;
+import com.example.pl_timetable_project.timetable.dto.response.TimetableResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -56,5 +57,15 @@ public class OptimizationController {
             @PathVariable Long jobId) {
         optimizationService.cancelJob(principal.userId(), jobId);
         return ApiResponse.success();
+    }
+
+    @Operation(summary = "선택한 자동편성 결과를 대상 시간표에 저장")
+    @PostMapping("/{jobId}/results/{rank}/apply")
+    public ApiResponse<TimetableResponse> applyResult(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @PathVariable Long jobId,
+            @PathVariable int rank) {
+        return ApiResponse.success(
+                optimizationService.applyResult(principal.userId(), jobId, rank));
     }
 }

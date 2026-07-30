@@ -15,6 +15,7 @@ import com.example.pl_timetable_project.optimization.algorithm.CandidateCourseFi
 import com.example.pl_timetable_project.optimization.algorithm.CourseTimeSlot;
 import com.example.pl_timetable_project.optimization.algorithm.CreditUnits;
 import com.example.pl_timetable_project.optimization.algorithm.OptimizationConstraints;
+import com.example.pl_timetable_project.optimization.algorithm.OptimizationTimeRange;
 import com.example.pl_timetable_project.optimization.algorithm.RequiredCoursePlacer;
 import com.example.pl_timetable_project.optimization.algorithm.RequiredPlacementResult;
 import com.example.pl_timetable_project.optimization.algorithm.ScheduleCombination;
@@ -22,6 +23,7 @@ import com.example.pl_timetable_project.optimization.algorithm.ScheduleScorer;
 import com.example.pl_timetable_project.optimization.algorithm.ScheduleSearchService;
 import com.example.pl_timetable_project.optimization.algorithm.ScoredCombination;
 import com.example.pl_timetable_project.optimization.dto.request.CourseCandidateRequest;
+import com.example.pl_timetable_project.optimization.dto.request.BlockedTimeRequest;
 import com.example.pl_timetable_project.optimization.dto.request.OptimizationCreateRequest;
 import com.example.pl_timetable_project.optimization.dto.request.TimeRangeRequest;
 import com.example.pl_timetable_project.optimization.dto.response.OptimizationJobResponse;
@@ -30,8 +32,12 @@ import com.example.pl_timetable_project.optimization.entity.OptimizationJob;
 import com.example.pl_timetable_project.optimization.entity.OptimizationResult;
 import com.example.pl_timetable_project.timetable.entity.Timetable;
 import com.example.pl_timetable_project.timetable.repository.TimetableRepository;
+import com.example.pl_timetable_project.timetable.dto.request.TimetableCourseRequest;
+import com.example.pl_timetable_project.timetable.dto.response.TimetableResponse;
+import com.example.pl_timetable_project.timetable.service.TimetableService;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,7 +54,6 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class OptimizationService {
 
     private static final long SEARCH_TIME_LIMIT_MILLIS = 10_000;
-    private static final int MAX_CANDIDATE_SECTIONS = 100;
 
     private final OptimizationJobLifecycleService lifecycleService;
     private final TimetableRepository timetableRepository;
@@ -57,6 +62,7 @@ public class OptimizationService {
     private final RequiredCoursePlacer requiredCoursePlacer;
     private final ScheduleSearchService scheduleSearchService;
     private final ScheduleScorer scheduleScorer;
+    private final TimetableService timetableService;
 
     public OptimizationService(
             OptimizationJobLifecycleService lifecycleService,
@@ -65,7 +71,8 @@ public class OptimizationService {
             CandidateCourseFilter candidateCourseFilter,
             RequiredCoursePlacer requiredCoursePlacer,
             ScheduleSearchService scheduleSearchService,
-            ScheduleScorer scheduleScorer) {
+            ScheduleScorer scheduleScorer,
+            TimetableService timetableService) {
         this.lifecycleService = lifecycleService;
         this.timetableRepository = timetableRepository;
         this.sectionQueryRepository = sectionQueryRepository;
@@ -73,6 +80,7 @@ public class OptimizationService {
         this.requiredCoursePlacer = requiredCoursePlacer;
         this.scheduleSearchService = scheduleSearchService;
         this.scheduleScorer = scheduleScorer;
+        this.timetableService = timetableService;
     }
 
     public OptimizationJobResponse createJob(
@@ -80,7 +88,10 @@ public class OptimizationService {
         validateRequest(request);
         Timetable timetable = getOwnedTimetable(userId, request.getTimetableId());
         List<CandidateCourse> candidates =
-                loadCandidates(timetable.getSemesterId(), request.getCandidateCourses());
+                loadCandidates(
+                        timetable.getSemesterId(),
+                        request.getCandidateCourses(),
+                        request.getRequiredCourses());
         OptimizationConstraints constraints = buildConstraints(request, candidates);
 
         List<CandidateCourse> filtered = candidateCourseFilter.filter(candidates, constraints);
@@ -98,6 +109,30 @@ public class OptimizationService {
 
     public void cancelJob(UUID userId, Long jobId) {
         lifecycleService.cancel(userId, jobId);
+    }
+
+    @Transactional
+    public TimetableResponse applyResult(UUID userId, Long jobId, int rank) {
+        OptimizationJob job = lifecycleService.getOwnedJob(userId, jobId);
+        if (job.getStatus()
+                != com.example.pl_timetable_project.optimization.entity.OptimizationJobStatus.SUCCESS) {
+            throw new InvalidOptimizationConditionException(
+                    "성공한 자동편성 작업만 시간표에 적용할 수 있습니다.");
+        }
+        OptimizationResult result = job.getResults().stream()
+                .filter(candidate -> candidate.getRank() == rank)
+                .findFirst()
+                .orElseThrow(() -> new InvalidOptimizationConditionException(
+                        "해당 순위의 자동편성 결과가 없습니다. rank=" + rank));
+        Set<SectionReference> sections = result.getCourseSlots().stream()
+                .map(CourseSlot::getSection)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        List<TimetableCourseRequest> requests = sections.stream()
+                .map(section -> new TimetableCourseRequest(
+                        section.getCourseCode(), section.getSectionCode()))
+                .toList();
+        return timetableService.updateSections(
+                userId, job.getTimetableId(), requests);
     }
 
     @Async
@@ -150,24 +185,43 @@ public class OptimizationService {
     }
 
     private List<CandidateCourse> loadCandidates(
-            String semesterId, List<CourseCandidateRequest> requests) {
-        if (requests == null || requests.isEmpty()) {
-            throw new InvalidOptimizationConditionException(
-                    "후보 분반을 한 개 이상 입력해야 합니다.");
-        }
-        if (requests.size() > MAX_CANDIDATE_SECTIONS) {
-            throw new InvalidOptimizationConditionException(
-                    "후보 분반은 최대 " + MAX_CANDIDATE_SECTIONS + "개까지 요청할 수 있습니다.");
-        }
-
+            String semesterId,
+            List<CourseCandidateRequest> requests,
+            List<CourseCandidateRequest> requiredRequests) {
         Map<SectionReference, AcademicSection> catalog =
                 sectionQueryRepository.findBySemesterId(semesterId);
+        Set<SectionReference> requiredSections = new HashSet<>();
+        if (requiredRequests != null) {
+            requiredRequests.forEach(request -> requiredSections.add(
+                    toReference(semesterId, request)));
+        }
+        if (requests != null) {
+            requests.stream()
+                    .filter(CourseCandidateRequest::isRequired)
+                    .map(request -> toReference(semesterId, request))
+                    .forEach(requiredSections::add);
+        }
+
+        if (requests == null || requests.isEmpty()) {
+            List<CandidateCourse> serverCandidates = catalog.values().stream()
+                    .filter(section -> !section.meetings().isEmpty())
+                    .map(section -> toCandidateCourse(
+                            section,
+                            requiredSections.contains(section.reference())))
+                    .toList();
+            validateRequiredCandidates(requiredSections, serverCandidates);
+            if (serverCandidates.isEmpty()) {
+                throw new InvalidOptimizationConditionException(
+                        "해당 학기에 자동편성 가능한 분반이 없습니다.");
+            }
+            return serverCandidates;
+        }
+
         Set<SectionReference> seen = new HashSet<>();
         List<CandidateCourse> candidates = new ArrayList<>();
 
         for (CourseCandidateRequest request : requests) {
-            SectionReference reference = new SectionReference(
-                    semesterId, request.getCourseCode(), request.getSectionCode());
+            SectionReference reference = toReference(semesterId, request);
             if (!seen.add(reference)) {
                 throw new InvalidOptimizationConditionException(
                         "후보 분반이 중복됐습니다: " + reference.displayKey());
@@ -182,20 +236,49 @@ public class OptimizationService {
                         "수업시간 미정 분반은 자동 편성 후보로 사용할 수 없습니다: "
                                 + reference.displayKey());
             }
-            candidates.add(new CandidateCourse(
-                    reference,
-                    academicSection.courseName(),
-                    academicSection.professorName(),
-                    CreditUnits.toUnits(academicSection.credits()),
-                    request.isRequired(),
-                    academicSection.meetings().stream()
-                            .map(meeting -> new CourseTimeSlot(
-                                    meeting.dayOfWeek(),
-                                    meeting.startTime(),
-                                    meeting.endTime()))
-                            .toList()));
+            candidates.add(toCandidateCourse(
+                    academicSection, requiredSections.contains(reference)));
         }
+        validateRequiredCandidates(requiredSections, candidates);
         return candidates;
+    }
+
+    private SectionReference toReference(
+            String semesterId, CourseCandidateRequest request) {
+        return new SectionReference(
+                semesterId, request.getCourseCode(), request.getSectionCode());
+    }
+
+    private CandidateCourse toCandidateCourse(
+            AcademicSection academicSection, boolean required) {
+        return new CandidateCourse(
+                academicSection.reference(),
+                academicSection.courseName(),
+                academicSection.professorName(),
+                CreditUnits.toUnits(academicSection.credits()),
+                required,
+                academicSection.meetings().stream()
+                        .map(meeting -> new CourseTimeSlot(
+                                meeting.dayOfWeek(),
+                                meeting.startTime(),
+                                meeting.endTime()))
+                        .toList());
+    }
+
+    private void validateRequiredCandidates(
+            Set<SectionReference> requiredSections,
+            List<CandidateCourse> candidates) {
+        Set<SectionReference> available = candidates.stream()
+                .map(CandidateCourse::section)
+                .collect(java.util.stream.Collectors.toSet());
+        Set<String> missing = requiredSections.stream()
+                .filter(section -> !available.contains(section))
+                .map(SectionReference::displayKey)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (!missing.isEmpty()) {
+            throw new InvalidOptimizationConditionException(
+                    "필수 분반이 없거나 수업시간이 미정입니다. sections=" + missing);
+        }
     }
 
     private OptimizationConstraints buildConstraints(
@@ -211,8 +294,18 @@ public class OptimizationService {
                 request.getExcludedDays() == null
                         ? Set.of() : Set.copyOf(request.getExcludedDays()),
                 requiredSections,
-                request.getAvailableTime().getStartTime(),
-                request.getAvailableTime().getEndTime(),
+                effectiveAvailableTimes(request).stream()
+                        .map(range -> new OptimizationTimeRange(
+                                range.getStartTime(), range.getEndTime()))
+                        .toList(),
+                request.getBlockedTimes() == null
+                        ? List.of()
+                        : request.getBlockedTimes().stream()
+                                .map(range -> new CourseTimeSlot(
+                                        range.dayOfWeek(),
+                                        range.startTime(),
+                                        range.endTime()))
+                                .toList(),
                 request.getLunchTime().getStartTime(),
                 request.getLunchTime().getEndTime(),
                 request.getMaxDailyClassMinutes(),
@@ -220,9 +313,9 @@ public class OptimizationService {
     }
 
     private void validateRequest(OptimizationCreateRequest request) {
-        if (request.getAvailableTime() == null || request.getLunchTime() == null) {
+        if (request.getLunchTime() == null || effectiveAvailableTimes(request).isEmpty()) {
             throw new InvalidOptimizationConditionException(
-                    "수업 가능 시간과 점심시간은 필수입니다.");
+                    "수업 가능 시간은 한 개 이상이고 점심시간은 필수입니다.");
         }
         if (request.getMinCredits().compareTo(request.getMaxCredits()) > 0) {
             throw new InvalidOptimizationConditionException(
@@ -233,7 +326,16 @@ public class OptimizationService {
             throw new InvalidOptimizationConditionException(
                     "목표학점은 최소학점과 최대학점 사이여야 합니다.");
         }
-        validateTimeRange(request.getAvailableTime(), "수업 가능 시간");
+        List<TimeRangeRequest> availableTimes = effectiveAvailableTimes(request);
+        for (int index = 0; index < availableTimes.size(); index++) {
+            validateTimeRange(availableTimes.get(index), "수업 가능 시간[" + index + "]");
+        }
+        if (request.getBlockedTimes() != null) {
+            for (int index = 0; index < request.getBlockedTimes().size(); index++) {
+                validateBlockedTime(
+                        request.getBlockedTimes().get(index), index);
+            }
+        }
         validateTimeRange(request.getLunchTime(), "점심시간");
         try {
             CreditUnits.toUnits(request.getMinCredits());
@@ -250,6 +352,26 @@ public class OptimizationService {
             throw new InvalidOptimizationConditionException(
                     label + "의 시작 시각은 종료 시각보다 빨라야 합니다.");
         }
+    }
+
+    private void validateBlockedTime(BlockedTimeRequest range, int index) {
+        if (range.dayOfWeek() == null
+                || range.startTime() == null
+                || range.endTime() == null
+                || !range.startTime().isBefore(range.endTime())) {
+            throw new InvalidOptimizationConditionException(
+                    "blockedTimes[" + index + "]의 요일과 올바른 시작·종료 시각이 필요합니다.");
+        }
+    }
+
+    private List<TimeRangeRequest> effectiveAvailableTimes(
+            OptimizationCreateRequest request) {
+        if (request.getAvailableTimes() != null
+                && !request.getAvailableTimes().isEmpty()) {
+            return request.getAvailableTimes();
+        }
+        return request.getAvailableTime() == null
+                ? List.of() : List.of(request.getAvailableTime());
     }
 
     private List<OptimizationResult> toOptimizationResults(

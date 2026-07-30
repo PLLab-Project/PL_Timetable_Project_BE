@@ -42,6 +42,9 @@ public class StudentProfile {
     @Column(name = "profile_completed", nullable = false)
     private boolean profileCompleted;
 
+    @Column(name = "tutorial_completed", nullable = false)
+    private boolean tutorialCompleted;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 
@@ -57,12 +60,34 @@ public class StudentProfile {
         this.studentNumber = studentNumber;
     }
 
-    public void update(Short grade, String academicUnitCode) {
+    public void update(
+            String studentNumber,
+            Short grade,
+            String academicUnitCode,
+            Integer admissionYear,
+            String studentType,
+            String programPath,
+            Boolean tutorialCompleted) {
+        if (studentNumber != null) {
+            this.studentNumber = studentNumber;
+        }
         if (grade != null) {
             this.grade = grade;
         }
         if (academicUnitCode != null) {
             this.academicUnitCode = academicUnitCode;
+        }
+        if (admissionYear != null) {
+            this.admissionYear = admissionYear;
+        }
+        if (studentType != null) {
+            this.studentType = studentType;
+        }
+        if (programPath != null) {
+            this.programPath = programPath;
+        }
+        if (tutorialCompleted != null) {
+            this.tutorialCompleted = tutorialCompleted;
         }
         this.profileCompleted = this.grade != null && this.academicUnitCode != null;
         this.updatedAt = Instant.now();
@@ -82,5 +107,25 @@ public class StudentProfile {
 
     public Short grade() {
         return grade;
+    }
+
+    public Integer admissionYear() {
+        return admissionYear;
+    }
+
+    public String studentType() {
+        return studentType;
+    }
+
+    public String programPath() {
+        return programPath;
+    }
+
+    public boolean profileCompleted() {
+        return profileCompleted;
+    }
+
+    public boolean tutorialCompleted() {
+        return tutorialCompleted;
     }
 }

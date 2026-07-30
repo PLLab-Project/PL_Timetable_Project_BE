@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.pl_timetable_project.exception.SectionConflictException;
 import com.example.pl_timetable_project.optimization.dto.request.CourseCandidateRequest;
+import com.example.pl_timetable_project.optimization.dto.request.BlockedTimeRequest;
 import com.example.pl_timetable_project.optimization.dto.request.OptimizationCreateRequest;
 import com.example.pl_timetable_project.optimization.dto.request.TimeRangeRequest;
 import com.example.pl_timetable_project.optimization.dto.response.OptimizationJobResponse;
@@ -18,6 +19,7 @@ import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.time.LocalTime;
+import java.time.DayOfWeek;
 import java.util.List;
 import java.util.UUID;
 
@@ -99,9 +101,12 @@ class PlTimetableProjectApplicationTests {
         String programCourseListings = jdbcTemplate.queryForObject(
                 "SELECT to_regclass('public.catalog_program_course_listings')::text",
                 String.class);
+        String springSessions = jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.spring_session')::text",
+                String.class);
 
         assertThat(version).startsWith("18.4");
-        assertThat(successfulMigrations).isEqualTo(10);
+        assertThat(successfulMigrations).isEqualTo(12);
         assertThat(graduationProfiles).isEqualTo("graduation_credit_profiles");
         assertThat(socialIdentities).isEqualTo("social_identities");
         assertThat(academicUnits).isEqualTo("academic_units");
@@ -114,6 +119,7 @@ class PlTimetableProjectApplicationTests {
         assertThat(sessionRooms).isEqualTo("session_rooms");
         assertThat(programCourseListings)
                 .isEqualTo("catalog_program_course_listings");
+        assertThat(springSessions).isEqualTo("spring_session");
     }
 
     @Test
@@ -360,9 +366,19 @@ class PlTimetableProjectApplicationTests {
                         new BigDecimal("3.00"),
                         new BigDecimal("3.00"),
                         java.util.Set.of(),
-                        new TimeRangeRequest(LocalTime.of(8, 0), LocalTime.of(20, 0)),
+                        null,
+                        List.of(
+                                new TimeRangeRequest(
+                                        LocalTime.of(8, 0), LocalTime.of(12, 0)),
+                                new TimeRangeRequest(
+                                        LocalTime.of(13, 0), LocalTime.of(20, 0))),
+                        List.of(new BlockedTimeRequest(
+                                DayOfWeek.WEDNESDAY,
+                                LocalTime.of(15, 0),
+                                LocalTime.of(16, 0))),
                         new TimeRangeRequest(LocalTime.of(12, 0), LocalTime.of(13, 0)),
                         480,
+                        List.of(),
                         List.of(new CourseCandidateRequest("CSE100", "01", true))));
         entityManager.flush();
 
@@ -392,6 +408,70 @@ class PlTimetableProjectApplicationTests {
                 """,
                 Integer.class,
                 job.id())).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT count(*)
+                  FROM optimization_job_available_times
+                 WHERE job_id = ?
+                """,
+                Integer.class,
+                job.id())).isEqualTo(2);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT count(*)
+                  FROM optimization_job_blocked_times
+                 WHERE job_id = ?
+                   AND day_of_week = 'WEDNESDAY'
+                """,
+                Integer.class,
+                job.id())).isEqualTo(1);
+    }
+
+    @Test
+    @Transactional
+    void appliesSuccessfulOptimizationResultToTheOwnedTimetable() {
+        UUID userId = insertTimetableFixture();
+        TimetableResponse timetable = timetableService.createTimetable(
+                userId,
+                new TimetableCreateRequest("자동 편성 적용", "2026-1", List.of()));
+        Long jobId = jdbcTemplate.queryForObject("""
+                INSERT INTO optimization_jobs (
+                    user_id, timetable_id, semester_id, status,
+                    min_credits, max_credits, target_credits,
+                    available_start_minute, available_end_minute,
+                    lunch_start_minute, lunch_end_minute,
+                    max_daily_class_minutes
+                ) VALUES (
+                    ?, ?, '2026-1', 'SUCCESS',
+                    3, 3, 3, 480, 1200, 720, 780, 480
+                )
+                RETURNING id
+                """, Long.class, userId, timetable.id());
+        Long resultId = jdbcTemplate.queryForObject("""
+                INSERT INTO optimization_results (
+                    job_id, rank, attendance_days, total_credits,
+                    total_free_minutes, score
+                ) VALUES (?, 1, 2, 3, 0, 100)
+                RETURNING id
+                """, Long.class, jobId);
+        jdbcTemplate.update("""
+                INSERT INTO optimization_result_course_slots (
+                    result_id, position, semester_id, course_code, section_code,
+                    course_name, professor_name, credits, day_of_week,
+                    start_minute, end_minute
+                ) VALUES (
+                    ?, 0, '2026-1', 'CSE100', '01',
+                    '자료구조', '홍길동', 3, 'MONDAY', 540, 630
+                )
+                """, resultId);
+
+        TimetableResponse applied =
+                optimizationService.applyResult(userId, jobId, 1);
+
+        assertThat(applied.id()).isEqualTo(timetable.id());
+        assertThat(applied.sections())
+                .extracting(section -> section.courseCode())
+                .containsExactly("CSE100");
     }
 
     private UUID insertTimetableFixture() {
