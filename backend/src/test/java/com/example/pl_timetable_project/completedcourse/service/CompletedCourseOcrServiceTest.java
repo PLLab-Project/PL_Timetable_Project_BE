@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.pl_timetable_project.common.exception.BusinessException;
 import com.example.pl_timetable_project.completedcourse.CompletedCourseErrorCode;
+import com.example.pl_timetable_project.completedcourse.CompletedCourseGradingBasis;
+import com.example.pl_timetable_project.completedcourse.dto.RecognizedCourse;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -66,6 +68,7 @@ class CompletedCourseOcrServiceTest {
         assertThat(response.provider()).isEqualTo("GEMINI_3_5_FLASH_LITE");
         assertThat(response.extractedText()).isEqualTo("과목코드  과목명\n\n855121  자료구조");
         assertThat(response.lines()).containsExactly("과목코드  과목명", "855121  자료구조");
+        assertThat(response.recognizedCourses()).isEmpty();
         assertThat(response.requiresConfirmation()).isTrue();
     }
 
@@ -81,6 +84,74 @@ class CompletedCourseOcrServiceTest {
                 CompletedCourseErrorCode.OCR_RECOGNITION_FAILED);
     }
 
+    @Test
+    void parsesStructuredCoursesFromGeminiJsonResponse() {
+        CompletedCourseOcrService service = service(
+                true,
+                10_000,
+                (project, location, model, tokens, bytes, type) -> "855121  자료구조  3  전공선택",
+                (project, location, model, tokens, text) -> """
+                        ```json
+                        [
+                          {
+                            "courseName": "자료구조",
+                            "credits": 3,
+                            "gradingBasis": "LETTER",
+                            "category": "전공선택",
+                            "area": "전공심화",
+                            "semester": "2026-1",
+                            "confidence": 0.91
+                          }
+                        ]
+                        ```
+                        """);
+
+        var response = service.recognize(image("image/png", new byte[] {1}));
+
+        assertThat(response.recognizedCourses()).hasSize(1);
+        RecognizedCourse course = response.recognizedCourses().get(0);
+        assertThat(course.courseName()).isEqualTo("자료구조");
+        assertThat(course.credits()).isEqualByComparingTo("3");
+        assertThat(course.gradingBasis()).isEqualTo(CompletedCourseGradingBasis.LETTER);
+        assertThat(course.category()).isEqualTo("전공선택");
+        assertThat(course.area()).isEqualTo("전공심화");
+        assertThat(course.semester()).isEqualTo("2026-1");
+        assertThat(course.confidence()).isEqualTo(0.91);
+        assertThat(response.requiresConfirmation()).isTrue();
+    }
+
+    @Test
+    void fallsBackToEmptyRecognizedCoursesWhenGeminiReturnsMalformedJson() {
+        CompletedCourseOcrService service = service(
+                true,
+                10_000,
+                (project, location, model, tokens, bytes, type) -> "855121  자료구조  3  전공선택",
+                (project, location, model, tokens, text) -> "이건 JSON이 아닙니다.");
+
+        var response = service.recognize(image("image/png", new byte[] {1}));
+
+        assertThat(response.extractedText()).isEqualTo("855121  자료구조  3  전공선택");
+        assertThat(response.recognizedCourses()).isEmpty();
+        assertThat(response.requiresConfirmation()).isTrue();
+    }
+
+    @Test
+    void fallsBackToEmptyRecognizedCoursesWhenStructuredExtractionCallFails() {
+        CompletedCourseOcrService service = service(
+                true,
+                10_000,
+                (project, location, model, tokens, bytes, type) -> "855121  자료구조  3  전공선택",
+                (project, location, model, tokens, text) -> {
+                    throw new IOException("upstream unavailable");
+                });
+
+        var response = service.recognize(image("image/png", new byte[] {1}));
+
+        assertThat(response.extractedText()).isEqualTo("855121  자료구조  3  전공선택");
+        assertThat(response.recognizedCourses()).isEmpty();
+        assertThat(response.requiresConfirmation()).isTrue();
+    }
+
     private static MockMultipartFile image(String contentType, byte[] content) {
         return new MockMultipartFile("file", "transcript", contentType, content);
     }
@@ -89,6 +160,18 @@ class CompletedCourseOcrServiceTest {
             boolean enabled,
             long maxFileSizeBytes,
             CompletedCourseOcrService.GeminiTextExtractor extractor) {
+        return service(
+                enabled,
+                maxFileSizeBytes,
+                extractor,
+                (project, location, model, tokens, text) -> "[]");
+    }
+
+    private static CompletedCourseOcrService service(
+            boolean enabled,
+            long maxFileSizeBytes,
+            CompletedCourseOcrService.GeminiTextExtractor extractor,
+            CompletedCourseOcrService.GeminiCourseExtractor courseExtractor) {
         return new CompletedCourseOcrService(
                 enabled,
                 maxFileSizeBytes,
@@ -96,7 +179,8 @@ class CompletedCourseOcrServiceTest {
                 "global",
                 "gemini-3.5-flash-lite",
                 8192,
-                extractor);
+                extractor,
+                courseExtractor);
     }
 
     private static void assertBusinessError(

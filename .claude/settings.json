@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -NoProfile -Command \"Get-Process -Id 6536 | Select-Object Id,ProcessName,Path,StartTime\")",
+      "Bash(powershell -NoProfile -Command \"Stop-Process -Id 6536 -Force\")",
+      "Bash(timeout 90 bash -c 'until grep -q \"Started PlTimetableProjectApplication\\\\|APPLICATION FAILED\\\\|BUILD FAILED\" bootrun_new.log 2>/dev/null; do sleep 2; done')",
+      "Bash(curl -s -i \"http://localhost:8080/api/v1/optimizations/2?userId=1\")"
+    ]
+  }
+}
