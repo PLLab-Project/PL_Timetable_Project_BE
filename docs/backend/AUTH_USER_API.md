@@ -103,6 +103,36 @@ access/refresh token은 저장하지 않으며 불변 Google `sub`만 `social_id
 저장한다. 운영 사용 전 GCP Cloud Console의 표준 웹 OAuth 클라이언트에 배포 콜백
 주소를 등록해야 한다.
 
+프론트에서는 Google 로그인 API를 `fetch`로 호출하지 않고 브라우저 전체를
+이동시켜야 한다.
+
+```javascript
+window.location.assign(`${API_BASE_URL}/api/v1/auth/google`);
+```
+
+인증 성공 시 기본적으로 다음 주소로 돌아온다.
+
+```text
+https://pl-timetable-project-fe.vercel.app/?auth=google-success
+```
+
+실패 시에는 `auth=google-failure`로 돌아온다. 프론트는 성공 리다이렉트를 받은 뒤
+`credentials: "include"`로 세션을 조회한다.
+
+```javascript
+const response = await fetch(
+  `${API_BASE_URL}/api/v1/auth/session`,
+  { credentials: "include" }
+);
+const session = (await response.json()).data;
+```
+
+`session.user.studentNumber`가 비어 있거나 사용자 프로필의 `profileCompleted`가
+`false`이면 회원정보 입력 화면으로 이동하고, 이미 작성된 사용자라면 앱 화면으로
+이동한다. 성공·실패 리다이렉트는 배포 환경의
+`GOOGLE_OAUTH_SUCCESS_REDIRECT_URI`, `GOOGLE_OAUTH_FAILURE_REDIRECT_URI`로
+바꿀 수 있다.
+
 ## 사용자
 
 모든 사용자 API는 로그인 세션이 필요하고, GET이 아닌 요청은 CSRF 헤더가 필요합니다.

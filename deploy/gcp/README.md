@@ -29,6 +29,14 @@ The callback is also set explicitly through Spring's Google registration
 redirect URI environment variable so the external HTTPS URI is preserved
 behind Cloud Run's proxy.
 
+The frontend redirects are configured separately from the Google callback:
+
+- `GOOGLE_OAUTH_SUCCESS_REDIRECT_URI=https://pl-timetable-project-fe.vercel.app/?auth=google-success`
+- `GOOGLE_OAUTH_FAILURE_REDIRECT_URI=https://pl-timetable-project-fe.vercel.app/?auth=google-failure`
+
+Keep `SESSION_COOKIE_SECURE=true` and `SESSION_COOKIE_SAME_SITE=none` because
+the Vercel frontend and Cloud Run API use different sites.
+
 ## Transcript OCR
 
 `POST /api/v1/completed-courses/ocr` sends the in-memory image directly to

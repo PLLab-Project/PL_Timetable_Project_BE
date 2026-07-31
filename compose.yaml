@@ -79,6 +79,11 @@ services:
       OTP_MAX_ATTEMPTS: ${OTP_MAX_ATTEMPTS:-5}
       OTP_DELIVERY: ${OTP_DELIVERY:-console}
       OTP_FROM: ${OTP_FROM:-}
+      GOOGLE_OAUTH_ENABLED: ${GOOGLE_OAUTH_ENABLED:-false}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      GOOGLE_OAUTH_SUCCESS_REDIRECT_URI: ${GOOGLE_OAUTH_SUCCESS_REDIRECT_URI:-https://pl-timetable-project-fe.vercel.app/?auth=google-success}
+      GOOGLE_OAUTH_FAILURE_REDIRECT_URI: ${GOOGLE_OAUTH_FAILURE_REDIRECT_URI:-https://pl-timetable-project-fe.vercel.app/?auth=google-failure}
       SMTP_HOST: ${SMTP_HOST:-localhost}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
