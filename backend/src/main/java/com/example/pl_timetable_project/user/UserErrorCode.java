@@ -7,6 +7,10 @@ public enum UserErrorCode implements ErrorCode {
     USER_NOT_FOUND(404, "USER_NOT_FOUND", "사용자 정보를 찾을 수 없습니다."),
     DEPARTMENT_NOT_FOUND(404, "DEPARTMENT_NOT_FOUND", "학과 정보를 찾을 수 없습니다."),
     STUDENT_NUMBER_DUPLICATE(409, "STUDENT_NUMBER_DUPLICATE", "이미 사용 중인 학번입니다."),
+    STUDENT_NUMBER_VERIFICATION_REQUIRED(
+            409,
+            "STUDENT_NUMBER_VERIFICATION_REQUIRED",
+            "학번 변경은 학교 이메일 OTP 인증이 필요합니다."),
     CONFIRMATION_REQUIRED(400, "CONFIRMATION_REQUIRED", "회원 탈퇴 확인이 필요합니다.");
 
     private final int status;

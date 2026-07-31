@@ -23,6 +23,8 @@
 | POST | `/api/v1/auth/otp/request` | 불필요 | 제외 | 학교 이메일로 OTP 요청 |
 | POST | `/api/v1/auth/otp/verify` | 불필요 | 제외 | OTP 검증 후 세션 생성 |
 | GET | `/api/v1/auth/google` | 불필요 | 불필요 | Google 로그인 시작 |
+| POST | `/api/v1/auth/school-verification/request` | 필요 | 필요 | 최초 Google 사용자의 학교 이메일 OTP 요청 |
+| POST | `/api/v1/auth/school-verification/verify` | 필요 | 필요 | OTP 확인 후 Google 계정에 학번 연결 |
 | GET | `/api/v1/auth/session` | 필요 | 불필요 | 현재 로그인 세션 조회 |
 | POST | `/api/v1/auth/logout` | 필요 | 필요 | 세션 무효화 및 로그아웃 |
 
@@ -127,11 +129,49 @@ const response = await fetch(
 const session = (await response.json()).data;
 ```
 
-`session.user.studentNumber`가 비어 있거나 사용자 프로필의 `profileCompleted`가
-`false`이면 회원정보 입력 화면으로 이동하고, 이미 작성된 사용자라면 앱 화면으로
-이동한다. 성공·실패 리다이렉트는 배포 환경의
+`session.user.schoolVerified=false`이면 아래 학교 OTP 인증 흐름으로 이동한다.
+학교 인증까지 마쳤지만 사용자 프로필의 `profileCompleted`가 `false`이면
+회원정보 입력 화면으로 이동하고, 이미 작성된 사용자라면 앱 화면으로 이동한다.
+성공·실패 리다이렉트는 배포 환경의
 `GOOGLE_OAUTH_SUCCESS_REDIRECT_URI`, `GOOGLE_OAUTH_FAILURE_REDIRECT_URI`로
 바꿀 수 있다.
+
+### Google 로그인 후 학교 OTP 1회 인증
+
+Google 이메일 인증과 학교 학번 소유 확인은 별도 단계다. 신규 Google 사용자는
+로그인 세션을 먼저 발급받지만, 학교 OTP를 마치기 전에는 세션·프로필·로그아웃·학교
+인증 API를 제외한 자동편성·시간표 등 학생 전용 API가
+`SCHOOL_VERIFICATION_REQUIRED`로 차단된다.
+
+1. `GET /api/v1/auth/csrf`로 CSRF 토큰을 받는다.
+2. 아래 요청으로 `학번@daejin.ac.kr`에 OTP를 보낸다.
+
+```http
+POST /api/v1/auth/school-verification/request
+Content-Type: application/json
+X-XSRF-TOKEN: {csrfToken}
+
+{
+  "studentNumber": "20261234"
+}
+```
+
+3. 이메일로 받은 6자리 번호를 현재 Google 세션에서 확인한다.
+
+```http
+POST /api/v1/auth/school-verification/verify
+Content-Type: application/json
+X-XSRF-TOKEN: {csrfToken}
+
+{
+  "studentNumber": "20261234",
+  "code": "123456"
+}
+```
+
+성공하면 학번과 `schoolVerifiedAt`을 저장하고 세션 ID를 다시 발급한다. 이후
+Google 로그인에서는 OTP를 반복하지 않으며, 학번을 변경할 때만 새 학번의 학교
+이메일 OTP를 다시 확인한다.
 
 ## 사용자
 
@@ -151,7 +191,6 @@ const session = (await response.json()).data;
 
 ```json
 {
-  "studentNumber": "20261234",
   "name": "홍길동",
   "grade": 3,
   "departmentId": "CSE",
@@ -165,7 +204,7 @@ const session = (await response.json()).data;
 - `name`: 최대 120자
 - `grade`: 1~6
 - `departmentId`: 최대 40자
-- `studentNumber`: 숫자 6~20자리, 다른 사용자와 중복 불가
+- `studentNumber`: 직접 변경할 수 없으며 학교 OTP 인증 API를 사용
 - `admissionYear`: 1900~2100
 - `programPath`: `ADVANCED_MAJOR`, `DOUBLE_MAJOR`, `MINOR`, `MICRO_MAJOR`
 
@@ -185,6 +224,8 @@ const session = (await response.json()).data;
   "profileCompleted": true,
   "graduationProfileCompleted": true,
   "tutorialCompleted": true,
+  "schoolVerified": true,
+  "schoolVerifiedAt": "2026-07-31T06:00:00Z",
   "createdAt": "2026-07-24T04:00:00Z"
 }
 ```

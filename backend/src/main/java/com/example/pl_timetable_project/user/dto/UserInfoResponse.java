@@ -43,6 +43,12 @@ public record UserInfoResponse(
         @Schema(description = "최초 사용 튜토리얼 완료 여부")
         boolean tutorialCompleted,
 
+        @Schema(description = "학교 이메일 OTP로 현재 학번 소유를 확인했는지 여부")
+        boolean schoolVerified,
+
+        @Schema(description = "학교 이메일 OTP 인증 완료 시각. 미인증이면 null")
+        Instant schoolVerifiedAt,
+
         @Schema(description = "회원 레코드 생성 시각", example = "2026-07-25T03:00:00Z")
         Instant createdAt) {
 }

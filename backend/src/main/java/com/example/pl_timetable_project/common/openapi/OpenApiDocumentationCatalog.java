@@ -77,6 +77,12 @@ final class OpenApiDocumentationCatalog {
                         + "브라우저는 Google 동의 화면으로 이동하고 성공하면 로컬 JSESSIONID 세션을 발급받습니다.");
         put(values, HttpMethod.GET, "/api/v1/auth/google/failure",
                 "Google 인증 또는 로컬 계정 연결 실패를 GOOGLE_LOGIN_FAILED 표준 오류로 반환합니다.");
+        put(values, HttpMethod.POST, "/api/v1/auth/school-verification/request",
+                "Google 로그인 세션의 사용자가 입력한 학번으로 학교 이메일 OTP를 요청합니다. "
+                        + "이미 다른 계정에서 인증한 학번은 연결할 수 없습니다.");
+        put(values, HttpMethod.POST, "/api/v1/auth/school-verification/verify",
+                "학교 이메일 OTP를 확인해 현재 Google 계정에 학번을 연결하고 세션을 학교 인증 상태로 갱신합니다. "
+                        + "성공한 뒤에는 자동편성·시간표 등 학생 전용 API를 사용할 수 있습니다.");
         put(values, HttpMethod.GET, "/api/v1/auth/csrf",
                 "상태 변경 요청에 사용할 CSRF 토큰과 헤더 이름을 반환합니다. "
                         + "프론트와 API의 Origin이 달라도 쿠키를 직접 읽지 않고 응답의 data.token을 메모리에 보관해 사용할 수 있습니다.");
@@ -91,8 +97,8 @@ final class OpenApiDocumentationCatalog {
                 "로그인 사용자의 회원 정보와 학생 프로필을 조회합니다. "
                         + "departmentId는 academic_units의 정규 학과 코드입니다.");
         put(values, HttpMethod.PATCH, "/api/v1/users/me",
-                "학번·이름·학년·학과·입학연도·학생구분·전공방식·튜토리얼 상태를 부분 수정합니다. "
-                        + "null이거나 생략한 필드는 기존 값을 유지합니다.");
+                "이름·학년·학과·입학연도·학생구분·전공방식·튜토리얼 상태를 부분 수정합니다. "
+                        + "학번 변경은 학교 이메일 OTP 인증 API만 허용하며, null이거나 생략한 필드는 기존 값을 유지합니다.");
         put(values, HttpMethod.POST, "/api/v1/users/me/privacy-consents",
                 "개인정보 처리방침 버전별 동의 여부를 저장합니다. 동일 버전의 기존 동의가 있으면 그 기록을 반환합니다.");
         put(values, HttpMethod.GET, "/api/v1/users/me/privacy-consents",
@@ -260,6 +266,10 @@ final class OpenApiDocumentationCatalog {
                 Map.of("studentNumber", "20201234"));
         example(values, HttpMethod.POST, "/api/v1/auth/otp/verify",
                 Map.of("studentNumber", "20201234", "code", "123456"));
+        example(values, HttpMethod.POST, "/api/v1/auth/school-verification/request",
+                Map.of("studentNumber", "20201234"));
+        example(values, HttpMethod.POST, "/api/v1/auth/school-verification/verify",
+                Map.of("studentNumber", "20201234", "code", "123456"));
         example(values, HttpMethod.PATCH, "/api/v1/users/me",
                 ordered(
                         "studentNumber", "20261234",
@@ -352,6 +362,15 @@ final class OpenApiDocumentationCatalog {
                 error(503, "GOOGLE_LOGIN_NOT_CONFIGURED", "배포 환경에 Google OAuth 클라이언트가 설정되지 않았습니다."));
         errors(values, HttpMethod.GET, "/api/v1/auth/google/failure",
                 error(401, "GOOGLE_LOGIN_FAILED", "Google 인증 또는 계정 연결에 실패했습니다."));
+        errors(values, HttpMethod.POST, "/api/v1/auth/school-verification/request",
+                error(409, "SCHOOL_ALREADY_VERIFIED", "이미 학교 이메일 인증을 완료했습니다."),
+                error(409, "STUDENT_NUMBER_ALREADY_VERIFIED", "다른 계정에서 이미 인증한 학번입니다."),
+                error(429, "TOO_MANY_REQUESTS", "재전송 대기시간이 지나지 않았습니다."),
+                error(503, "EMAIL_SEND_FAILED", "인증 이메일을 전송하지 못했습니다."));
+        errors(values, HttpMethod.POST, "/api/v1/auth/school-verification/verify",
+                error(401, "INVALID_OR_EXPIRED_CODE", "인증번호가 틀렸거나 만료되었습니다."),
+                error(409, "STUDENT_NUMBER_ALREADY_VERIFIED", "다른 계정에서 이미 인증한 학번입니다."),
+                error(429, "TOO_MANY_ATTEMPTS", "인증번호 확인 횟수를 초과했습니다."));
 
         notFound(values, HttpMethod.GET, "/api/v1/users/me", "USER_NOT_FOUND", "사용자 정보를 찾을 수 없습니다.");
         notFound(values, HttpMethod.PATCH, "/api/v1/users/me", "DEPARTMENT_NOT_FOUND", "학과 정보를 찾을 수 없습니다.");

@@ -45,6 +45,9 @@ public class StudentProfile {
     @Column(name = "tutorial_completed", nullable = false)
     private boolean tutorialCompleted;
 
+    @Column(name = "school_verified_at")
+    private Instant schoolVerifiedAt;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 
@@ -58,19 +61,18 @@ public class StudentProfile {
     public StudentProfile(UUID userId, String studentNumber) {
         this.userId = userId;
         this.studentNumber = studentNumber;
+        if (studentNumber != null) {
+            this.schoolVerifiedAt = Instant.now();
+        }
     }
 
     public void update(
-            String studentNumber,
             Short grade,
             String academicUnitCode,
             Integer admissionYear,
             String studentType,
             String programPath,
             Boolean tutorialCompleted) {
-        if (studentNumber != null) {
-            this.studentNumber = studentNumber;
-        }
         if (grade != null) {
             this.grade = grade;
         }
@@ -91,6 +93,13 @@ public class StudentProfile {
         }
         this.profileCompleted = this.grade != null && this.academicUnitCode != null;
         this.updatedAt = Instant.now();
+    }
+
+    /** 학번은 프로필 수정이 아니라 학교 이메일 OTP 성공을 통해서만 연결합니다. */
+    public void verifySchoolIdentity(String studentNumber, Instant verifiedAt) {
+        this.studentNumber = studentNumber;
+        this.schoolVerifiedAt = verifiedAt;
+        this.updatedAt = verifiedAt;
     }
 
     public UUID userId() {
@@ -127,5 +136,13 @@ public class StudentProfile {
 
     public boolean tutorialCompleted() {
         return tutorialCompleted;
+    }
+
+    public boolean schoolVerified() {
+        return schoolVerifiedAt != null;
+    }
+
+    public Instant schoolVerifiedAt() {
+        return schoolVerifiedAt;
     }
 }

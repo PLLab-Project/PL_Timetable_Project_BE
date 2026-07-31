@@ -12,6 +12,18 @@ public enum AuthErrorCode implements ErrorCode {
     GOOGLE_LOGIN_FAILED(401, "GOOGLE_LOGIN_FAILED", "Google 로그인에 실패했습니다."),
     ACCOUNT_DISABLED(403, "ACCOUNT_DISABLED", "탈퇴하거나 정지된 계정입니다."),
     GOOGLE_EMAIL_NOT_VERIFIED(403, "GOOGLE_EMAIL_NOT_VERIFIED", "검증된 Google 이메일이 필요합니다."),
+    SCHOOL_VERIFICATION_REQUIRED(
+            403,
+            "SCHOOL_VERIFICATION_REQUIRED",
+            "학교 이메일 OTP 인증이 필요합니다."),
+    SCHOOL_ALREADY_VERIFIED(
+            409,
+            "SCHOOL_ALREADY_VERIFIED",
+            "이미 학교 이메일 인증을 완료했습니다."),
+    STUDENT_NUMBER_ALREADY_VERIFIED(
+            409,
+            "STUDENT_NUMBER_ALREADY_VERIFIED",
+            "다른 계정에서 이미 인증한 학번입니다."),
     TOO_MANY_REQUESTS(429, "TOO_MANY_REQUESTS", "잠시 후 인증번호를 다시 요청해주세요."),
     TOO_MANY_ATTEMPTS(429, "TOO_MANY_ATTEMPTS", "인증번호 확인 횟수를 초과했습니다."),
     EMAIL_SEND_FAILED(503, "EMAIL_SEND_FAILED", "인증 이메일을 전송하지 못했습니다."),

@@ -1,7 +1,9 @@
 package com.example.pl_timetable_project.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.example.pl_timetable_project.common.exception.BusinessException;
 import com.example.pl_timetable_project.user.dto.UserDeleteResponse;
 import com.example.pl_timetable_project.user.dto.UserUpdateRequest;
 import com.example.pl_timetable_project.user.service.UserService;
@@ -122,7 +124,7 @@ class UserWithdrawalIntegrationTest {
     }
 
     @Test
-    void updatesStudentNumberGraduationProfileAndTutorialState() {
+    void updatesGraduationProfileAndTutorialStateWithoutChangingVerifiedStudentNumber() {
         jdbcTemplate.execute("""
                 INSERT INTO academic_colleges (
                     code, name, first_seen_year, last_seen_year, is_current
@@ -140,7 +142,7 @@ class UserWithdrawalIntegrationTest {
         var response = userService.update(
                 USER_ID,
                 new UserUpdateRequest(
-                        "2026123456",
+                        STUDENT_NUMBER,
                         "수정 사용자",
                         (short) 3,
                         "D1",
@@ -149,13 +151,31 @@ class UserWithdrawalIntegrationTest {
                         "ADVANCED_MAJOR",
                         true));
 
-        assertThat(response.studentNumber()).isEqualTo("2026123456");
+        assertThat(response.studentNumber()).isEqualTo(STUDENT_NUMBER);
         assertThat(response.admissionYear()).isEqualTo(2022);
         assertThat(response.studentType()).isEqualTo("DOMESTIC");
         assertThat(response.programPath()).isEqualTo("ADVANCED_MAJOR");
         assertThat(response.profileCompleted()).isTrue();
         assertThat(response.graduationProfileCompleted()).isTrue();
         assertThat(response.tutorialCompleted()).isTrue();
+    }
+
+    @Test
+    void rejectsStudentNumberChangeWithoutSchoolOtpVerification() {
+        assertThatThrownBy(() -> userService.update(
+                USER_ID,
+                new UserUpdateRequest(
+                        "2026999999",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null)))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.errorCode())
+                                .isEqualTo(UserErrorCode.STUDENT_NUMBER_VERIFICATION_REQUIRED));
     }
 
     private void assertCount(String table, String column, UUID value, int expected) {

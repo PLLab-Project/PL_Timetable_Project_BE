@@ -9,7 +9,9 @@ import jakarta.validation.constraints.Size;
 /** null인 필드는 유지하고, 전달된 필드만 수정합니다. */
 @Schema(description = "내 학생 프로필 부분 수정 요청. 생략하거나 null인 필드는 유지됩니다.")
 public record UserUpdateRequest(
-        @Schema(description = "변경할 학번. 숫자 6~20자리", example = "20261234")
+        @Schema(
+                description = "현재 학번 확인용. 다른 학번으로 변경하려면 학교 OTP 인증 API를 사용",
+                example = "20261234")
         @Pattern(regexp = "\\d{6,20}")
         String studentNumber,
 

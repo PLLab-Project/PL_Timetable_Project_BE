@@ -74,7 +74,11 @@ public class GoogleAuthenticationService {
         StudentProfile profile = profileRepository.findById(userId)
                 .orElseGet(() -> profileRepository.save(new StudentProfile(userId, null)));
         return new LoginResult(
-                new AuthUserResponse(user.id(), profile.studentNumber(), user.displayName()),
+                new AuthUserResponse(
+                        user.id(),
+                        profile.studentNumber(),
+                        user.displayName(),
+                        profile.schoolVerified()),
                 newUser
         );
     }

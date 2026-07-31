@@ -7,6 +7,7 @@ import com.example.pl_timetable_project.auth.dto.OtpStartRequest;
 import com.example.pl_timetable_project.auth.dto.OtpStartResponse;
 import com.example.pl_timetable_project.auth.dto.OtpVerifyRequest;
 import com.example.pl_timetable_project.auth.dto.OtpVerifyResponse;
+import com.example.pl_timetable_project.auth.dto.SchoolVerificationResponse;
 import com.example.pl_timetable_project.auth.AuthErrorCode;
 import com.example.pl_timetable_project.auth.config.GoogleAuthProperties;
 import com.example.pl_timetable_project.auth.security.AuthenticatedUser;
@@ -23,6 +24,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
@@ -93,19 +95,44 @@ public class AuthController {
         OtpAuthenticationService.VerificationResult result =
                 authenticationService.verify(request.studentNumber(), request.code());
 
-        AuthenticatedUser principal = new AuthenticatedUser(result.user().id(), result.user().studentNumber());
-        Authentication authentication = UsernamePasswordAuthenticationToken.authenticated(principal, null, java.util.List.of());
-        SecurityContext context = SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(authentication);
-        SecurityContextHolder.setContext(context);
-
-        // Spring Security가 다음 요청에서도 로그인 사용자를 찾도록 세션에 보안 컨텍스트를 보관합니다.
-        HttpSession session = servletRequest.getSession(true);
-        servletRequest.changeSessionId();
-        session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+        AuthenticatedUser principal = new AuthenticatedUser(
+                result.user().id(),
+                result.user().studentNumber(),
+                result.user().schoolVerified());
+        HttpSession session = saveAuthentication(servletRequest, principal, true);
         Instant expiresAt = Instant.now().plus(session.getMaxInactiveInterval(), ChronoUnit.SECONDS);
 
         return ApiResponse.success(new OtpVerifyResponse(true, result.user(), result.newUser(), expiresAt));
+    }
+
+    @Operation(
+            summary = "Google 로그인 사용자의 학교 OTP 요청",
+            description = "로그인한 사용자가 입력한 학번의 학교 이메일로 일회용 인증번호를 전송합니다.")
+    @PostMapping("/school-verification/request")
+    public ApiResponse<OtpStartResponse> requestSchoolVerification(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @Valid @RequestBody OtpStartRequest request
+    ) {
+        return ApiResponse.success(authenticationService.startSchoolVerification(
+                principal.userId(), request.studentNumber()));
+    }
+
+    @Operation(
+            summary = "Google 로그인 사용자의 학교 OTP 확인",
+            description = "OTP가 맞으면 현재 Google 계정에 학번을 연결하고 학교 인증 세션으로 갱신합니다.")
+    @PostMapping("/school-verification/verify")
+    public ApiResponse<SchoolVerificationResponse> verifySchool(
+            @AuthenticationPrincipal AuthenticatedUser principal,
+            @Valid @RequestBody OtpVerifyRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        SchoolVerificationResponse response = authenticationService.verifySchoolVerification(
+                principal.userId(), request.studentNumber(), request.code());
+        saveAuthentication(
+                servletRequest,
+                new AuthenticatedUser(principal.userId(), response.studentNumber(), true),
+                true);
+        return ApiResponse.success(response);
     }
 
     @Operation(summary = "현재 로그인 세션 조회")
@@ -128,5 +155,27 @@ public class AuthController {
         }
         SecurityContextHolder.clearContext();
         return ApiResponse.success(new LogoutResponse("로그아웃되었습니다."));
+    }
+
+    private HttpSession saveAuthentication(
+            HttpServletRequest request,
+            AuthenticatedUser principal,
+            boolean rotateSessionId
+    ) {
+        Authentication authentication = UsernamePasswordAuthenticationToken.authenticated(
+                principal, null, java.util.List.of());
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication);
+        SecurityContextHolder.setContext(context);
+
+        // Spring Security가 다음 요청에서도 로그인 사용자를 찾도록 세션에 보안 컨텍스트를 보관합니다.
+        HttpSession session = request.getSession(true);
+        if (rotateSessionId) {
+            request.changeSessionId();
+        }
+        session.setAttribute(
+                HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+                context);
+        return session;
     }
 }

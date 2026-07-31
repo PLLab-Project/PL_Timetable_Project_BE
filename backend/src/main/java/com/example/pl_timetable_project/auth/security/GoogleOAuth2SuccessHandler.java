@@ -66,7 +66,10 @@ public class GoogleOAuth2SuccessHandler implements AuthenticationSuccessHandler 
         }
 
         AuthenticatedUser principal =
-                new AuthenticatedUser(result.user().id(), result.user().studentNumber());
+                new AuthenticatedUser(
+                        result.user().id(),
+                        result.user().studentNumber(),
+                        result.user().schoolVerified());
         Authentication localAuthentication =
                 UsernamePasswordAuthenticationToken.authenticated(principal, null, List.of());
         SecurityContext context = SecurityContextHolder.createEmptyContext();

@@ -62,14 +62,13 @@ public class UserService {
                     .orElseThrow(() -> new BusinessException(UserErrorCode.DEPARTMENT_NOT_FOUND));
         }
         String studentNumber = normalizeOptional(request.studentNumber());
-        if (studentNumber != null
-                && profileRepository.existsByStudentNumberAndUserIdNot(studentNumber, userId)) {
-            throw new BusinessException(UserErrorCode.STUDENT_NUMBER_DUPLICATE);
+        if (studentNumber != null && !studentNumber.equals(profile.studentNumber())) {
+            // 학번 소유 확인을 우회하지 못하도록 변경도 학교 OTP API에서만 허용합니다.
+            throw new BusinessException(UserErrorCode.STUDENT_NUMBER_VERIFICATION_REQUIRED);
         }
         String studentType = uppercaseOptional(request.studentType());
         String programPath = uppercaseOptional(request.programPath());
         profile.update(
-                studentNumber,
                 request.grade(),
                 academicUnitCode,
                 request.admissionYear(),
@@ -147,6 +146,8 @@ public class UserService {
                 profile.profileCompleted(),
                 graduationProfileCompleted,
                 profile.tutorialCompleted(),
+                profile.schoolVerified(),
+                profile.schoolVerifiedAt(),
                 user.createdAt());
     }
 

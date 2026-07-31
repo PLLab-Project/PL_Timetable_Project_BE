@@ -15,8 +15,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -77,7 +80,21 @@ public class SecurityConfig {
                                 "/api/v1/courses/**",
                                 "/api/v1/sections/**",
                                 "/api/v1/graduation/rules").permitAll()
-                        .anyRequest().authenticated())
+                        // Google 로그인 직후 학교 OTP를 마치기 전에도 본인 인증 상태와
+                        // 탈퇴·로그아웃·학교 인증 API에는 접근할 수 있어야 합니다.
+                        .requestMatchers(
+                                "/api/v1/auth/session",
+                                "/api/v1/auth/logout",
+                                "/api/v1/auth/school-verification/**",
+                                "/api/v1/users/me",
+                                "/api/v1/users/me/**").authenticated()
+                        .anyRequest().access((authentication, context) -> {
+                            Authentication current = authentication.get();
+                            boolean schoolVerified = current.isAuthenticated()
+                                    && current.getPrincipal() instanceof AuthenticatedUser user
+                                    && user.schoolVerified();
+                            return new AuthorizationDecision(schoolVerified);
+                        }))
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .csrf(csrf -> csrf
@@ -90,8 +107,21 @@ public class SecurityConfig {
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, error) ->
                                 writeError(response, objectMapper, AuthErrorCode.SESSION_EXPIRED))
-                        .accessDeniedHandler((request, response, error) ->
-                                writeError(response, objectMapper, CommonErrorCode.FORBIDDEN)));
+                        .accessDeniedHandler((request, response, error) -> {
+                            Authentication current =
+                                    SecurityContextHolder.getContext().getAuthentication();
+                            if (current != null
+                                    && current.isAuthenticated()
+                                    && current.getPrincipal() instanceof AuthenticatedUser user
+                                    && !user.schoolVerified()) {
+                                writeError(
+                                        response,
+                                        objectMapper,
+                                        AuthErrorCode.SCHOOL_VERIFICATION_REQUIRED);
+                                return;
+                            }
+                            writeError(response, objectMapper, CommonErrorCode.FORBIDDEN);
+                        }));
 
         if (googleAuthProperties.enabled()) {
             http.oauth2Login(oauth2 -> oauth2

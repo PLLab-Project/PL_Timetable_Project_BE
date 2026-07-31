@@ -60,7 +60,7 @@ class GoogleOAuth2HandlerTest {
         when(authenticationService.login(
                 "google-sub", "student@daejin.ac.kr", true, "홍길동"))
                 .thenReturn(new GoogleAuthenticationService.LoginResult(
-                        new AuthUserResponse(userId, "20201234", "홍길동"), false));
+                        new AuthUserResponse(userId, "20201234", "홍길동", true), false));
         when(repositoryProvider.getIfAvailable()).thenReturn(authorizedClientRepository);
 
         MockHttpServletRequest request = new MockHttpServletRequest();

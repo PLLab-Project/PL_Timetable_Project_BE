@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.emptyOrNullString;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.not;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -14,12 +14,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.pl_timetable_project.auth.security.AuthenticatedUser;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -244,10 +247,16 @@ class OpenApiDocumentationIntegrationTest {
 
     @Test
     void doesNotExposeRedundantSwaggerUi() throws Exception {
-        mockMvc.perform(get("/swagger-ui.html").with(user("docs-check")))
+        UsernamePasswordAuthenticationToken verifiedUser =
+                UsernamePasswordAuthenticationToken.authenticated(
+                        new AuthenticatedUser(UUID.randomUUID(), "20261234", true),
+                        null,
+                        List.of());
+
+        mockMvc.perform(get("/swagger-ui.html").with(authentication(verifiedUser)))
                 .andExpect(status().isNotFound());
 
-        mockMvc.perform(get("/swagger-ui/index.html").with(user("docs-check")))
+        mockMvc.perform(get("/swagger-ui/index.html").with(authentication(verifiedUser)))
                 .andExpect(status().isNotFound());
     }
 
