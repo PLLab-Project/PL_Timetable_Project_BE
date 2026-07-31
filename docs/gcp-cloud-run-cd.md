@@ -1,0 +1,41 @@
+# GCP Cloud Run continuous deployment
+
+## Trigger
+
+The .github/workflows/deploy-cloud-run.yml workflow runs after every push to main
+and can also be started manually from the default branch.
+
+The job:
+
+1. runs the complete backend test suite;
+2. builds an immutable image tagged with the Git commit SHA;
+3. pushes the image to Artifact Registry;
+4. updates the existing pl-timetable-api Cloud Run service; and
+5. verifies that /api/v1/health/live reports the same commit SHA.
+
+A failed test or build prevents deployment. Production deploys are serialized and
+an in-progress deploy is not cancelled.
+
+## Authentication and access scope
+
+GitHub Actions authenticates through Workload Identity Federation. No service
+account JSON key is stored in GitHub.
+
+- Workload Identity Pool: github-actions
+- Provider: pl-timetable-main
+- Deploy service account:
+  pl-timetable-github-deployer@pl-timetable-project.iam.gserviceaccount.com
+- Trusted subject: this repository's refs/heads/main only
+
+The deploy service account can write images to the pl-timetable Artifact Registry
+repository, update Cloud Run services, consume enabled GCP APIs, and act as the
+existing Cloud Run runtime service account. It is not a project owner.
+
+Repository Actions variables hold only non-secret resource identifiers. Database,
+Google OAuth, and other runtime secrets remain attached to the Cloud Run service
+and are preserved by gcloud run services update.
+
+## Required review flow
+
+Feature branches and pull requests do not deploy production. A reviewed change
+starts deployment only after it lands on main.
