@@ -25,7 +25,9 @@ account JSON key is stored in GitHub.
 - Provider: pl-timetable-main
 - Deploy service account:
   pl-timetable-github-deployer@pl-timetable-project.iam.gserviceaccount.com
-- Trusted subject: this repository's refs/heads/main only
+- Trusted repository ID: 1301430101
+- Trusted organization owner ID: 249942934
+- Trusted Git ref: refs/heads/main only
 
 The deploy service account can write images to the pl-timetable Artifact Registry
 repository, update Cloud Run services, consume enabled GCP APIs, and act as the
