@@ -387,41 +387,70 @@ public class SectionSearchQueryRepository {
     }
 
     private String orderBy(SectionSearchCondition condition, CourseSort sort) {
-        String preference = condition.preferredAcademicUnitCode() != null
-                        && !condition.completionCategories().isEmpty()
+        String preferredSection = condition.preferredAcademicUnitCode() != null
                 ? """
                   CASE WHEN EXISTS (
                       SELECT 1
-                        FROM section_classification_contexts preferred
-                       WHERE preferred.semester_id = section.semester_id
-                         AND preferred.course_code = section.course_code
-                         AND preferred.section_code = section.section_code
-                         AND preferred.academic_unit_code =
-                             :preferredAcademicUnitCode
-                         AND preferred.completion_category
-                             IN (:completionCategories)
+                        FROM academic_units preferred_unit
+                       WHERE preferred_unit.code = :preferredAcademicUnitCode
+                         AND (
+                              coalesce(section.notes, '') ILIKE
+                                  '%' || preferred_unit.name || '%'
+                              OR EXISTS (
+                                  SELECT 1
+                                    FROM academic_unit_aliases preferred_alias
+                                   WHERE preferred_alias.academic_unit_code =
+                                             preferred_unit.code
+                                     AND coalesce(section.notes, '') ILIKE
+                                         '%' || preferred_alias.alias || '%'
+                              )
+                         )
                   ) THEN 0 ELSE 1 END,
                   """
                 : "";
-        return preference + switch (sort) {
+        return switch (sort) {
             case DEFAULT ->
-                    "section.source_page ASC NULLS LAST, "
+                    """
+                    (SELECT first_section.source_page
+                       FROM sections first_section
+                      WHERE first_section.semester_id = section.semester_id
+                        AND first_section.course_code = section.course_code
+                      ORDER BY first_section.source_page ASC NULLS LAST,
+                               first_section.source_row ASC NULLS LAST,
+                               first_section.section_code ASC
+                      LIMIT 1) ASC NULLS LAST,
+                    (SELECT first_section.source_row
+                       FROM sections first_section
+                      WHERE first_section.semester_id = section.semester_id
+                        AND first_section.course_code = section.course_code
+                      ORDER BY first_section.source_page ASC NULLS LAST,
+                               first_section.source_row ASC NULLS LAST,
+                               first_section.section_code ASC
+                      LIMIT 1) ASC NULLS LAST,
+                    course.course_code ASC,
+                    """ + preferredSection
+                            + "section.source_page ASC NULLS LAST, "
                             + "section.source_row ASC NULLS LAST, "
-                            + "course.course_code ASC, section.section_code ASC";
+                            + "section.section_code ASC";
             case NAME_ASC ->
-                    "course.name ASC, course.course_code ASC, section.section_code ASC";
+                    "course.name ASC, course.course_code ASC, "
+                            + preferredSection + "section.section_code ASC";
             case NAME_DESC ->
-                    "course.name DESC, course.course_code DESC, section.section_code DESC";
+                    "course.name DESC, course.course_code DESC, "
+                            + preferredSection + "section.section_code DESC";
             case REVIEW_COUNT_DESC ->
                     "coalesce(review.review_count, 0) DESC, course.name ASC, "
-                            + "course.course_code ASC, section.section_code ASC";
+                            + "course.course_code ASC, "
+                            + preferredSection + "section.section_code ASC";
             case RATING_DESC ->
                     "bayesian_rating DESC NULLS LAST, review.review_count DESC NULLS LAST, "
-                            + "course.name ASC, course.course_code ASC, section.section_code ASC";
+                            + "course.name ASC, course.course_code ASC, "
+                            + preferredSection + "section.section_code ASC";
             case POPULARITY_DESC ->
                     "coalesce(review.review_count, 0) DESC, "
                             + "bayesian_rating DESC NULLS LAST, course.name ASC, "
-                            + "course.course_code ASC, section.section_code ASC";
+                            + "course.course_code ASC, "
+                            + preferredSection + "section.section_code ASC";
         };
     }
 

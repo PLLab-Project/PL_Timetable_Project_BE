@@ -489,7 +489,7 @@ class AcademicApiIntegrationTest {
     }
 
     @Test
-    void supportsMultiGradeAndCompletionFiltersAndPrioritizesMyDepartment()
+    void supportsMultiGradeAndCompletionFiltersAndUsesMyDepartmentContext()
             throws Exception {
         mockMvc.perform(get("/api/v1/sections")
                         .param("semesterId", "2026-1")
@@ -514,9 +514,50 @@ class AcademicApiIntegrationTest {
                         .param("completionCategory", "교양필수"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalElements").value(2))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("GEN100"))
+                .andExpect(jsonPath("$.data.items[1].courseCode").value("CSE200"))
+                .andExpect(jsonPath("$.data.items[1].completionCategory").value("교필"));
+    }
+
+    @Test
+    void prioritizesDepartmentNoteOnlyWithinSameCourseAndKeepsSelectedSort()
+            throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO sections (
+                    semester_id, course_code, section_code, professor,
+                    raw_lecture_time, time_to_be_announced, warning_codes,
+                    notes, source_page, source_row
+                ) VALUES (
+                    '2026-1', 'CSE100', '00', '이교수',
+                    '수1-2', false, '[]'::jsonb,
+                    '공통 분반', 94, 1
+                )
+                """);
+
+        mockMvc.perform(get("/api/v1/sections")
+                        .param("semesterId", "2026-1")
+                        .param("preferredAcademicUnitCode", "D1")
+                        .param("sort", "RATING_DESC")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                // 평점 정렬상 CSE200이 먼저이며, 학과 우선 정렬이 과목 순서를 바꾸지 않습니다.
                 .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE200"))
-                .andExpect(jsonPath("$.data.items[0].completionCategory").value("교필"))
-                .andExpect(jsonPath("$.data.items[1].courseCode").value("GEN100"));
+                .andExpect(jsonPath("$.data.items[1].courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.data.items[1].sectionCode").value("01"))
+                .andExpect(jsonPath("$.data.items[2].courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.data.items[2].sectionCode").value("00"));
+
+        mockMvc.perform(get("/api/v1/sections")
+                        .param("semesterId", "2026-1")
+                        .param("preferredAcademicUnitCode", "D2")
+                        .param("sort", "RATING_DESC")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                // CSE100 비고에 D2 학과명이 없으므로 기존 분반 순서를 유지합니다.
+                .andExpect(jsonPath("$.data.items[1].courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.data.items[1].sectionCode").value("00"))
+                .andExpect(jsonPath("$.data.items[2].courseCode").value("CSE100"))
+                .andExpect(jsonPath("$.data.items[2].sectionCode").value("01"));
     }
 
     private void insertFixture() {

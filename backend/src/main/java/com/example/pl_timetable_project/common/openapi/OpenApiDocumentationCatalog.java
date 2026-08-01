@@ -160,7 +160,7 @@ final class OpenApiDocumentationCatalog {
                         + "gradingBasis=PASS_FAIL, gradeValue=P 또는 N으로 분리합니다.");
         put(values, HttpMethod.POST, "/api/v1/completed-courses/ocr",
                 "성적표 이미지(JPEG·PNG·WebP·HEIC·HEIF)를 Gemini 3.5 Flash-Lite 비전으로 인식합니다. "
-                        + "7MB 이하 원본은 저장하지 않으며, 반환 텍스트를 확인·보정한 뒤 직접 등록 API로 저장합니다.");
+                        + "7MB 이하 원본은 저장하지 않으며, 원문과 이수과목 등록 형식의 recognizedCourses를 함께 반환합니다.");
         put(values, HttpMethod.GET, "/api/v1/completed-courses",
                 "로그인 사용자의 이수과목을 상태와 학기 조건으로 조회합니다.");
         put(values, HttpMethod.GET, "/api/v1/completed-courses/summary",
@@ -248,7 +248,7 @@ final class OpenApiDocumentationCatalog {
                 Map.entry("code", "academic_units의 정규 학과·전공 코드입니다."),
                 Map.entry("category", "강의 편성 분류 다중 선택 조건입니다. 디지털리터러시 별칭도 사용할 수 있습니다."),
                 Map.entry("academicUnitCode", "분반과 연결된 정규 학과·전공 코드 다중 선택 조건입니다."),
-                Map.entry("preferredAcademicUnitCode", "이수구분 필터 결과에서 우선 정렬할 학과 코드입니다. 로그인 프로필이 있으면 생략할 수 있습니다."),
+                Map.entry("preferredAcademicUnitCode", "선택한 과목 정렬은 유지하면서 같은 과목의 분반 중 비고에 해당 학과명이 있는 분반을 먼저 배치합니다. 로그인 프로필이 있으면 생략할 수 있습니다."),
                 Map.entry("completionCategory", "분반의 학과별 이수구분 다중 선택 조건입니다. 전공필수/전필 등 긴 이름과 축약형을 모두 허용합니다."),
                 Map.entry("targetGrade", "분반 수강 대상 학년 다중 선택 조건입니다. 1~4 또는 1학년~4학년 형식입니다."),
                 Map.entry("credits", "강의 학점 정확히 일치 조건입니다."),

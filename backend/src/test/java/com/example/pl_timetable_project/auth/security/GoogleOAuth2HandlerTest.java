@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
@@ -78,6 +79,25 @@ class GoogleOAuth2HandlerTest {
                 .isEqualTo(new AuthenticatedUser(userId, "20201234"));
         verify(authorizedClientRepository).removeAuthorizedClient(
                 "google", oauthAuthentication, request, response);
+    }
+
+    @Test
+    void usesStableUuidAsSpringSessionPrincipalName() {
+        UUID userId = UUID.randomUUID();
+
+        AuthenticatedUser principal = new AuthenticatedUser(
+                userId,
+                "20261234",
+                true);
+        Authentication sessionAuthentication =
+                UsernamePasswordAuthenticationToken.authenticated(
+                        principal,
+                        null,
+                        java.util.List.of());
+
+        assertThat(principal.getName()).isEqualTo(userId.toString());
+        assertThat(principal.getName()).hasSize(36);
+        assertThat(sessionAuthentication.getName()).isEqualTo(userId.toString());
     }
 
     @Test

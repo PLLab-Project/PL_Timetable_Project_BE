@@ -45,9 +45,35 @@ P/N 과목은 학점을 0으로 보내지 않는다. `credits`에는 실제 인�
 `POST /api/v1/completed-courses/ocr`
 
 `multipart/form-data`의 `file`에 7MB 이하 JPEG·PNG·WebP·HEIC·HEIF 이미지를 보낸다.
-서버가 원본을 저장하지 않고 Gemini 3.5 Flash-Lite 비전에 직접 전달한 뒤,
-`extractedText`, 빈 줄을 제거한 `lines`, `requiresConfirmation=true`를 반환한다.
-인식 결과를 사용자가 확인·보정한 뒤 직접 등록 API로 저장한다.
+서버가 원본을 저장하지 않고 Gemini 3.5 Flash-Lite 비전에 직접 전달한다. 첫 번째 호출로
+원문을 전사하고, 두 번째 호출로 이수과목 등록 필드에 맞춘 `recognizedCourses`를 만든다.
+`extractedText`, 빈 줄을 제거한 `lines`도 그대로 유지하므로 사용자가 구조화 결과와
+원문을 대조할 수 있다.
+
+```json
+{
+  "extractedText": "2026-1 전공선택 자료구조 3 A+",
+  "lines": ["2026-1 전공선택 자료구조 3 A+"],
+  "recognizedCourses": [
+    {
+      "courseName": "자료구조",
+      "credits": 3.0,
+      "gradingBasis": "LETTER",
+      "category": "전공선택",
+      "area": null,
+      "semester": "2026-1",
+      "confidence": 0.94
+    }
+  ],
+  "requiresConfirmation": true
+}
+```
+
+`recognizedCourses`의 필드명은 직접 등록 API와 같으므로 프론트 입력값을 자동으로
+채울 수 있다. 이미지에서 안정적으로 얻기 어려운 `courseCode`, `status`는 포함하지
+않는다. 구조화 JSON 생성 또는 파싱만 실패하면 OCR 요청 전체를 실패시키지 않고
+`recognizedCourses=[]`로 반환하여 기존 수동 입력 흐름을 유지한다. 인식 결과를 사용자가
+확인·보정한 뒤 직접 등록 API로 저장한다.
 
 ## 조회·수정·삭제
 

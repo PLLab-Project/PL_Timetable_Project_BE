@@ -104,9 +104,16 @@ class PlTimetableProjectApplicationTests {
         String springSessions = jdbcTemplate.queryForObject(
                 "SELECT to_regclass('public.spring_session')::text",
                 String.class);
+        Integer principalNameLength = jdbcTemplate.queryForObject("""
+                SELECT character_maximum_length
+                  FROM information_schema.columns
+                 WHERE table_schema = 'public'
+                   AND table_name = 'spring_session'
+                   AND column_name = 'principal_name'
+                """, Integer.class);
 
         assertThat(version).startsWith("18.4");
-        assertThat(successfulMigrations).isEqualTo(13);
+        assertThat(successfulMigrations).isEqualTo(14);
         assertThat(graduationProfiles).isEqualTo("graduation_credit_profiles");
         assertThat(socialIdentities).isEqualTo("social_identities");
         assertThat(academicUnits).isEqualTo("academic_units");
@@ -120,6 +127,7 @@ class PlTimetableProjectApplicationTests {
         assertThat(programCourseListings)
                 .isEqualTo("catalog_program_course_listings");
         assertThat(springSessions).isEqualTo("spring_session");
+        assertThat(principalNameLength).isEqualTo(255);
     }
 
     @Test

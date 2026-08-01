@@ -14,6 +14,9 @@ public record CompletedCourseOcrResponse(
         @Schema(description = "빈 줄을 제거한 인식 행 목록")
         List<String> lines,
 
+        @Schema(description = "이수과목 등록 API 필드에 맞춰 구조화한 과목 후보 목록")
+        List<RecognizedCourseResponse> recognizedCourses,
+
         @Schema(description = "항상 true. OCR 결과는 자동 저장하지 않고 사용자 확인이 필요합니다.")
         boolean requiresConfirmation) {
 }
