@@ -25,6 +25,12 @@ public record OcrSectionMatchCandidateResponse(
         @Schema(description = "DB 이수구분", example = "전공(AI융합대학/컴퓨터공학전공)")
         String category,
 
+        @Schema(
+                description = "사용자 학과 문맥을 우선한 이수구분",
+                example = "전선",
+                nullable = true)
+        String completionCategory,
+
         @Schema(description = "DB 학점", example = "3.0")
         BigDecimal credits,
 

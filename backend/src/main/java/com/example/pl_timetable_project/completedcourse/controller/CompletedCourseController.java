@@ -81,7 +81,8 @@ public class CompletedCourseController {
     public ApiResponse<CompletedCourseOcrResponse> recognizeTranscript(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @RequestParam("file") MultipartFile file) {
-        return ApiResponse.success(completedCourseOcrService.recognize(file));
+        return ApiResponse.success(
+                completedCourseOcrService.recognize(principal.userId(), file));
     }
 
     @Operation(summary = "이수과목 단건 조회")

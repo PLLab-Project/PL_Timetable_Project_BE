@@ -215,10 +215,13 @@ class CompletedCourseOcrServiceTest {
     private static CompletedCourseSectionMatcher passthroughMatcher() {
         CompletedCourseSectionMatcher matcher = mock(CompletedCourseSectionMatcher.class);
         when(matcher.match(
-                nullable(OcrDocumentType.class), nullable(String.class), anyList()))
+                nullable(java.util.UUID.class),
+                nullable(OcrDocumentType.class),
+                nullable(String.class),
+                anyList()))
                 .thenAnswer(invocation ->
                 new CompletedCourseSectionMatcher.MatchingResult(
-                        invocation.getArgument(1), invocation.getArgument(2)));
+                        invocation.getArgument(2), invocation.getArgument(3)));
         return matcher;
     }
 

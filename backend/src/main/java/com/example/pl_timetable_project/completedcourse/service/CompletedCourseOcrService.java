@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -161,7 +162,7 @@ public class CompletedCourseOcrService {
         this.objectMapper = objectMapper;
     }
 
-    public CompletedCourseOcrResponse recognize(MultipartFile file) {
+    public CompletedCourseOcrResponse recognize(UUID userId, MultipartFile file) {
         validate(file);
 
         try {
@@ -180,6 +181,7 @@ public class CompletedCourseOcrService {
             StructuredRecognition recognition = recognizeCourses(
                     image, file.getContentType(), extractedText);
             CompletedCourseSectionMatcher.MatchingResult matching = sectionMatcher.match(
+                    userId,
                     recognition.documentType(),
                     recognition.recognizedSemester(),
                     recognition.courses());
@@ -197,6 +199,10 @@ public class CompletedCourseOcrService {
         } catch (Exception exception) {
             throw recognitionFailure(exception);
         }
+    }
+
+    CompletedCourseOcrResponse recognize(MultipartFile file) {
+        return recognize(null, file);
     }
 
     private void validate(MultipartFile file) {

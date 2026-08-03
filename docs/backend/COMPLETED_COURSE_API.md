@@ -52,6 +52,12 @@ P/N 과목은 학점을 0으로 보내지 않는다. `credits`에는 실제 인�
 `extractedText`, 빈 줄을 제거한 `lines`도 그대로 유지하므로 사용자가 구조화 결과와
 원문을 대조할 수 있다.
 
+현재 프론트 입력 폼과의 호환을 위해 과목이 한 개의 DB 과목 코드로 확인되면 분반이
+미확정이어도 `recognizedCourses[].courseName`, `credits`, `category`, `semester`를 DB
+정규값으로 채운다. `credits`는 카탈로그 학점이며 `category`는 로그인 사용자의 학과
+문맥에 해당하는 전필·전선 등을 우선한다. 정확한 분반은 `matchedSection`, 후보는
+`matchCandidates`에 그대로 유지하므로 프론트가 추후 분반 확인 UI를 추가할 수 있다.
+
 ```json
 {
   "extractedText": "2026-1 전공선택 자료구조 3 A+",
@@ -84,6 +90,9 @@ P/N 과목은 학점을 0으로 보내지 않는다. `credits`에는 실제 인�
         "sectionCode": "01",
         "courseName": "자료구조",
         "professor": "박정규",
+        "category": "전공(AI융합대학/컴퓨터공학전공)",
+        "completionCategory": "전선",
+        "credits": 3.0,
         "matchScore": 0.80,
         "matchedEvidence": ["COURSE_NAME", "SEMESTER", "MEETINGS_2_OF_2"]
       },

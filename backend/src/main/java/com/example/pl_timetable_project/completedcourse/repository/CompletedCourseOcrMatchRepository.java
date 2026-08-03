@@ -25,18 +25,44 @@ public class CompletedCourseOcrMatchRepository {
 
     public List<SectionCandidate> findCandidates(
             Set<String> semesterIds, Set<String> normalizedCourseNames) {
+        return findCandidates(semesterIds, normalizedCourseNames, null);
+    }
+
+    public List<SectionCandidate> findCandidates(
+            Set<String> semesterIds,
+            Set<String> normalizedCourseNames,
+            String preferredAcademicUnitCode) {
         if (semesterIds.isEmpty() || normalizedCourseNames.isEmpty()) {
             return List.of();
         }
 
-        Map<String, Object> parameters = Map.of(
-                "semesterIds", semesterIds,
-                "normalizedCourseNames", normalizedCourseNames);
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        parameters.put("semesterIds", semesterIds);
+        parameters.put("normalizedCourseNames", normalizedCourseNames);
+        parameters.put(
+                "hasPreferredAcademicUnitCode",
+                preferredAcademicUnitCode != null);
+        parameters.put("preferredAcademicUnitCode", preferredAcademicUnitCode);
         List<SectionRow> rows = jdbcTemplate.query("""
                 SELECT section.semester_id, section.course_code,
                        course.name AS course_name, section.section_code,
                        section.professor, course.category, course.credits,
-                       section.raw_lecture_time, section.raw_location
+                       section.raw_lecture_time, section.raw_location,
+                       (
+                           SELECT classification.completion_category
+                             FROM section_classification_contexts classification
+                            WHERE classification.semester_id = section.semester_id
+                              AND classification.course_code = section.course_code
+                              AND classification.section_code = section.section_code
+                              AND classification.completion_category IS NOT NULL
+                              AND :hasPreferredAcademicUnitCode
+                              AND classification.academic_unit_code =
+                                  :preferredAcademicUnitCode
+                            ORDER BY classification.is_primary DESC,
+                                     classification.source_page,
+                                     classification.source_row
+                            LIMIT 1
+                       ) AS completion_category
                   FROM sections section
                   JOIN courses course
                     ON course.semester_id = section.semester_id
@@ -56,6 +82,7 @@ public class CompletedCourseOcrMatchRepository {
                 result.getString("section_code"),
                 result.getString("professor"),
                 result.getString("category"),
+                result.getString("completion_category"),
                 result.getBigDecimal("credits"),
                 result.getString("raw_lecture_time"),
                 result.getString("raw_location")));
@@ -178,6 +205,7 @@ public class CompletedCourseOcrMatchRepository {
             String sectionCode,
             String professor,
             String category,
+            String completionCategory,
             BigDecimal credits,
             String rawLectureTime,
             String rawLocation,
@@ -195,6 +223,7 @@ public class CompletedCourseOcrMatchRepository {
             String sectionCode,
             String professor,
             String category,
+            String completionCategory,
             BigDecimal credits,
             String rawLectureTime,
             String rawLocation) {
@@ -211,6 +240,7 @@ public class CompletedCourseOcrMatchRepository {
                     sectionCode,
                     professor,
                     category,
+                    completionCategory,
                     credits,
                     rawLectureTime,
                     rawLocation,

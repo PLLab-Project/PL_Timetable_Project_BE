@@ -10,6 +10,7 @@ import com.example.pl_timetable_project.completedcourse.dto.RecognizedCourseMeet
 import com.example.pl_timetable_project.completedcourse.dto.RecognizedCourseResponse;
 import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOcrMatchRepository;
 import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOcrMatchRepository.SectionCandidate;
+import com.example.pl_timetable_project.user.repository.StudentProfileRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.Normalizer;
@@ -23,8 +24,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,15 +43,33 @@ public class CompletedCourseSectionMatcher {
 
     private final CompletedCourseOcrMatchRepository matchRepository;
     private final SemesterQueryRepository semesterRepository;
+    private final StudentProfileRepository studentProfileRepository;
 
+    @Autowired
     public CompletedCourseSectionMatcher(
             CompletedCourseOcrMatchRepository matchRepository,
-            SemesterQueryRepository semesterRepository) {
+            SemesterQueryRepository semesterRepository,
+            StudentProfileRepository studentProfileRepository) {
         this.matchRepository = matchRepository;
         this.semesterRepository = semesterRepository;
+        this.studentProfileRepository = studentProfileRepository;
+    }
+
+    CompletedCourseSectionMatcher(
+            CompletedCourseOcrMatchRepository matchRepository,
+            SemesterQueryRepository semesterRepository) {
+        this(matchRepository, semesterRepository, null);
     }
 
     public MatchingResult match(
+            OcrDocumentType documentType,
+            String recognizedSemester,
+            List<RecognizedCourseResponse> courses) {
+        return match(null, documentType, recognizedSemester, courses);
+    }
+
+    public MatchingResult match(
+            UUID userId,
             OcrDocumentType documentType,
             String recognizedSemester,
             List<RecognizedCourseResponse> courses) {
@@ -64,8 +85,15 @@ public class CompletedCourseSectionMatcher {
                 .map(CompletedCourseSectionMatcher::normalizeKey)
                 .filter(name -> !name.isEmpty())
                 .forEach(normalizedNames::add);
-        List<SectionCandidate> catalogCandidates =
-                matchRepository.findCandidates(semesterIds, normalizedNames);
+        String preferredAcademicUnitCode = userId == null || studentProfileRepository == null
+                ? null
+                : studentProfileRepository.findById(userId)
+                        .map(profile -> profile.academicUnitCode())
+                        .orElse(null);
+        List<SectionCandidate> catalogCandidates = userId == null
+                ? matchRepository.findCandidates(semesterIds, normalizedNames)
+                : matchRepository.findCandidates(
+                        semesterIds, normalizedNames, preferredAcademicUnitCode);
         String matchingSemester = normalizedDocumentSemester != null
                 ? normalizedDocumentSemester
                 : inferTimetableSemester(
@@ -477,6 +505,7 @@ public class CompletedCourseSectionMatcher {
                     candidate.courseName(),
                     candidate.professor(),
                     candidate.category(),
+                    candidate.completionCategory(),
                     candidate.credits(),
                     candidate.rawLectureTime(),
                     candidate.rawLocation(),

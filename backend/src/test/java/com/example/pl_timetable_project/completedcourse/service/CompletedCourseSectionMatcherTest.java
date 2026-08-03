@@ -2,6 +2,7 @@ package com.example.pl_timetable_project.completedcourse.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -15,12 +16,16 @@ import com.example.pl_timetable_project.completedcourse.dto.RecognizedCourseMeet
 import com.example.pl_timetable_project.completedcourse.dto.RecognizedCourseResponse;
 import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOcrMatchRepository;
 import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOcrMatchRepository.SectionCandidate;
+import com.example.pl_timetable_project.user.entity.StudentProfile;
+import com.example.pl_timetable_project.user.repository.StudentProfileRepository;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class CompletedCourseSectionMatcherTest {
@@ -61,6 +66,10 @@ class CompletedCourseSectionMatcherTest {
         assertThat(result.resolvedSemester()).isEqualTo("2026-1");
         assertThat(result.courses()).singleElement().satisfies(course -> {
             assertThat(course.matchStatus()).isEqualTo(OcrCourseMatchStatus.MATCHED);
+            assertThat(course.courseName()).isEqualTo("자료구조");
+            assertThat(course.credits()).isEqualByComparingTo("3.0");
+            assertThat(course.category()).isEqualTo("전공선택");
+            assertThat(course.semester()).isEqualTo("2026-1");
             assertThat(course.matchedSection().courseCode()).isEqualTo("561103");
             assertThat(course.matchedSection().sectionCode()).isEqualTo("01");
             assertThat(course.matchedSection().matchScore())
@@ -97,7 +106,7 @@ class CompletedCourseSectionMatcherTest {
 
         assertThat(result.resolvedSemester()).isEqualTo("2026-2");
         assertThat(result.courses()).singleElement().satisfies(course -> {
-            assertThat(course.semester()).isNull();
+            assertThat(course.semester()).isEqualTo("2026-2");
             assertThat(course.matchStatus()).isEqualTo(OcrCourseMatchStatus.MATCHED);
             assertThat(course.matchedSection().semesterId()).isEqualTo("2026-2");
             assertThat(course.matchedSection().sectionCode()).isEqualTo("08");
@@ -117,8 +126,39 @@ class CompletedCourseSectionMatcherTest {
 
         assertThat(result.courses()).singleElement().satisfies(course -> {
             assertThat(course.matchStatus()).isEqualTo(OcrCourseMatchStatus.COURSE_MATCHED);
+            assertThat(course.credits()).isEqualByComparingTo("3.0");
+            assertThat(course.category()).isEqualTo("전공선택");
+            assertThat(course.semester()).isEqualTo("2026-1");
             assertThat(course.matchedSection()).isNull();
             assertThat(course.matchCandidates()).hasSize(2);
+        });
+    }
+
+    @Test
+    void usesAuthenticatedUsersAcademicUnitForCanonicalPrefill() {
+        UUID userId = UUID.randomUUID();
+        StudentProfile profile = new StudentProfile(userId, "20260001");
+        profile.update(null, "D1", null, null, null, null);
+        StudentProfileRepository profileRepository = mock(StudentProfileRepository.class);
+        when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
+        when(matchRepository.findCandidates(anySet(), anySet(), eq("D1")))
+                .thenReturn(List.of(
+                        candidate("2026-1", "565011", "01", "자바프로그래밍", "김정민"),
+                        candidate("2026-1", "565011", "02", "자바프로그래밍", "김정민")));
+        CompletedCourseSectionMatcher userAwareMatcher =
+                new CompletedCourseSectionMatcher(
+                        matchRepository, semesterRepository, profileRepository);
+
+        var result = userAwareMatcher.match(
+                userId,
+                OcrDocumentType.TRANSCRIPT,
+                "2026-1",
+                List.of(course("자바프로그래밍", null)));
+
+        assertThat(result.courses()).singleElement().satisfies(course -> {
+            assertThat(course.matchStatus()).isEqualTo(OcrCourseMatchStatus.COURSE_MATCHED);
+            assertThat(course.credits()).isEqualByComparingTo("3.0");
+            assertThat(course.category()).isEqualTo("전공선택");
         });
     }
 
@@ -350,6 +390,7 @@ class CompletedCourseSectionMatcherTest {
                 sectionCode,
                 professor,
                 "전공",
+                "전선",
                 BigDecimal.valueOf(3),
                 null,
                 null,

@@ -54,18 +54,53 @@ public record RecognizedCourseResponse(
             OcrCourseMatchStatus status,
             OcrSectionMatchCandidateResponse matched,
             List<OcrSectionMatchCandidateResponse> candidates) {
+        OcrSectionMatchCandidateResponse canonical = matched;
+        if (canonical == null
+                && status == OcrCourseMatchStatus.COURSE_MATCHED
+                && candidates != null
+                && !candidates.isEmpty()) {
+            canonical = candidates.get(0);
+        }
+        String canonicalCategory = canonical == null
+                ? category
+                : canonicalCategory(canonical, category);
         return new RecognizedCourseResponse(
-                courseName,
-                credits,
+                canonical != null && canonical.courseName() != null
+                        ? canonical.courseName() : courseName,
+                canonical != null && canonical.credits() != null
+                        ? canonical.credits() : credits,
                 gradingBasis,
-                category,
-                area,
-                semester,
+                canonicalCategory,
+                canonical != null && area == null ? canonical.category() : area,
+                canonical != null && canonical.semesterId() != null
+                        ? canonical.semesterId() : semester,
                 confidence,
                 professor,
                 meetings,
                 status,
                 matched,
                 candidates);
+    }
+
+    private static String canonicalCategory(
+            OcrSectionMatchCandidateResponse canonical,
+            String recognizedCategory) {
+        String completionCategory = canonical.completionCategory();
+        String catalogCategory = canonical.category();
+        if (catalogCategory != null && catalogCategory.contains("제")
+                && catalogCategory.contains("영역")) {
+            return catalogCategory;
+        }
+        if (completionCategory == null || completionCategory.isBlank()) {
+            return catalogCategory != null ? catalogCategory : recognizedCategory;
+        }
+        return switch (completionCategory.replaceAll("\\s", "")) {
+            case "전필", "전공필수" -> "전공필수";
+            case "전선", "전공선택" -> "전공선택";
+            case "교필", "교양필수" -> "교양필수";
+            case "교선", "교양선택" -> "교양선택";
+            case "일선", "일반선택" -> "일반선택";
+            default -> completionCategory;
+        };
     }
 }
