@@ -14,8 +14,8 @@ import com.example.pl_timetable_project.completedcourse.dto.OcrCourseMatchStatus
 import com.example.pl_timetable_project.completedcourse.dto.OcrDocumentType;
 import com.example.pl_timetable_project.completedcourse.dto.RecognizedCourseMeetingResponse;
 import com.example.pl_timetable_project.completedcourse.dto.RecognizedCourseResponse;
-import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOcrMatchRepository;
-import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOcrMatchRepository.SectionCandidate;
+import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOfferingQueryRepository;
+import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOfferingQueryRepository.SectionCandidate;
 import com.example.pl_timetable_project.user.entity.StudentProfile;
 import com.example.pl_timetable_project.user.repository.StudentProfileRepository;
 import java.math.BigDecimal;
@@ -30,8 +30,8 @@ import org.junit.jupiter.api.Test;
 
 class CompletedCourseSectionMatcherTest {
 
-    private final CompletedCourseOcrMatchRepository matchRepository =
-            mock(CompletedCourseOcrMatchRepository.class);
+    private final CompletedCourseOfferingQueryRepository matchRepository =
+            mock(CompletedCourseOfferingQueryRepository.class);
     private final SemesterQueryRepository semesterRepository =
             mock(SemesterQueryRepository.class);
     private final CompletedCourseSectionMatcher matcher =

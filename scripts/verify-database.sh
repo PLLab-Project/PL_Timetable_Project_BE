@@ -141,6 +141,7 @@ official_catalog_issue_count=$(psql -X -q -v ON_ERROR_STOP=1 -Atc "
                     SELECT count(*)
                       FROM sections section
                      WHERE section.semester_id = source.semester_id
+                       AND section.source_type = 'OFFICIAL_CATALOG'
                 ))
       + (SELECT count(*)
            FROM catalog_sources source
@@ -152,7 +153,8 @@ official_catalog_issue_count=$(psql -X -q -v ON_ERROR_STOP=1 -Atc "
            FROM sections section
            JOIN catalog_sources source
              ON source.semester_id = section.semester_id
-          WHERE NOT EXISTS (
+          WHERE section.source_type = 'OFFICIAL_CATALOG'
+            AND NOT EXISTS (
                     SELECT 1
                       FROM catalog_source_rows row
                      WHERE row.source_checksum = source.checksum
@@ -213,7 +215,12 @@ official_catalog_issue_count=$(psql -X -q -v ON_ERROR_STOP=1 -Atc "
           WHERE session.sequence_no IS NULL)
       + (SELECT count(*)
            FROM sessions session
-          WHERE session.room_code IS NOT NULL
+           JOIN sections section
+             ON section.semester_id = session.semester_id
+            AND section.course_code = session.course_code
+            AND section.section_code = session.section_code
+          WHERE section.source_type = 'OFFICIAL_CATALOG'
+            AND session.room_code IS NOT NULL
             AND NOT EXISTS (
                     SELECT 1
                       FROM session_rooms room
@@ -225,6 +232,36 @@ official_catalog_issue_count=$(psql -X -q -v ON_ERROR_STOP=1 -Atc "
 
 if [ "$official_catalog_issue_count" != "0" ]; then
     echo "official catalog preservation check failed: $official_catalog_issue_count issues" >&2
+    failure=1
+fi
+
+canonical_offering_issue_count=$(psql -X -q -v ON_ERROR_STOP=1 -Atc "
+    SELECT
+        (SELECT count(*)
+           FROM historical_course_offerings historical
+           LEFT JOIN sections section
+             ON section.historical_offering_id = historical.id
+          WHERE section.offering_id IS NULL)
+      + (SELECT count(*)
+           FROM sections section
+          WHERE section.source_type = 'HISTORICAL_ARCHIVE'
+            AND section.historical_offering_id IS NULL)
+      + (SELECT count(*)
+           FROM sections section
+          WHERE section.offering_id <>
+                section.semester_id || ':' || section.course_code || ':' ||
+                section.section_code)
+      + (SELECT count(*)
+           FROM sessions session
+           LEFT JOIN sections section
+             ON section.semester_id = session.semester_id
+            AND section.course_code = session.course_code
+            AND section.section_code = session.section_code
+          WHERE section.offering_id IS NULL);
+")
+
+if [ "$canonical_offering_issue_count" != "0" ]; then
+    echo "canonical course-offering check failed: $canonical_offering_issue_count issues" >&2
     failure=1
 fi
 

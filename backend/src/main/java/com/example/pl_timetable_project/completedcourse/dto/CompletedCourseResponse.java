@@ -22,6 +22,7 @@ public record CompletedCourseResponse(
         String semester,
         CompletedCourseStatus status,
         String historicalOfferingId,
+        String offeringId,
         String sectionCode,
         CompletedCourseInputSource inputSource,
         @Schema(
@@ -45,6 +46,7 @@ public record CompletedCourseResponse(
                 course.getSemester(),
                 course.getStatus(),
                 course.getHistoricalOfferingId(),
+                course.getOfferingId(),
                 course.getSectionCode(),
                 course.getInputSource(),
                 course.getSourceSnapshot(),

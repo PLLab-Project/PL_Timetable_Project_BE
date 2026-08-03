@@ -30,7 +30,7 @@ public class SectionSearchController {
     @GetMapping
     public ApiResponse<AcademicPageResponse<SectionSearchResponse>> searchSections(
             @AuthenticationPrincipal AuthenticatedUser principal,
-            @RequestParam String semesterId,
+            @RequestParam(required = false) String semesterId,
             @RequestParam(required = false) String query,
             @RequestParam(required = false) List<String> category,
             @RequestParam(required = false) List<String> academicUnitCode,

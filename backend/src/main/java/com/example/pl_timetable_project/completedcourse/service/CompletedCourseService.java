@@ -12,8 +12,8 @@ import com.example.pl_timetable_project.completedcourse.dto.CompletedCourseUpdat
 import com.example.pl_timetable_project.completedcourse.dto.TimetableImportResponse;
 import com.example.pl_timetable_project.completedcourse.entity.CompletedCourse;
 import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseRepository;
-import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOcrMatchRepository;
-import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOcrMatchRepository.HistoricalOfferingReference;
+import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOfferingQueryRepository;
+import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOfferingQueryRepository.CatalogOfferingReference;
 import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseTimetableQueryRepository;
 import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseTimetableQueryRepository.TimetableSectionSnapshot;
 import java.math.BigDecimal;
@@ -31,59 +31,63 @@ public class CompletedCourseService {
 
     private final CompletedCourseRepository completedCourseRepository;
     private final CompletedCourseTimetableQueryRepository timetableQueryRepository;
-    private final CompletedCourseOcrMatchRepository ocrMatchRepository;
+    private final CompletedCourseOfferingQueryRepository offeringRepository;
 
     public CompletedCourseService(
             CompletedCourseRepository completedCourseRepository,
             CompletedCourseTimetableQueryRepository timetableQueryRepository,
-            CompletedCourseOcrMatchRepository ocrMatchRepository) {
+            CompletedCourseOfferingQueryRepository offeringRepository) {
         this.completedCourseRepository = completedCourseRepository;
         this.timetableQueryRepository = timetableQueryRepository;
-        this.ocrMatchRepository = ocrMatchRepository;
+        this.offeringRepository = offeringRepository;
     }
 
     @Transactional
     public CompletedCourseResponse create(UUID userId, CompletedCourseCreateRequest request) {
-        String historicalOfferingId = normalizeOptional(request.historicalOfferingId());
-        HistoricalOfferingReference historicalOffering = historicalOfferingId == null
-                ? null
-                : ocrMatchRepository.findHistoricalOffering(historicalOfferingId)
-                        .orElseThrow(() -> new BusinessException(
-                                CompletedCourseErrorCode.INVALID_REQUEST));
+        String requestedHistoricalOfferingId =
+                normalizeOptional(request.historicalOfferingId());
+        String requestedOfferingId = normalizeOptional(request.offeringId());
+        CatalogOfferingReference catalogOffering = resolveCatalogOffering(
+                requestedOfferingId, requestedHistoricalOfferingId);
         CompletedCourse course = new CompletedCourse(
                 requireUserId(userId),
-                historicalOffering == null
+                catalogOffering == null
                         ? normalizeOptional(request.courseCode())
-                        : historicalOffering.courseCode(),
-                historicalOffering == null
+                        : catalogOffering.courseCode(),
+                catalogOffering == null
                         ? normalizeRequired(request.courseName())
-                        : historicalOffering.courseName(),
-                historicalOffering == null || historicalOffering.credits() == null
+                        : catalogOffering.courseName(),
+                catalogOffering == null || catalogOffering.credits() == null
                         ? request.credits()
-                        : historicalOffering.credits(),
+                        : catalogOffering.credits(),
                 request.gradingBasis() == null
                         ? CompletedCourseGradingBasis.LETTER : request.gradingBasis(),
                 normalizeGradeValue(request.gradeValue(), request.gradingBasis()),
-                historicalOffering == null
+                catalogOffering == null
                         ? normalizeRequired(request.category())
                         : canonicalCategory(
-                                historicalOffering.completionCategory(),
+                                catalogOffering.completionCategory(),
                                 request.category()),
                 normalizeOptional(request.area()),
-                historicalOffering == null
+                catalogOffering == null
                         ? normalizeOptional(request.semester())
-                        : historicalOffering.semesterId(),
+                        : catalogOffering.semesterId(),
                 request.status(),
-                historicalOfferingId,
-                historicalOffering == null
+                catalogOffering == null
                         ? null
-                        : historicalOffering.sectionCode(),
-                historicalOffering == null
+                        : catalogOffering.historicalOfferingId(),
+                catalogOffering == null ? null : catalogOffering.offeringId(),
+                catalogOffering == null
+                        ? null
+                        : catalogOffering.sectionCode(),
+                catalogOffering == null
                         ? CompletedCourseInputSource.MANUAL
-                        : CompletedCourseInputSource.OCR,
-                historicalOffering == null
+                        : requestedOfferingId == null
+                                ? CompletedCourseInputSource.OCR
+                                : CompletedCourseInputSource.CATALOG,
+                catalogOffering == null
                         ? null
-                        : historicalSnapshot(historicalOffering));
+                        : catalogSnapshot(catalogOffering));
         return CompletedCourseResponse.from(completedCourseRepository.save(course));
     }
 
@@ -192,6 +196,8 @@ public class CompletedCourseService {
                     snapshot.semesterId(),
                     CompletedCourseStatus.IN_PROGRESS,
                     null,
+                    snapshot.semesterId() + ":"
+                            + snapshot.courseCode() + ":" + snapshot.sectionCode(),
                     snapshot.sectionCode(),
                     CompletedCourseInputSource.TIMETABLE,
                     snapshotMap(snapshot)));
@@ -239,8 +245,8 @@ public class CompletedCourseService {
         return values;
     }
 
-    private Map<String, Object> historicalSnapshot(
-            HistoricalOfferingReference offering) {
+    private Map<String, Object> catalogSnapshot(
+            CatalogOfferingReference offering) {
         Map<String, Object> values = new LinkedHashMap<>();
         if (offering.professor() != null) {
             values.put("professorName", offering.professor());
@@ -252,6 +258,26 @@ public class CompletedCourseService {
             values.put("rawLocation", offering.rawLocation());
         }
         return values;
+    }
+
+    private CatalogOfferingReference resolveCatalogOffering(
+            String offeringId, String historicalOfferingId) {
+        if (offeringId == null && historicalOfferingId == null) {
+            return null;
+        }
+        CatalogOfferingReference offering = offeringId == null
+                ? offeringRepository
+                        .findCatalogOfferingByHistoricalId(historicalOfferingId)
+                        .orElseThrow(() -> new BusinessException(
+                                CompletedCourseErrorCode.INVALID_REQUEST))
+                : offeringRepository.findCatalogOffering(offeringId)
+                        .orElseThrow(() -> new BusinessException(
+                                CompletedCourseErrorCode.INVALID_REQUEST));
+        if (historicalOfferingId != null
+                && !historicalOfferingId.equals(offering.historicalOfferingId())) {
+            throw new BusinessException(CompletedCourseErrorCode.INVALID_REQUEST);
+        }
+        return offering;
     }
 
     private String canonicalCategory(

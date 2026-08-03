@@ -13,21 +13,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class CompletedCourseOcrMatchRepository {
-
-    private static final Pattern HISTORICAL_TIME_PATTERN = Pattern.compile(
-            "([월화수목금토일])\\s*(\\d{1,2}):(\\d{2})\\s*[-~]\\s*"
-                    + "(\\d{1,2}):(\\d{2})");
+public class CompletedCourseOfferingQueryRepository {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public CompletedCourseOcrMatchRepository(NamedParameterJdbcTemplate jdbcTemplate) {
+    public CompletedCourseOfferingQueryRepository(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -54,11 +48,14 @@ public class CompletedCourseOcrMatchRepository {
         List<SectionRow> rows = jdbcTemplate.query("""
                 SELECT section.semester_id, section.course_code,
                        course.name AS course_name, section.section_code,
-                       historical.id AS historical_offering_id,
-                       section.professor, course.category, course.credits,
+                       section.historical_offering_id,
+                       section.professor,
+                       coalesce(section.offering_category, course.category)
+                           AS category,
+                       coalesce(section.offering_credits, course.credits)
+                           AS credits,
                        section.raw_lecture_time, section.raw_location,
-                       false AS historical_only,
-                       (
+                       coalesce((
                            SELECT classification.completion_category
                              FROM section_classification_contexts classification
                             WHERE classification.semester_id = section.semester_id
@@ -72,55 +69,17 @@ public class CompletedCourseOcrMatchRepository {
                                      classification.source_page,
                                      classification.source_row
                             LIMIT 1
-                       ) AS completion_category
+                       ), section.offering_category) AS completion_category
                   FROM sections section
                   JOIN courses course
                     ON course.semester_id = section.semester_id
                    AND course.course_code = section.course_code
-                  LEFT JOIN historical_course_offerings historical
-                    ON historical.academic_year::text =
-                           split_part(section.semester_id, '-', 1)
-                   AND historical.term_code =
-                           split_part(section.semester_id, '-', 2)
-                   AND historical.course_code = section.course_code
-                   AND historical.section_code = section.section_code
                  WHERE section.semester_id IN (:semesterIds)
                    AND regexp_replace(
                            lower(course.name),
                            '[^0-9a-z가-힣]',
                            '',
                            'g') IN (:normalizedCourseNames)
-                UNION ALL
-                SELECT historical.academic_year::text || '-' ||
-                           historical.term_code AS semester_id,
-                       historical.course_code,
-                       historical.korean_name AS course_name,
-                       historical.section_code,
-                       historical.id AS historical_offering_id,
-                       historical.professor_name AS professor,
-                       historical.completion_category AS category,
-                       historical.credits,
-                       historical.raw_lecture_time,
-                       historical.raw_location,
-                       true AS historical_only,
-                       historical.completion_category
-                  FROM historical_course_offerings historical
-                 WHERE historical.academic_year::text || '-' ||
-                           historical.term_code IN (:semesterIds)
-                   AND regexp_replace(
-                           lower(historical.korean_name),
-                           '[^0-9a-z가-힣]',
-                           '',
-                           'g') IN (:normalizedCourseNames)
-                   AND NOT EXISTS (
-                       SELECT 1
-                         FROM sections section
-                        WHERE section.semester_id =
-                                  historical.academic_year::text || '-' ||
-                                  historical.term_code
-                          AND section.course_code = historical.course_code
-                          AND section.section_code = historical.section_code
-                   )
                 """, parameters, (result, rowNumber) -> new SectionRow(
                 result.getString("semester_id"),
                 result.getString("course_code"),
@@ -132,23 +91,17 @@ public class CompletedCourseOcrMatchRepository {
                 result.getString("completion_category"),
                 result.getBigDecimal("credits"),
                 result.getString("raw_lecture_time"),
-                result.getString("raw_location"),
-                result.getBoolean("historical_only")));
+                result.getString("raw_location")));
         if (rows.isEmpty()) {
             return List.of();
         }
 
         Set<SectionKey> keys = new LinkedHashSet<>();
-        rows.stream()
-                .filter(row -> !row.historicalOnly())
-                .forEach(row -> keys.add(row.key()));
+        rows.forEach(row -> keys.add(row.key()));
         Map<SectionKey, List<CourseSessionResponse>> sessions = findSessions(keys);
         return rows.stream()
                 .map(row -> row.toCandidate(
-                        row.historicalOnly()
-                                ? historicalSessions(
-                                        row.rawLectureTime(), row.rawLocation())
-                                : sessions.getOrDefault(row.key(), List.of())))
+                        sessions.getOrDefault(row.key(), List.of())))
                 .sorted(Comparator.comparing(SectionCandidate::semesterId)
                         .reversed()
                         .thenComparing(SectionCandidate::courseName)
@@ -159,28 +112,49 @@ public class CompletedCourseOcrMatchRepository {
 
     public List<String> findHistoricalSemesterIds() {
         return jdbcTemplate.getJdbcTemplate().queryForList("""
-                SELECT DISTINCT academic_year::text || '-' || term_code
-                  FROM historical_term_datasets
-                 ORDER BY academic_year::text || '-' || term_code DESC
+                SELECT DISTINCT semester_id
+                  FROM sections
+                 WHERE historical_offering_id IS NOT NULL
+                 ORDER BY semester_id DESC
                 """, String.class);
     }
 
-    public Optional<HistoricalOfferingReference> findHistoricalOffering(String offeringId) {
-        List<HistoricalOfferingReference> offerings = jdbcTemplate.query("""
-                SELECT id,
-                       academic_year::text || '-' || term_code AS semester_id,
-                       course_code, section_code, korean_name, professor_name,
-                       completion_category, credits, raw_lecture_time, raw_location
-                  FROM historical_course_offerings
-                 WHERE id = :offeringId
-                """, Map.of("offeringId", offeringId), (result, rowNumber) ->
-                new HistoricalOfferingReference(
-                        result.getString("id"),
+    public Optional<CatalogOfferingReference> findCatalogOffering(String offeringId) {
+        return findCatalogOfferingBy("section.offering_id", offeringId);
+    }
+
+    public Optional<CatalogOfferingReference> findCatalogOfferingByHistoricalId(
+            String historicalOfferingId) {
+        return findCatalogOfferingBy(
+                "section.historical_offering_id", historicalOfferingId);
+    }
+
+    private Optional<CatalogOfferingReference> findCatalogOfferingBy(
+            String column, String value) {
+        List<CatalogOfferingReference> offerings = jdbcTemplate.query("""
+                SELECT section.offering_id, section.historical_offering_id,
+                       section.semester_id, section.course_code,
+                       section.section_code, course.name AS course_name,
+                       section.professor,
+                       coalesce(section.offering_category, course.category)
+                           AS completion_category,
+                       coalesce(section.offering_credits, course.credits)
+                           AS credits,
+                       section.raw_lecture_time, section.raw_location
+                  FROM sections section
+                  JOIN courses course
+                    ON course.semester_id = section.semester_id
+                   AND course.course_code = section.course_code
+                """ + " WHERE " + column + " = :value",
+                Map.of("value", value),
+                (result, rowNumber) -> new CatalogOfferingReference(
+                        result.getString("offering_id"),
+                        result.getString("historical_offering_id"),
                         result.getString("semester_id"),
                         result.getString("course_code"),
                         result.getString("section_code"),
-                        result.getString("korean_name"),
-                        result.getString("professor_name"),
+                        result.getString("course_name"),
+                        result.getString("professor"),
                         result.getString("completion_category"),
                         result.getBigDecimal("credits"),
                         result.getString("raw_lecture_time"),
@@ -276,37 +250,6 @@ public class CompletedCourseOcrMatchRepository {
         return Map.copyOf(bySection);
     }
 
-    private static List<CourseSessionResponse> historicalSessions(
-            String rawLectureTime, String rawLocation) {
-        if (rawLectureTime == null || rawLectureTime.isBlank()) {
-            return List.of();
-        }
-        String roomLabel = rawLocation == null || rawLocation.isBlank()
-                ? null
-                : rawLocation.strip();
-        List<CourseSessionResponse> sessions = new ArrayList<>();
-        Matcher matcher = HISTORICAL_TIME_PATTERN.matcher(rawLectureTime);
-        while (matcher.find()) {
-            int startHour = Integer.parseInt(matcher.group(2));
-            int startMinute = Integer.parseInt(matcher.group(3));
-            int endHour = Integer.parseInt(matcher.group(4));
-            int endMinute = Integer.parseInt(matcher.group(5));
-            if (startHour > 23 || endHour > 23
-                    || startMinute > 59 || endMinute > 59) {
-                continue;
-            }
-            sessions.add(new CourseSessionResponse(
-                    toDayOfWeek(matcher.group(1)),
-                    LocalTime.of(startHour, startMinute),
-                    LocalTime.of(endHour, endMinute),
-                    null,
-                    roomLabel,
-                    null,
-                    List.of()));
-        }
-        return List.copyOf(sessions);
-    }
-
     private static DayOfWeek toDayOfWeek(String day) {
         return switch (day) {
             case "월" -> DayOfWeek.MONDAY;
@@ -336,8 +279,9 @@ public class CompletedCourseOcrMatchRepository {
             String historicalOfferingId) {
     }
 
-    public record HistoricalOfferingReference(
-            String id,
+    public record CatalogOfferingReference(
+            String offeringId,
+            String historicalOfferingId,
             String semesterId,
             String courseCode,
             String sectionCode,
@@ -364,8 +308,7 @@ public class CompletedCourseOcrMatchRepository {
             String completionCategory,
             BigDecimal credits,
             String rawLectureTime,
-            String rawLocation,
-            boolean historicalOnly) {
+            String rawLocation) {
 
         private SectionKey key() {
             return new SectionKey(semesterId, courseCode, sectionCode);

@@ -460,6 +460,10 @@ class AcademicApiIntegrationTest {
                 .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE100"))
                 .andExpect(jsonPath("$.data.items[0].courseName").value("자료구조"))
                 .andExpect(jsonPath("$.data.items[0].sectionCode").value("01"))
+                .andExpect(jsonPath("$.data.items[0].offeringId")
+                        .value("2026-1:CSE100:01"))
+                .andExpect(jsonPath("$.data.items[0].sourceType")
+                        .value("OFFICIAL_CATALOG"))
                 .andExpect(jsonPath("$.data.items[0].professor").value("홍길동"))
                 .andExpect(jsonPath("$.data.items[0].targetGrade").value("2학년"))
                 .andExpect(jsonPath("$.data.items[0].completionCategory").value("전필"))
@@ -486,6 +490,68 @@ class AcademicApiIntegrationTest {
                         .param("targetGrade", "5학년"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_ACADEMIC_QUERY"));
+    }
+
+    @Test
+    void searchesHistoricalAndCurrentOfferingsThroughOneSectionApi() throws Exception {
+        jdbcTemplate.execute("""
+                INSERT INTO historical_term_datasets (
+                    id, academic_year, term_code, term_name, data_status,
+                    schema_version, collected_at, source_checksum, record_count,
+                    raw_payload, source_archive, imported_at
+                ) VALUES (
+                    'api-hist-2020-1', 2020, '1', '1학기',
+                    'FINAL', '1', now(), repeat('e', 64), 1,
+                    '{}'::json, decode('', 'hex'), now()
+                );
+
+                INSERT INTO historical_course_offerings (
+                    id, dataset_id, academic_year, term_code, course_code,
+                    section_code, korean_name, professor_name,
+                    completion_category, credits, lecture_hours, practice_hours,
+                    raw_lecture_time, raw_location, target_grade, listing_status,
+                    detail_status, category_contexts, department_contexts,
+                    search_text, department_search_text, raw_payload
+                ) VALUES (
+                    'history-api-2020-1-HIS100-03',
+                    'api-hist-2020-1', 2020, '1', 'HIS100', '03',
+                    '과거자료구조', '김과거', '전필', 3, 3, 0,
+                    '수09:30-11:30', '공학관 101', '2학년',
+                    'LISTED', 'AVAILABLE', '[]'::json, '[]'::json,
+                    '과거자료구조', '', '{}'::json
+                );
+
+                SELECT reconcile_historical_course_offerings();
+                SELECT reconcile_historical_course_offerings();
+                """);
+
+        mockMvc.perform(get("/api/v1/sections")
+                        .param("semesterId", "2020-1")
+                        .param("query", "과거자료")
+                        .param("completionCategory", "전공필수"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.items[0].offeringId")
+                        .value("2020-1:HIS100:03"))
+                .andExpect(jsonPath("$.data.items[0].sourceType")
+                        .value("HISTORICAL_ARCHIVE"))
+                .andExpect(jsonPath("$.data.items[0].historicalOfferingId")
+                        .value("history-api-2020-1-HIS100-03"))
+                .andExpect(jsonPath("$.data.items[0].credits").value(3.0))
+                .andExpect(jsonPath("$.data.items[0].completionCategory")
+                        .value("전필"))
+                .andExpect(jsonPath("$.data.items[0].sessions[0].dayOfWeek")
+                        .value("WEDNESDAY"))
+                .andExpect(jsonPath("$.data.items[0].sessions[0].startTime")
+                        .value("09:30:00"));
+
+        mockMvc.perform(get("/api/v1/sections")
+                        .param("query", "과거자료")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.items[0].semesterId")
+                        .value("2020-1"));
     }
 
     @Test

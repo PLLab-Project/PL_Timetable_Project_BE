@@ -68,6 +68,9 @@ public class CompletedCourse {
     @Column(name = "historical_offering_id", length = 36, updatable = false)
     private String historicalOfferingId;
 
+    @Column(name = "offering_id", length = 104, updatable = false)
+    private String offeringId;
+
     @Column(name = "section_code", length = 40, updatable = false)
     private String sectionCode;
 
@@ -97,6 +100,7 @@ public class CompletedCourse {
             String semester,
             CompletedCourseStatus status,
             String historicalOfferingId,
+            String offeringId,
             String sectionCode,
             CompletedCourseInputSource inputSource,
             Map<String, Object> sourceSnapshot) {
@@ -111,6 +115,7 @@ public class CompletedCourse {
         this.semester = semester;
         this.status = status;
         this.historicalOfferingId = historicalOfferingId;
+        this.offeringId = offeringId;
         this.sectionCode = sectionCode;
         this.inputSource = inputSource;
         this.sourceSnapshot = sourceSnapshot;

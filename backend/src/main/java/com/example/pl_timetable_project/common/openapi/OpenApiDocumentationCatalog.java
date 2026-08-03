@@ -129,10 +129,11 @@ final class OpenApiDocumentationCatalog {
                         + "category, academicUnitCode, collegeCode는 반복 또는 쉼표 구분 다중값을 허용하고, "
                         + "디지털리터러시 별칭은 공식 제6영역 분류로 변환합니다.");
         put(values, HttpMethod.GET, "/api/v1/sections",
-                "메인 시간표 화면의 강의 카드용 분반 목록입니다. 과목·교수 검색, 학과·이수구분·"
+                "전체 학기의 통합 강의 개설 검색입니다. semesterId를 지정하면 해당 학기만, 생략하면 "
+                        + "현재·과거 전체 학기를 조회합니다. 과목·교수 검색, 학과·이수구분·"
                         + "대상 학년·학점·요일 필터를 다중값으로 처리합니다. 교필 등 이수구분 조회 시 "
                         + "로그인 사용자의 학과 분류를 우선 정렬하고, "
-                        + "각 항목에 비고와 전체 수업시간·강의실·분류 문맥을 반환합니다.");
+                        + "각 항목에 offeringId, 원본 유형, 비고와 전체 수업시간·강의실·분류 문맥을 반환합니다.");
         put(values, HttpMethod.GET, "/api/v1/courses/{semesterId}/{courseCode}",
                 "학기와 과목코드로 강의 기본정보, 연결 학과, 분반 수와 리뷰 집계를 조회합니다.");
         put(values, HttpMethod.GET, "/api/v1/courses/{semesterId}/{courseCode}/sections",

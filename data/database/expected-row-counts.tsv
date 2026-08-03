@@ -1,9 +1,9 @@
 # table\texpected_count
-semesters	2
-courses	2072
-rooms	586
-sections	3134
-sessions	3820
+semesters	28
+courses	13345
+rooms	3965
+sections	20124
+sessions	25075
 session_rooms	3538
 data_imports	2
 catalog_sources	1
@@ -19,7 +19,7 @@ historical_curriculum_departments	1197
 academic_colleges	9
 academic_units	259
 academic_unit_aliases	901
-section_academic_units	2033
+section_academic_units	12789
 historical_relation_datasets	1
 historical_course_relations	1325
 requirement_datasets	17

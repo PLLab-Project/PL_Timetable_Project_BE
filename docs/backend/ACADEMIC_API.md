@@ -40,7 +40,7 @@
 | Method | Path | 설명 |
 |---|---|---|
 | GET | `/api/v1/courses` | 강의 검색·필터·정렬 |
-| GET | `/api/v1/sections` | 메인 시간표 화면용 분반 카드 검색·필터·정렬 |
+| GET | `/api/v1/sections` | 전체 학기 통합 분반 검색·필터·정렬 |
 | GET | `/api/v1/courses/{semesterId}/{courseCode}` | 강의 상세 |
 | GET | `/api/v1/courses/{semesterId}/{courseCode}/sections` | 분반 목록 |
 | GET | `/api/v1/courses/{semesterId}/{courseCode}/sections/{sectionCode}` | 분반 상세 |
@@ -63,6 +63,7 @@
 `GET /api/v1/sections`를 사용합니다. 이 API는 위 조건에 더해 다음 분반 조건을
 지원합니다.
 
+- `semesterId`: 선택값. 지정하면 해당 학기, 생략하면 2020년 이후 전체 학기 검색
 - `completionCategory`: 학과 문맥별 이수구분 다중 선택 (`전필`, `전선`, `교필`,
   `교선`, `교직`, `전기`, `일선`)
 - `targetGrade`: `1`~`4` 또는 `1학년`~`4학년` 다중 선택
@@ -75,7 +76,8 @@
 비고(`notes`)에 해당 학과명 또는 등록된 학과 별칭이 있는 분반을 먼저 반환한다.
 일치하는 비고가 없으면 기존 분반 순서를 유지한다. 검색·필터 결과에도 같은 규칙을 쓴다.
 
-응답의 `items`는 과목명·과목코드·분반·교수·학점·대상 학년·`notes` 비고와
+응답의 `items`는 안정적인 정규 분반 키 `offeringId`, `sourceType`, 원본 추적용
+`historicalOfferingId`, 과목명·과목코드·분반·교수·학점·대상 학년·`notes` 비고와
 카드 표시용 `completionCategory`, `sessions` 전체 수업시간·강의실,
 `classifications` 학과별 전체 이수구분 문맥을 포함합니다. `academicUnitCode` 필터를
 사용하면 `completionCategory`는 그 학과 문맥을 우선합니다.
@@ -98,6 +100,10 @@
 `sessions[].roomCode`, `roomLabel`, `buildingName`은 기존 클라이언트 호환용 대표
 강의실이고, `sessions[].rooms`가 같은 시간에 사용하는 전체 강의실의 순서 있는
 목록입니다.
+
+과거 원장의 20,031개 분반도 동일한 `courses`·`sections`·`sessions` 모델로 정규화되어
+일반 검색과 OCR이 같은 데이터를 사용합니다. `historical_course_offerings`는 원본
+추적과 재처리용으로만 유지하며 서비스 조회에서 직접 UNION하지 않습니다.
 
 분반 상세의 `classifications`는 같은 분반이 서로 다른 학과·융합전공 표에 등장할 때
 각 문맥의 `completionCategory`, `targetGrade`, `academicUnitCode`, 원본 페이지를

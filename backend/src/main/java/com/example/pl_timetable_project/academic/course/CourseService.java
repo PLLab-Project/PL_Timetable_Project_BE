@@ -103,7 +103,7 @@ public class CourseService {
             String sort,
             int page,
             int size) {
-        String normalizedSemesterId = requireSemester(semesterId);
+        String normalizedSemesterId = optionalSemester(semesterId);
         PageSpec pageSpec = PageSpec.of(page, size);
         SectionSearchCondition condition = new SectionSearchCondition(
                 normalizedSemesterId,
@@ -142,6 +142,15 @@ public class CourseService {
     private String requireSemester(String semesterId) {
         String normalizedSemesterId = TextQuery.required(semesterId, "학기 ID");
         if (!repository.semesterExists(normalizedSemesterId)) {
+            throw new AcademicResourceNotFoundException(
+                    "학기를 찾을 수 없습니다. semesterId=" + normalizedSemesterId);
+        }
+        return normalizedSemesterId;
+    }
+
+    private String optionalSemester(String semesterId) {
+        String normalizedSemesterId = TextQuery.optional(semesterId);
+        if (normalizedSemesterId != null && !repository.semesterExists(normalizedSemesterId)) {
             throw new AcademicResourceNotFoundException(
                     "학기를 찾을 수 없습니다. semesterId=" + normalizedSemesterId);
         }
