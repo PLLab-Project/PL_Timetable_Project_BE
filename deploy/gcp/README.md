@@ -7,8 +7,8 @@ The production backend uses:
 - Artifact Registry repository `pl-timetable`
 - Secret Manager for database and OAuth secrets
 - A private Cloud Storage bucket for the ignored academic SQL bundle
-- Gemini 3.5 Flash-Lite vision through Vertex AI for transcript OCR without
-  storing uploaded originals
+- Gemini 3.5 Flash-Lite vision through Vertex AI for transcript/timetable OCR
+  and deterministic Cloud SQL section matching without storing originals
 
 ## Runtime profiles
 
@@ -41,11 +41,15 @@ production proxy makes the cookie first-party on Vercel, while the setting also
 keeps the documented direct-Cloud-Run fallback compatible with cross-site API
 requests.
 
-## Transcript OCR
+## Transcript and timetable OCR
 
 `POST /api/v1/completed-courses/ocr` sends the in-memory image directly to
 `gemini-3.5-flash-lite` at the `global` endpoint. It does not use Cloud Vision
-and does not persist the uploaded original.
+and does not persist the uploaded original. Gemini extracts a visible semester,
+course names, professors, meetings, and rooms. The backend then compares those
+fields with Cloud SQL and returns exact or ambiguous section candidates. A
+semester inferred from catalog consensus is returned separately from a semester
+that Gemini visibly recognized.
 
 Required runtime configuration:
 

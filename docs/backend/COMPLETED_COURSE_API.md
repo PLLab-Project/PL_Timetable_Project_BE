@@ -40,20 +40,31 @@
 P/N 과목은 학점을 0으로 보내지 않는다. `credits`에는 실제 인정 학점을 넣고
 `gradingBasis=PASS_FAIL`, `gradeValue=P` 또는 `N`으로 보낸다.
 
-## 성적표 OCR
+## 성적표·시간표 OCR과 강의 DB 매칭
 
 `POST /api/v1/completed-courses/ocr`
 
 `multipart/form-data`의 `file`에 7MB 이하 JPEG·PNG·WebP·HEIC·HEIF 이미지를 보낸다.
 서버가 원본을 저장하지 않고 Gemini 3.5 Flash-Lite 비전에 직접 전달한다. 첫 번째 호출로
-원문을 전사하고, 두 번째 호출로 이수과목 등록 필드에 맞춘 `recognizedCourses`를 만든다.
+원문을 전사하고, 두 번째 호출은 이미지 자체와 전사문을 함께 사용해 학기·과목·교수·요일·
+시간·강의실을 구조화한다. 이후 과목명, 학기, 교수, 시간, 강의실을 실제 학사 DB와 비교해
+과목 코드와 분반 후보를 결정적으로 반환한다.
 `extractedText`, 빈 줄을 제거한 `lines`도 그대로 유지하므로 사용자가 구조화 결과와
 원문을 대조할 수 있다.
+
+현재 프론트 입력 폼과의 호환을 위해 과목이 한 개의 DB 과목 코드로 확인되면 분반이
+미확정이어도 `recognizedCourses[].courseName`, `credits`, `category`, `semester`를 DB
+정규값으로 채운다. `credits`는 카탈로그 학점이며 `category`는 로그인 사용자의 학과
+문맥에 해당하는 전필·전선 등을 우선한다. 정확한 분반은 `matchedSection`, 후보는
+`matchCandidates`에 그대로 유지하므로 프론트가 추후 분반 확인 UI를 추가할 수 있다.
 
 ```json
 {
   "extractedText": "2026-1 전공선택 자료구조 3 A+",
   "lines": ["2026-1 전공선택 자료구조 3 A+"],
+  "documentType": "TIMETABLE",
+  "recognizedSemester": "2026-1",
+  "resolvedSemester": "2026-1",
   "recognizedCourses": [
     {
       "courseName": "자료구조",
@@ -62,18 +73,55 @@ P/N 과목은 학점을 0으로 보내지 않는다. `credits`에는 실제 인�
       "category": "전공선택",
       "area": null,
       "semester": "2026-1",
-      "confidence": 0.94
+      "confidence": 0.94,
+      "professor": null,
+      "meetings": [
+        {
+          "dayOfWeek": "MONDAY",
+          "startTime": "15:30:00",
+          "endTime": "17:30:00",
+          "room": "공다A411-강의실(공용)"
+        }
+      ],
+      "matchStatus": "MATCHED",
+      "matchedSection": {
+        "semesterId": "2026-1",
+        "courseCode": "561103",
+        "sectionCode": "01",
+        "courseName": "자료구조",
+        "professor": "박정규",
+        "category": "전공(AI융합대학/컴퓨터공학전공)",
+        "completionCategory": "전선",
+        "credits": 3.0,
+        "matchScore": 0.80,
+        "matchedEvidence": ["COURSE_NAME", "SEMESTER", "MEETINGS_2_OF_2"]
+      },
+      "matchCandidates": [
+        {
+          "semesterId": "2026-1",
+          "courseCode": "561103",
+          "sectionCode": "01",
+          "matchScore": 0.80
+        }
+      ]
     }
   ],
   "requiresConfirmation": true
 }
 ```
 
-`recognizedCourses`의 필드명은 직접 등록 API와 같으므로 프론트 입력값을 자동으로
-채울 수 있다. 이미지에서 안정적으로 얻기 어려운 `courseCode`, `status`는 포함하지
-않는다. 구조화 JSON 생성 또는 파싱만 실패하면 OCR 요청 전체를 실패시키지 않고
+`recognizedSemester`는 Gemini가 이미지에서 직접 읽은 값이다. 학기 표기가 잘린 시간표는
+이 값을 `null`로 유지한다. 여러 인식 과목이 한 학기에만 집중되면 실제 DB 근거로
+`resolvedSemester`를 별도로 확정한다. `MATCHED`는 보이는 증거로 분반까지 확정,
+`COURSE_MATCHED`는 과목 코드는 확인했지만 분반은 미확정, `AMBIGUOUS`는 여러 학기·과목
+후보가 경합, `UNMATCHED`는 DB에 일치 과목이 없음을 뜻한다. 강의실 등 보이는 정보가
+후보와 충돌하면 성급히 `MATCHED`로 확정하지 않는다. 학기 합의는 `TIMETABLE`에서만
+교수·시간·강의실 일치 근거가 있는 여러 과목으로 계산하며, 다학기 성적표의 개별 학기를
+전역 추론값으로 덮어쓰지 않는다.
+
+구조화 JSON 생성 또는 파싱만 실패하면 OCR 요청 전체를 실패시키지 않고
 `recognizedCourses=[]`로 반환하여 기존 수동 입력 흐름을 유지한다. 인식 결과를 사용자가
-확인·보정한 뒤 직접 등록 API로 저장한다.
+확인·보정한 뒤 직접 등록 API로 저장하며 OCR API는 자동 저장하지 않는다.
 
 ## 조회·수정·삭제
 
