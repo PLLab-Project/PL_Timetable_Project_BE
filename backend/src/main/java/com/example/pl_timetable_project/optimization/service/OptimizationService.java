@@ -232,14 +232,21 @@ public class OptimizationService {
                         "학사 DB에 존재하지 않는 후보 분반입니다: " + reference.displayKey());
             }
             if (academicSection.meetings().isEmpty()) {
-                throw new InvalidOptimizationConditionException(
-                        "수업시간 미정 분반은 자동 편성 후보로 사용할 수 없습니다: "
-                                + reference.displayKey());
+                if (requiredSections.contains(reference)) {
+                    throw new InvalidOptimizationConditionException(
+                            "수업시간 미정 필수 분반은 자동 편성할 수 없습니다: "
+                                    + reference.displayKey());
+                }
+                continue;
             }
             candidates.add(toCandidateCourse(
                     academicSection, requiredSections.contains(reference)));
         }
         validateRequiredCandidates(requiredSections, candidates);
+        if (candidates.isEmpty()) {
+            throw new InvalidOptimizationConditionException(
+                    "자동편성 가능한 분반이 없습니다. 수업시간 미정 후보를 확인해 주세요.");
+        }
         return candidates;
     }
 
