@@ -17,6 +17,21 @@ SPEC.loader.exec_module(MODULE)
 
 class OfficialCatalogExtractorTest(unittest.TestCase):
 
+    def test_joins_pdf_line_wraps_inside_notes(self):
+        self.assertEqual(
+            MODULE.clean_notes("자과생(1학년)우\n선수강/변경둘째\n날10시전체"),
+            "자과생(1학년)우선수강/변경둘째날10시전체",
+        )
+
+    def test_preserves_intentional_inline_spaces_in_notes(self):
+        self.assertEqual(
+            MODULE.clean_notes("시각디자인학과  우선신청/\n3일차 수강해제"),
+            "시각디자인학과 우선신청/3일차 수강해제",
+        )
+
+    def test_returns_none_for_blank_notes(self):
+        self.assertIsNone(MODULE.clean_notes(" \n\t "))
+
     def source_row(self, **changes):
         row = MODULE.SourceRow(
             page_number=54,

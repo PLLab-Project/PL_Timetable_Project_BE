@@ -10,6 +10,7 @@ REFERENCE_PACKAGE_ID=academic-reference-2026-07-18-v1
 REFERENCE_ARCHIVE_SHA256=78a388b2e8a2b014c0ea0fc38788428520019051c8de71a2d3004e3e45a57de8
 CURRENT_CATALOG_CHECKSUM=bd78610cf34ac3c87111fa7d90e6ce26e6df83794e7b1e631a0c8fbc2b4deb81
 OFFICIAL_2026_2_CHECKSUM=7c5f280277b63c302d02546a425afa95ea062a420afe178e7cede0af1551283c
+OFFICIAL_2026_2_PARSER_VERSION=official-catalog-pdf-v2
 
 for command_name in psql gzip sha256sum; do
     command -v "$command_name" >/dev/null 2>&1 || {
@@ -71,9 +72,15 @@ else
 fi
 
 official_catalog_loaded=$(psql -X -q -v ON_ERROR_STOP=1 -Atc \
-    "SELECT EXISTS (SELECT 1 FROM data_imports WHERE checksum = '$OFFICIAL_2026_2_CHECKSUM')")
+    "SELECT EXISTS (
+        SELECT 1
+        FROM data_imports
+        WHERE checksum = '$OFFICIAL_2026_2_CHECKSUM'
+          AND parser_version = '$OFFICIAL_2026_2_PARSER_VERSION'
+    )")
 if [ "$official_catalog_loaded" = "t" ]; then
-    echo "Official 2026-2 catalog already loaded: $OFFICIAL_2026_2_CHECKSUM"
+    printf 'Official 2026-2 catalog already loaded: %s (%s)\n' \
+        "$OFFICIAL_2026_2_CHECKSUM" "$OFFICIAL_2026_2_PARSER_VERSION"
 else
     echo "Loading the official 2026-2 course catalog..."
     gzip -dc official-catalog-2026-2.sql.gz | psql -X -q -v ON_ERROR_STOP=1

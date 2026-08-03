@@ -1,8 +1,8 @@
 {
   "semester": "2026-2",
-  "parserVersion": "official-catalog-pdf-v1",
+  "parserVersion": "official-catalog-pdf-v2",
   "sourceChecksum": "7c5f280277b63c302d02546a425afa95ea062a420afe178e7cede0af1551283c",
-  "datasetVersion": "official-pdf-v1-7c5f280277b6",
+  "datasetVersion": "official-pdf-v2-7c5f280277b6",
   "rawRows": 1568,
   "microMajorRows": 194,
   "microMajorOfferedRows": 167,
