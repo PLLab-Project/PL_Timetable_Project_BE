@@ -12,6 +12,8 @@ import com.example.pl_timetable_project.completedcourse.dto.CompletedCourseUpdat
 import com.example.pl_timetable_project.completedcourse.dto.TimetableImportResponse;
 import com.example.pl_timetable_project.completedcourse.entity.CompletedCourse;
 import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseRepository;
+import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOcrMatchRepository;
+import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOcrMatchRepository.HistoricalOfferingReference;
 import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseTimetableQueryRepository;
 import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseTimetableQueryRepository.TimetableSectionSnapshot;
 import java.math.BigDecimal;
@@ -29,32 +31,59 @@ public class CompletedCourseService {
 
     private final CompletedCourseRepository completedCourseRepository;
     private final CompletedCourseTimetableQueryRepository timetableQueryRepository;
+    private final CompletedCourseOcrMatchRepository ocrMatchRepository;
 
     public CompletedCourseService(
             CompletedCourseRepository completedCourseRepository,
-            CompletedCourseTimetableQueryRepository timetableQueryRepository) {
+            CompletedCourseTimetableQueryRepository timetableQueryRepository,
+            CompletedCourseOcrMatchRepository ocrMatchRepository) {
         this.completedCourseRepository = completedCourseRepository;
         this.timetableQueryRepository = timetableQueryRepository;
+        this.ocrMatchRepository = ocrMatchRepository;
     }
 
     @Transactional
     public CompletedCourseResponse create(UUID userId, CompletedCourseCreateRequest request) {
+        String historicalOfferingId = normalizeOptional(request.historicalOfferingId());
+        HistoricalOfferingReference historicalOffering = historicalOfferingId == null
+                ? null
+                : ocrMatchRepository.findHistoricalOffering(historicalOfferingId)
+                        .orElseThrow(() -> new BusinessException(
+                                CompletedCourseErrorCode.INVALID_REQUEST));
         CompletedCourse course = new CompletedCourse(
                 requireUserId(userId),
-                normalizeOptional(request.courseCode()),
-                normalizeRequired(request.courseName()),
-                request.credits(),
+                historicalOffering == null
+                        ? normalizeOptional(request.courseCode())
+                        : historicalOffering.courseCode(),
+                historicalOffering == null
+                        ? normalizeRequired(request.courseName())
+                        : historicalOffering.courseName(),
+                historicalOffering == null || historicalOffering.credits() == null
+                        ? request.credits()
+                        : historicalOffering.credits(),
                 request.gradingBasis() == null
                         ? CompletedCourseGradingBasis.LETTER : request.gradingBasis(),
                 normalizeGradeValue(request.gradeValue(), request.gradingBasis()),
-                normalizeRequired(request.category()),
+                historicalOffering == null
+                        ? normalizeRequired(request.category())
+                        : canonicalCategory(
+                                historicalOffering.completionCategory(),
+                                request.category()),
                 normalizeOptional(request.area()),
-                normalizeOptional(request.semester()),
+                historicalOffering == null
+                        ? normalizeOptional(request.semester())
+                        : historicalOffering.semesterId(),
                 request.status(),
-                null,
-                null,
-                CompletedCourseInputSource.MANUAL,
-                null);
+                historicalOfferingId,
+                historicalOffering == null
+                        ? null
+                        : historicalOffering.sectionCode(),
+                historicalOffering == null
+                        ? CompletedCourseInputSource.MANUAL
+                        : CompletedCourseInputSource.OCR,
+                historicalOffering == null
+                        ? null
+                        : historicalSnapshot(historicalOffering));
         return CompletedCourseResponse.from(completedCourseRepository.save(course));
     }
 
@@ -208,6 +237,36 @@ public class CompletedCourseService {
             values.put("professorName", snapshot.professorName());
         }
         return values;
+    }
+
+    private Map<String, Object> historicalSnapshot(
+            HistoricalOfferingReference offering) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        if (offering.professor() != null) {
+            values.put("professorName", offering.professor());
+        }
+        if (offering.rawLectureTime() != null) {
+            values.put("rawLectureTime", offering.rawLectureTime());
+        }
+        if (offering.rawLocation() != null) {
+            values.put("rawLocation", offering.rawLocation());
+        }
+        return values;
+    }
+
+    private String canonicalCategory(
+            String completionCategory, String requestedCategory) {
+        if (completionCategory == null || completionCategory.isBlank()) {
+            return normalizeRequired(requestedCategory);
+        }
+        return switch (completionCategory.replaceAll("\\s", "")) {
+            case "전필", "전공필수" -> "전공필수";
+            case "전선", "전공선택" -> "전공선택";
+            case "교필", "교양필수" -> "교양필수";
+            case "교선", "교양선택" -> "교양선택";
+            case "일선", "일반선택" -> "일반선택";
+            default -> completionCategory.strip();
+        };
     }
 
     private String normalizeRequired(String value) {

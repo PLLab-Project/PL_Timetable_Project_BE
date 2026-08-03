@@ -16,6 +16,12 @@ public record OcrSectionMatchCandidateResponse(
         @Schema(description = "분반 코드", example = "01")
         String sectionCode,
 
+        @Schema(
+                description = "2020~2026 과거 강의 원장의 개설 이력 ID",
+                example = "2020-1-927313-01",
+                nullable = true)
+        String historicalOfferingId,
+
         @Schema(description = "DB 과목명", example = "자료구조")
         String courseName,
 

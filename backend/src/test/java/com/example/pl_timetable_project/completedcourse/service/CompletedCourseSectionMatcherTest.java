@@ -135,6 +135,77 @@ class CompletedCourseSectionMatcherTest {
     }
 
     @Test
+    void prefillsPastCourseFromHistoricalOffering() {
+        when(matchRepository.findCandidates(anySet(), anySet())).thenReturn(List.of(
+                historicalCandidate(
+                        "history-2020-1-927313-01",
+                        "2020-1",
+                        "927313",
+                        "01",
+                        "컴퓨팅사고와문제해결",
+                        "김지연",
+                        "교필",
+                        BigDecimal.valueOf(2),
+                        session(DayOfWeek.WEDNESDAY, "11:30", "13:30", "정보 310"))));
+
+        var result = matcher.match(
+                OcrDocumentType.TRANSCRIPT,
+                "2020년 1학기",
+                List.of(course("컴퓨팅사고와문제해결", null)));
+
+        assertThat(result.courses()).singleElement().satisfies(course -> {
+            assertThat(course.matchStatus()).isEqualTo(OcrCourseMatchStatus.COURSE_MATCHED);
+            assertThat(course.courseName()).isEqualTo("컴퓨팅사고와문제해결");
+            assertThat(course.credits()).isEqualByComparingTo("2.0");
+            assertThat(course.category()).isEqualTo("교양필수");
+            assertThat(course.semester()).isEqualTo("2020-1");
+            assertThat(course.matchCandidates()).singleElement().satisfies(candidate ->
+                    assertThat(candidate.historicalOfferingId())
+                            .isEqualTo("history-2020-1-927313-01"));
+        });
+    }
+
+    @Test
+    void prefillsStableHistoricalCourseWithoutInventingSemester() {
+        when(semesterRepository.findAll(false)).thenReturn(List.of(semester("2026-1")));
+        when(matchRepository.findHistoricalSemesterIds())
+                .thenReturn(List.of("2021-1", "2020-1"));
+        when(matchRepository.findCandidates(anySet(), anySet())).thenReturn(List.of(
+                historicalCandidate(
+                        "history-2021-1-927345-01",
+                        "2021-1",
+                        "927345",
+                        "01",
+                        "현대사회의음악적다양성",
+                        "차호성",
+                        "교선",
+                        BigDecimal.valueOf(2)),
+                historicalCandidate(
+                        "history-2020-1-927345-01",
+                        "2020-1",
+                        "927345",
+                        "01",
+                        "현대사회의음악적다양성",
+                        "차호성",
+                        "교선",
+                        BigDecimal.valueOf(2))));
+
+        var result = matcher.match(
+                OcrDocumentType.TRANSCRIPT,
+                null,
+                List.of(course("현대사회의음악적다양성", null)));
+
+        assertThat(result.resolvedSemester()).isNull();
+        assertThat(result.courses()).singleElement().satisfies(course -> {
+            assertThat(course.matchStatus()).isEqualTo(OcrCourseMatchStatus.COURSE_MATCHED);
+            assertThat(course.credits()).isEqualByComparingTo("2.0");
+            assertThat(course.category()).isEqualTo("교양선택");
+            assertThat(course.semester()).isNull();
+            assertThat(course.matchCandidates()).hasSize(2);
+        });
+    }
+
+    @Test
     void usesAuthenticatedUsersAcademicUnitForCanonicalPrefill() {
         UUID userId = UUID.randomUUID();
         StudentProfile profile = new StudentProfile(userId, "20260001");
@@ -394,7 +465,33 @@ class CompletedCourseSectionMatcherTest {
                 BigDecimal.valueOf(3),
                 null,
                 null,
-                List.of(sessions));
+                List.of(sessions),
+                null);
+    }
+
+    private static SectionCandidate historicalCandidate(
+            String historicalOfferingId,
+            String semester,
+            String courseCode,
+            String sectionCode,
+            String courseName,
+            String professor,
+            String completionCategory,
+            BigDecimal credits,
+            CourseSessionResponse... sessions) {
+        return new SectionCandidate(
+                semester,
+                courseCode,
+                courseName,
+                sectionCode,
+                professor,
+                completionCategory,
+                completionCategory,
+                credits,
+                null,
+                null,
+                List.of(sessions),
+                historicalOfferingId);
     }
 
     private static RecognizedCourseMeetingResponse meeting(

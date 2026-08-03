@@ -57,5 +57,12 @@ public record CompletedCourseCreateRequest(
                 example = "IN_PROGRESS",
                 allowableValues = {"COMPLETED", "IN_PROGRESS", "PLANNED", "FAILED", "WITHDRAWN"})
         @NotNull
-        CompletedCourseStatus status) {
+        CompletedCourseStatus status,
+
+        @Schema(
+                description = "OCR 후보에서 선택한 과거 강의 개설 이력 ID. 지정하면 과목·분반 정보를 DB 정규값으로 저장",
+                example = "2020-1-927313-01",
+                nullable = true)
+        @Size(max = 36)
+        String historicalOfferingId) {
 }

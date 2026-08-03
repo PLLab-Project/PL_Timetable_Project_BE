@@ -193,6 +193,7 @@ public class CompletedCourseSectionMatcher {
             semesterRepository.findAll(false).stream()
                     .map(semester -> semester.id())
                     .forEach(semesterIds::add);
+            matchRepository.findHistoricalSemesterIds().forEach(semesterIds::add);
         }
         return semesterIds;
     }
@@ -242,15 +243,21 @@ public class CompletedCourseSectionMatcher {
                     OcrCourseMatchStatus.MATCHED, matched, responses);
         }
 
-        long courseIdentities = scored.stream()
-                .map(scoredCandidate -> scoredCandidate.candidate().semesterId()
-                        + "\u0000"
-                        + scoredCandidate.candidate().courseCode())
+        long courseCodes = scored.stream()
+                .map(scoredCandidate -> scoredCandidate.candidate().courseCode())
                 .distinct()
                 .count();
-        if (courseIdentities == 1) {
+        if (courseCodes == 1) {
+            boolean singleSemester = scored.stream()
+                    .map(scoredCandidate ->
+                            scoredCandidate.candidate().semesterId())
+                    .distinct()
+                    .count() == 1;
             return course.withMatching(
-                    OcrCourseMatchStatus.COURSE_MATCHED, null, responses);
+                    OcrCourseMatchStatus.COURSE_MATCHED,
+                    null,
+                    responses,
+                    effectiveSemester != null || singleSemester);
         }
         return course.withMatching(
                 OcrCourseMatchStatus.AMBIGUOUS, null, responses);
@@ -502,6 +509,7 @@ public class CompletedCourseSectionMatcher {
                     candidate.semesterId(),
                     candidate.courseCode(),
                     candidate.sectionCode(),
+                    candidate.historicalOfferingId(),
                     candidate.courseName(),
                     candidate.professor(),
                     candidate.category(),

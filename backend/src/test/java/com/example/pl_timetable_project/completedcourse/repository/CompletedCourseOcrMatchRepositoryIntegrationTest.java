@@ -114,6 +114,41 @@ class CompletedCourseOcrMatchRepositoryIntegrationTest {
                     '다른 전공', 'ACADEMIC_UNIT', 'OCR-OTHER',
                     '교필', '2학년', true, false, 1, 2
                 );
+
+                INSERT INTO historical_term_datasets (
+                    id, academic_year, term_code, term_name, data_status,
+                    schema_version, collected_at, source_checksum, record_count,
+                    raw_payload, source_archive, imported_at
+                ) VALUES (
+                    'ocr-term-2020-1', 2020, '1', '1학기', 'COMPLETE', '1',
+                    now(), repeat('e', 64), 1, '{}'::json, decode('', 'hex'), now()
+                ), (
+                    'ocr-term-2026-2', 2026, '2', '2학기', 'COMPLETE', '1',
+                    now(), repeat('f', 64), 1, '{}'::json, decode('', 'hex'), now()
+                );
+
+                INSERT INTO historical_course_offerings (
+                    id, dataset_id, academic_year, term_code, course_code,
+                    section_code, korean_name, english_name, professor_name,
+                    completion_category, credits, lecture_hours, practice_hours,
+                    raw_lecture_time, raw_location, target_grade, listing_status,
+                    detail_status, category_contexts, department_contexts,
+                    search_text, department_search_text, raw_payload
+                ) VALUES (
+                    'history-2020-1-927313-01', 'ocr-term-2020-1',
+                    2020, '1', '927313', '01', '컴퓨팅사고와문제해결', NULL,
+                    '김지연', '교필', 2, 2, 0, '수11:30-13:30',
+                    '정보 310 스마트강의실', NULL, 'LISTED', 'AVAILABLE',
+                    '[]'::json, '[]'::json, '컴퓨팅사고와문제해결', '', '{}'::json
+                ), (
+                    'history-2026-2-927381-08', 'ocr-term-2026-2',
+                    2026, '2', '927381', '08',
+                    'LCT(LearningbyCommunication&Teamwork)', NULL,
+                    '김승남', '교필', 2, 2, 0, '목11:30-13:30',
+                    '인110-일반강의실', NULL, 'LISTED', 'AVAILABLE',
+                    '[]'::json, '[]'::json,
+                    'LCT LearningbyCommunication Teamwork', '', '{}'::json
+                );
                 """);
     }
 
@@ -128,6 +163,8 @@ class CompletedCourseOcrMatchRepositoryIntegrationTest {
             assertThat(candidate.semesterId()).isEqualTo("2026-2");
             assertThat(candidate.courseCode()).isEqualTo("927381");
             assertThat(candidate.sectionCode()).isEqualTo("08");
+            assertThat(candidate.historicalOfferingId())
+                    .isEqualTo("history-2026-2-927381-08");
             assertThat(candidate.professor()).isEqualTo("김승남");
             assertThat(candidate.credits()).isEqualByComparingTo("2.0");
             assertThat(candidate.completionCategory()).isEqualTo("전선");
@@ -138,6 +175,48 @@ class CompletedCourseOcrMatchRepositoryIntegrationTest {
                 assertThat(session.roomLabel()).isEqualTo("인110-일반강의실");
             });
         });
+    }
+
+    @Test
+    void findsHistoricalOfferingAndParsesItsRawMeeting() {
+        var candidates = repository.findCandidates(
+                Set.of("2020-1"),
+                Set.of("컴퓨팅사고와문제해결"));
+
+        assertThat(candidates).singleElement().satisfies(candidate -> {
+            assertThat(candidate.historicalOfferingId())
+                    .isEqualTo("history-2020-1-927313-01");
+            assertThat(candidate.semesterId()).isEqualTo("2020-1");
+            assertThat(candidate.courseCode()).isEqualTo("927313");
+            assertThat(candidate.sectionCode()).isEqualTo("01");
+            assertThat(candidate.credits()).isEqualByComparingTo("2.0");
+            assertThat(candidate.completionCategory()).isEqualTo("교필");
+            assertThat(candidate.sessions()).singleElement().satisfies(session -> {
+                assertThat(session.dayOfWeek()).isEqualTo(DayOfWeek.WEDNESDAY);
+                assertThat(session.startTime()).isEqualTo(LocalTime.of(11, 30));
+                assertThat(session.endTime()).isEqualTo(LocalTime.of(13, 30));
+                assertThat(session.roomLabel()).isEqualTo("정보 310 스마트강의실");
+            });
+        });
+    }
+
+    @Test
+    void exposesHistoricalSemesterIds() {
+        assertThat(repository.findHistoricalSemesterIds())
+                .contains("2020-1", "2026-2");
+    }
+
+    @Test
+    void loadsHistoricalOfferingReferenceForConfirmedSave() {
+        assertThat(repository.findHistoricalOffering("history-2020-1-927313-01"))
+                .hasValueSatisfying(offering -> {
+                    assertThat(offering.semesterId()).isEqualTo("2020-1");
+                    assertThat(offering.courseCode()).isEqualTo("927313");
+                    assertThat(offering.sectionCode()).isEqualTo("01");
+                    assertThat(offering.courseName()).isEqualTo("컴퓨팅사고와문제해결");
+                    assertThat(offering.credits()).isEqualByComparingTo("2.0");
+                    assertThat(offering.completionCategory()).isEqualTo("교필");
+                });
     }
 
     @Test

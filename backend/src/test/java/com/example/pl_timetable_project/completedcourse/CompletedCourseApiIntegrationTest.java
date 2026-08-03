@@ -205,6 +205,38 @@ class CompletedCourseApiIntegrationTest {
     }
 
     @Test
+    void storesConfirmedOcrCourseUsingHistoricalOfferingReference() throws Exception {
+        insertHistoricalOfferingFixture();
+
+        mockMvc.perform(post("/api/v1/completed-courses")
+                        .with(authenticatedAs(USER_ONE))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "courseCode": "OCR-TYPO",
+                                  "courseName": "컴퓨팅 사고와 문제 해결",
+                                  "credits": 3.00,
+                                  "category": "교양선택",
+                                  "semester": "2026-1",
+                                  "status": "COMPLETED",
+                                  "historicalOfferingId": "history-2020-1-927313-01"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.courseCode").value("927313"))
+                .andExpect(jsonPath("$.data.courseName").value("컴퓨팅사고와문제해결"))
+                .andExpect(jsonPath("$.data.credits").value(2.0))
+                .andExpect(jsonPath("$.data.category").value("교양필수"))
+                .andExpect(jsonPath("$.data.semester").value("2020-1"))
+                .andExpect(jsonPath("$.data.historicalOfferingId")
+                        .value("history-2020-1-927313-01"))
+                .andExpect(jsonPath("$.data.sectionCode").value("01"))
+                .andExpect(jsonPath("$.data.inputSource").value("OCR"))
+                .andExpect(jsonPath("$.data.sourceSnapshot.professorName").value("김지연"));
+    }
+
+    @Test
     void importsOwnedTimetableSectionsIdempotentlyAsInProgress() throws Exception {
         Long timetableId = insertTimetableFixture();
 
@@ -316,6 +348,34 @@ class CompletedCourseApiIntegrationTest {
                 category,
                 area,
                 status);
+    }
+
+    private void insertHistoricalOfferingFixture() {
+        jdbcTemplate.execute("""
+                INSERT INTO historical_term_datasets (
+                    id, academic_year, term_code, term_name, data_status,
+                    schema_version, collected_at, source_checksum, record_count,
+                    raw_payload, source_archive, imported_at
+                ) VALUES (
+                    'completed-term-2020', 2020, '1', '1학기', 'COMPLETE', '1',
+                    now(), repeat('e', 64), 1, '{}'::json, decode('', 'hex'), now()
+                );
+
+                INSERT INTO historical_course_offerings (
+                    id, dataset_id, academic_year, term_code, course_code,
+                    section_code, korean_name, english_name, professor_name,
+                    completion_category, credits, lecture_hours, practice_hours,
+                    raw_lecture_time, raw_location, target_grade, listing_status,
+                    detail_status, category_contexts, department_contexts,
+                    search_text, department_search_text, raw_payload
+                ) VALUES (
+                    'history-2020-1-927313-01', 'completed-term-2020',
+                    2020, '1', '927313', '01', '컴퓨팅사고와문제해결', NULL,
+                    '김지연', '교필', 2, 2, 0, '수11:30-13:30',
+                    '정보 310 스마트강의실', NULL, 'LISTED', 'AVAILABLE',
+                    '[]'::json, '[]'::json, '컴퓨팅사고와문제해결', '', '{}'::json
+                );
+                """);
     }
 
     private Long insertTimetableFixture() {

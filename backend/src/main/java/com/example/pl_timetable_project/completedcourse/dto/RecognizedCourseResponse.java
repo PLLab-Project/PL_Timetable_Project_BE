@@ -54,6 +54,14 @@ public record RecognizedCourseResponse(
             OcrCourseMatchStatus status,
             OcrSectionMatchCandidateResponse matched,
             List<OcrSectionMatchCandidateResponse> candidates) {
+        return withMatching(status, matched, candidates, true);
+    }
+
+    public RecognizedCourseResponse withMatching(
+            OcrCourseMatchStatus status,
+            OcrSectionMatchCandidateResponse matched,
+            List<OcrSectionMatchCandidateResponse> candidates,
+            boolean useCanonicalSemester) {
         OcrSectionMatchCandidateResponse canonical = matched;
         if (canonical == null
                 && status == OcrCourseMatchStatus.COURSE_MATCHED
@@ -72,7 +80,9 @@ public record RecognizedCourseResponse(
                 gradingBasis,
                 canonicalCategory,
                 canonical != null && area == null ? canonical.category() : area,
-                canonical != null && canonical.semesterId() != null
+                canonical != null
+                                && useCanonicalSemester
+                                && canonical.semesterId() != null
                         ? canonical.semesterId() : semester,
                 confidence,
                 professor,
