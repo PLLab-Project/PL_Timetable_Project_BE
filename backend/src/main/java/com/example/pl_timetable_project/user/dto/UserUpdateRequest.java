@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Size;
 @Schema(description = "내 학생 프로필 부분 수정 요청. 생략하거나 null인 필드는 유지됩니다.")
 public record UserUpdateRequest(
         @Schema(
-                description = "현재 학번 확인용. 다른 학번으로 변경하려면 학교 OTP 인증 API를 사용",
+                description = "사용자 학번. Google 로그인 후 온보딩과 내 정보에서 직접 설정 가능",
                 example = "20261234")
         @Pattern(regexp = "\\d{6,20}")
         String studentNumber,

@@ -63,8 +63,10 @@ public class UserService {
         }
         String studentNumber = normalizeOptional(request.studentNumber());
         if (studentNumber != null && !studentNumber.equals(profile.studentNumber())) {
-            // 학번 소유 확인을 우회하지 못하도록 변경도 학교 OTP API에서만 허용합니다.
-            throw new BusinessException(UserErrorCode.STUDENT_NUMBER_VERIFICATION_REQUIRED);
+            if (profileRepository.existsByStudentNumberAndUserIdNot(studentNumber, userId)) {
+                throw new BusinessException(UserErrorCode.STUDENT_NUMBER_DUPLICATE);
+            }
+            profile.updateStudentNumber(studentNumber);
         }
         String studentType = uppercaseOptional(request.studentType());
         String programPath = uppercaseOptional(request.programPath());

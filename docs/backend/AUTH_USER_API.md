@@ -129,19 +129,20 @@ const response = await fetch(
 const session = (await response.json()).data;
 ```
 
-`session.user.schoolVerified=false`이면 아래 학교 OTP 인증 흐름으로 이동한다.
-학교 인증까지 마쳤지만 사용자 프로필의 `profileCompleted`가 `false`이면
-회원정보 입력 화면으로 이동하고, 이미 작성된 사용자라면 앱 화면으로 이동한다.
+세션이 유효하면 `/api/v1/users/me`로 최신 프로필을 조회한다.
+사용자 프로필의 `profileCompleted`가 `false`이면 회원정보 입력 화면으로 이동하고,
+이미 작성된 사용자라면 앱 화면으로 이동한다. `schoolVerified`는 선택적인 학교
+인증 상태이며 학생 기능 접근을 제한하지 않는다.
 성공·실패 리다이렉트는 배포 환경의
 `GOOGLE_OAUTH_SUCCESS_REDIRECT_URI`, `GOOGLE_OAUTH_FAILURE_REDIRECT_URI`로
 바꿀 수 있다.
 
-### Google 로그인 후 학교 OTP 1회 인증
+### 선택적 학교 OTP 인증
 
-Google 이메일 인증과 학교 학번 소유 확인은 별도 단계다. 신규 Google 사용자는
-로그인 세션을 먼저 발급받지만, 학교 OTP를 마치기 전에는 세션·프로필·로그아웃·학교
-인증 API를 제외한 자동편성·시간표 등 학생 전용 API가
-`SCHOOL_VERIFICATION_REQUIRED`로 차단된다.
+Google 로그인이 기본 인증 수단이며 학교 이메일 OTP는 필수가 아니다. 유효한 Google
+세션은 `schoolVerified=false`여도 자동편성·시간표 등 학생 기능을 사용할 수 있다.
+학교 학번 소유 확인이 별도로 필요한 운영 정책을 도입할 때만 아래 API를 선택적으로
+사용한다.
 
 1. `GET /api/v1/auth/csrf`로 CSRF 토큰을 받는다.
 2. 아래 요청으로 `학번@daejin.ac.kr`에 OTP를 보낸다.
@@ -204,7 +205,7 @@ Google 로그인에서는 OTP를 반복하지 않으며, 학번을 변경할 때
 - `name`: 최대 120자
 - `grade`: 1~6
 - `departmentId`: 최대 40자
-- `studentNumber`: 직접 변경할 수 없으며 학교 OTP 인증 API를 사용
+- `studentNumber`: Google 로그인 후 온보딩 또는 내 정보에서 직접 설정·변경
 - `admissionYear`: 1900~2100
 - `programPath`: `ADVANCED_MAJOR`, `DOUBLE_MAJOR`, `MINOR`, `MICRO_MAJOR`
 

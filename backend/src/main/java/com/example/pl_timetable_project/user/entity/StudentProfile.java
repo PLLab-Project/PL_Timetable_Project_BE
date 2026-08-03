@@ -95,7 +95,14 @@ public class StudentProfile {
         this.updatedAt = Instant.now();
     }
 
-    /** 학번은 프로필 수정이 아니라 학교 이메일 OTP 성공을 통해서만 연결합니다. */
+    /** Google 로그인 후 온보딩에서 입력한 학번을 저장합니다. 학교 인증 상태와는 분리합니다. */
+    public void updateStudentNumber(String studentNumber) {
+        this.studentNumber = studentNumber;
+        this.schoolVerifiedAt = null;
+        this.updatedAt = Instant.now();
+    }
+
+    /** 선택적으로 학교 이메일 OTP를 사용하는 경우 학번과 인증 시각을 함께 저장합니다. */
     public void verifySchoolIdentity(String studentNumber, Instant verifiedAt) {
         this.studentNumber = studentNumber;
         this.schoolVerifiedAt = verifiedAt;
