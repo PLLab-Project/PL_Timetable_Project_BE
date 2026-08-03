@@ -99,18 +99,28 @@
 
 ### Google 로그인
 
-브라우저를 `GET /api/v1/auth/google`로 이동시키면 Google 인증 뒤
-`/login/oauth2/code/google` 콜백에서 로컬 계정과 연결하고 세션을 만든다. 외부
-access/refresh token은 저장하지 않으며 불변 Google `sub`만 `social_identities`에
-저장한다. 운영 사용 전 GCP Cloud Console의 표준 웹 OAuth 클라이언트에 배포 콜백
-주소를 등록해야 한다.
+운영에서는 브라우저를 Vercel 동일 출처 경로
+`GET /oauth2/authorization/google`로 이동시킨다. Vercel이 로그인 시작과
+`/login/oauth2/code/google` 콜백을 Cloud Run으로 프록시하고, 백엔드가 로컬 계정과
+연결해 JDBC 세션을 만든다. 외부 access/refresh token은 저장하지 않으며 불변 Google
+`sub`만 `social_identities`에 저장한다.
+
+Google OAuth 웹 클라이언트의 승인된 리디렉션 URI와 Cloud Run의 Spring 등록
+리디렉션 URI는 모두 다음 값으로 일치시킨다.
+
+```text
+https://pl-timetable-project-fe.vercel.app/login/oauth2/code/google
+```
 
 프론트에서는 Google 로그인 API를 `fetch`로 호출하지 않고 브라우저 전체를
 이동시켜야 한다.
 
 ```javascript
-window.location.assign(`${API_BASE_URL}/api/v1/auth/google`);
+window.location.assign("/oauth2/authorization/google");
 ```
+
+로컬 개발 또는 동일 출처 프록시를 사용하지 않는 환경만
+`${API_BASE_URL}/api/v1/auth/google` 직접 이동을 사용한다.
 
 인증 성공 시 기본적으로 다음 주소로 돌아온다.
 

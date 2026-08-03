@@ -37,6 +37,13 @@ Repository Actions variables hold only non-secret resource identifiers. Database
 Google OAuth, and other runtime secrets remain attached to the Cloud Run service
 and are preserved by gcloud run services update.
 
+`GOOGLE_OAUTH_REDIRECT_URI` is also a non-secret repository variable. The workflow
+maps it to
+`SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_REDIRECT_URI` on every deploy so
+the production callback remains on the Vercel same-origin proxy:
+
+`https://pl-timetable-project-fe.vercel.app/login/oauth2/code/google`
+
 ## Required review flow
 
 Feature branches and pull requests do not deploy production. A reviewed change

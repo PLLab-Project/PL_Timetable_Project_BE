@@ -21,6 +21,7 @@ env:
   REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
   DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
   WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+  GOOGLE_OAUTH_REDIRECT_URI: ${{ vars.GOOGLE_OAUTH_REDIRECT_URI }}
 
 jobs:
   test-build-deploy:
@@ -77,11 +78,12 @@ jobs:
         run: |
           set -euo pipefail
           short_sha="${GITHUB_SHA:0:7}"
+          test -n "${GOOGLE_OAUTH_REDIRECT_URI}"
           gcloud run services update "${SERVICE}" \
             --project "${PROJECT_ID}" \
             --region "${REGION}" \
             --image "${IMAGE}" \
-            --update-env-vars "APP_VERSION=0.0.1-main.${short_sha},APP_COMMIT=${GITHUB_SHA}" \
+            --update-env-vars "APP_VERSION=0.0.1-main.${short_sha},APP_COMMIT=${GITHUB_SHA},SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_REDIRECT_URI=${GOOGLE_OAUTH_REDIRECT_URI}" \
             --quiet
 
       - name: Verify deployed commit
