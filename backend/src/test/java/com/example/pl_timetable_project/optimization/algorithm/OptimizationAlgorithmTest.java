@@ -71,7 +71,8 @@ class OptimizationAlgorithmTest {
                 LocalTime.of(12, 0),
                 LocalTime.of(13, 0),
                 480,
-                1_000);
+                1_000,
+                List.of());
 
         List<CandidateCourse> filtered = new CandidateCourseFilter().filter(
                 List.of(morning, afternoon, blocked, outside), constraints);
@@ -81,12 +82,52 @@ class OptimizationAlgorithmTest {
                 .containsExactly("CSE100", "CSE200");
     }
 
+    @Test
+    void filtersOutSectionsRestrictedToAnotherAcademicUnit() {
+        CandidateCourse ownDepartment = candidate(
+                "CSE100", "01", DayOfWeek.MONDAY, 9, 11, List.of("D1"));
+        CandidateCourse otherDepartment = candidate(
+                "PHY100", "01", DayOfWeek.TUESDAY, 9, 11, List.of("D2"));
+        CandidateCourse common = candidate(
+                "GEN100", "01", DayOfWeek.WEDNESDAY, 9, 11, List.of());
+        OptimizationConstraints constraints = new OptimizationConstraints(
+                0,
+                1_200,
+                600,
+                Set.of(),
+                Set.of(),
+                LocalTime.of(8, 0),
+                LocalTime.of(20, 0),
+                LocalTime.of(12, 0),
+                LocalTime.of(13, 0),
+                480,
+                1_000,
+                List.of("D1"));
+
+        List<CandidateCourse> filtered = new CandidateCourseFilter().filter(
+                List.of(ownDepartment, otherDepartment, common), constraints);
+
+        assertThat(filtered)
+                .extracting(course -> course.section().getCourseCode())
+                .containsExactlyInAnyOrder("CSE100", "GEN100");
+    }
+
     private CandidateCourse candidate(
             String courseCode,
             String sectionCode,
             DayOfWeek day,
             int startHour,
             int endHour) {
+        return candidate(courseCode, sectionCode, day, startHour, endHour, List.of());
+    }
+
+    private CandidateCourse candidate(
+            String courseCode,
+            String sectionCode,
+            DayOfWeek day,
+            int startHour,
+            int endHour,
+            List<String> restrictedAcademicUnitCodes) {
         return new CandidateCourse(
                 new SectionReference("2026-1", courseCode, sectionCode),
                 "자료구조",
@@ -94,6 +135,7 @@ class OptimizationAlgorithmTest {
                 300,
                 false,
                 List.of(new CourseTimeSlot(
-                        day, LocalTime.of(startHour, 0), LocalTime.of(endHour, 0))));
+                        day, LocalTime.of(startHour, 0), LocalTime.of(endHour, 0))),
+                restrictedAcademicUnitCodes);
     }
 }
