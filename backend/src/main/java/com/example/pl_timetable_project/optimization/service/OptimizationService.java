@@ -3,6 +3,7 @@ package com.example.pl_timetable_project.optimization.service;
 import com.example.pl_timetable_project.academic.section.AcademicSection;
 import com.example.pl_timetable_project.academic.section.AcademicSectionQueryRepository;
 import com.example.pl_timetable_project.academic.section.SectionReference;
+import com.example.pl_timetable_project.common.exception.BusinessException;
 import com.example.pl_timetable_project.exception.ApplicationException;
 import com.example.pl_timetable_project.exception.ForbiddenException;
 import com.example.pl_timetable_project.exception.InvalidOptimizationConditionException;
@@ -35,6 +36,9 @@ import com.example.pl_timetable_project.timetable.repository.TimetableRepository
 import com.example.pl_timetable_project.timetable.dto.request.TimetableCourseRequest;
 import com.example.pl_timetable_project.timetable.dto.response.TimetableResponse;
 import com.example.pl_timetable_project.timetable.service.TimetableService;
+import com.example.pl_timetable_project.user.UserErrorCode;
+import com.example.pl_timetable_project.user.entity.StudentProfile;
+import com.example.pl_timetable_project.user.repository.StudentProfileRepository;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -58,6 +62,7 @@ public class OptimizationService {
     private final OptimizationJobLifecycleService lifecycleService;
     private final TimetableRepository timetableRepository;
     private final AcademicSectionQueryRepository sectionQueryRepository;
+    private final StudentProfileRepository studentProfileRepository;
     private final CandidateCourseFilter candidateCourseFilter;
     private final RequiredCoursePlacer requiredCoursePlacer;
     private final ScheduleSearchService scheduleSearchService;
@@ -68,6 +73,7 @@ public class OptimizationService {
             OptimizationJobLifecycleService lifecycleService,
             TimetableRepository timetableRepository,
             AcademicSectionQueryRepository sectionQueryRepository,
+            StudentProfileRepository studentProfileRepository,
             CandidateCourseFilter candidateCourseFilter,
             RequiredCoursePlacer requiredCoursePlacer,
             ScheduleSearchService scheduleSearchService,
@@ -76,6 +82,7 @@ public class OptimizationService {
         this.lifecycleService = lifecycleService;
         this.timetableRepository = timetableRepository;
         this.sectionQueryRepository = sectionQueryRepository;
+        this.studentProfileRepository = studentProfileRepository;
         this.candidateCourseFilter = candidateCourseFilter;
         this.requiredCoursePlacer = requiredCoursePlacer;
         this.scheduleSearchService = scheduleSearchService;
@@ -87,12 +94,15 @@ public class OptimizationService {
             UUID userId, OptimizationCreateRequest request) {
         validateRequest(request);
         Timetable timetable = getOwnedTimetable(userId, request.getTimetableId());
+        List<String> userAcademicUnitCodes = resolveUserAcademicUnitCodes(userId);
         List<CandidateCourse> candidates =
                 loadCandidates(
                         timetable.getSemesterId(),
                         request.getCandidateCourses(),
-                        request.getRequiredCourses());
-        OptimizationConstraints constraints = buildConstraints(request, candidates);
+                        request.getRequiredCourses(),
+                        userAcademicUnitCodes);
+        OptimizationConstraints constraints =
+                buildConstraints(request, candidates, userAcademicUnitCodes);
 
         List<CandidateCourse> filtered = candidateCourseFilter.filter(candidates, constraints);
         requiredCoursePlacer.place(filtered, constraints.requiredSections());
@@ -100,6 +110,23 @@ public class OptimizationService {
         OptimizationJob job = lifecycleService.createPendingJobAndPublish(
                 userId, timetable.getSemesterId(), request, candidates, constraints);
         return OptimizationJobResponse.from(job);
+    }
+
+    /**
+     * 로그인한 사용자가 속한 학과 코드 목록을 만든다. 지금은 StudentProfile에 학과가
+     * 하나뿐이라 리스트에 최대 한 건만 담기지만, 복수전공으로 두 번째 학과 필드가
+     * 추가되면 이 메서드만 확장하면 나머지 후보 필터링 로직은 그대로 재사용된다.
+     */
+    private List<String> resolveUserAcademicUnitCodes(UUID userId) {
+        StudentProfile profile = studentProfileRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+        return resolveUserAcademicUnitCodes(profile);
+    }
+
+    private List<String> resolveUserAcademicUnitCodes(StudentProfile profile) {
+        return profile.academicUnitCode() == null
+                ? List.of()
+                : List.of(profile.academicUnitCode());
     }
 
     @Transactional(readOnly = true)
@@ -187,9 +214,8 @@ public class OptimizationService {
     private List<CandidateCourse> loadCandidates(
             String semesterId,
             List<CourseCandidateRequest> requests,
-            List<CourseCandidateRequest> requiredRequests) {
-        Map<SectionReference, AcademicSection> catalog =
-                sectionQueryRepository.findBySemesterId(semesterId);
+            List<CourseCandidateRequest> requiredRequests,
+            List<String> userAcademicUnitCodes) {
         Set<SectionReference> requiredSections = new HashSet<>();
         if (requiredRequests != null) {
             requiredRequests.forEach(request -> requiredSections.add(
@@ -203,6 +229,9 @@ public class OptimizationService {
         }
 
         if (requests == null || requests.isEmpty()) {
+            // 서버가 후보를 자동 생성하는 경로이므로 학과 필터를 DB 조회 단계에서 바로 적용한다.
+            Map<SectionReference, AcademicSection> catalog =
+                    sectionQueryRepository.findBySemesterId(semesterId, userAcademicUnitCodes);
             List<CandidateCourse> serverCandidates = catalog.values().stream()
                     .filter(section -> !section.meetings().isEmpty())
                     .map(section -> toCandidateCourse(
@@ -217,6 +246,11 @@ public class OptimizationService {
             return serverCandidates;
         }
 
+        // 클라이언트가 후보 분반을 직접 지정한 경로이므로, "존재하지 않는 분반" 오류와
+        // "학과가 맞지 않는 분반"을 구분할 수 있도록 학과 필터 없이 전체 카탈로그에서 조회한다.
+        // 학과 필터는 이후 CandidateCourseFilter가 리스트 기반으로 동일하게 적용한다.
+        Map<SectionReference, AcademicSection> catalog =
+                sectionQueryRepository.findBySemesterId(semesterId);
         Set<SectionReference> seen = new HashSet<>();
         List<CandidateCourse> candidates = new ArrayList<>();
 
@@ -269,7 +303,8 @@ public class OptimizationService {
                                 meeting.dayOfWeek(),
                                 meeting.startTime(),
                                 meeting.endTime()))
-                        .toList());
+                        .toList(),
+                academicSection.restrictedAcademicUnitCodes());
     }
 
     private void validateRequiredCandidates(
@@ -289,7 +324,9 @@ public class OptimizationService {
     }
 
     private OptimizationConstraints buildConstraints(
-            OptimizationCreateRequest request, List<CandidateCourse> candidates) {
+            OptimizationCreateRequest request,
+            List<CandidateCourse> candidates,
+            List<String> userAcademicUnitCodes) {
         Set<SectionReference> requiredSections = candidates.stream()
                 .filter(CandidateCourse::required)
                 .map(CandidateCourse::section)
@@ -316,7 +353,8 @@ public class OptimizationService {
                 request.getLunchTime().getStartTime(),
                 request.getLunchTime().getEndTime(),
                 request.getMaxDailyClassMinutes(),
-                SEARCH_TIME_LIMIT_MILLIS);
+                SEARCH_TIME_LIMIT_MILLIS,
+                userAcademicUnitCodes);
     }
 
     private void validateRequest(OptimizationCreateRequest request) {

@@ -27,6 +27,8 @@ import com.example.pl_timetable_project.optimization.entity.OptimizationJobStatu
 import com.example.pl_timetable_project.timetable.entity.Timetable;
 import com.example.pl_timetable_project.timetable.repository.TimetableRepository;
 import com.example.pl_timetable_project.timetable.service.TimetableService;
+import com.example.pl_timetable_project.user.entity.StudentProfile;
+import com.example.pl_timetable_project.user.repository.StudentProfileRepository;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.Instant;
@@ -47,6 +49,7 @@ class OptimizationServiceTest {
     private OptimizationJobLifecycleService lifecycleService;
     private TimetableRepository timetableRepository;
     private AcademicSectionQueryRepository sectionQueryRepository;
+    private StudentProfileRepository studentProfileRepository;
     private OptimizationService service;
     private UUID userId;
 
@@ -55,10 +58,12 @@ class OptimizationServiceTest {
         lifecycleService = mock(OptimizationJobLifecycleService.class);
         timetableRepository = mock(TimetableRepository.class);
         sectionQueryRepository = mock(AcademicSectionQueryRepository.class);
+        studentProfileRepository = mock(StudentProfileRepository.class);
         service = new OptimizationService(
                 lifecycleService,
                 timetableRepository,
                 sectionQueryRepository,
+                studentProfileRepository,
                 new CandidateCourseFilter(),
                 new RequiredCoursePlacer(),
                 mock(ScheduleSearchService.class),
@@ -68,6 +73,12 @@ class OptimizationServiceTest {
         userId = UUID.randomUUID();
         when(timetableRepository.findById(TIMETABLE_ID))
                 .thenReturn(Optional.of(new Timetable(userId, SEMESTER_ID, "자동편성")));
+        // 이 테스트들은 "수업시간 미정 분반 스킵" 시나리오만 검증하므로 학과 필터와는
+        // 무관하다. 임의의 학과를 가진 학생으로 두고, 후보 강의는 학과 제한이 없는
+        // 공통 강의로 만들어 학과 필터가 결과에 영향을 주지 않게 한다.
+        StudentProfile profile = new StudentProfile(userId, "20260001");
+        profile.update((short) 3, "D1", 2026, "REGULAR", "ADVANCED_MAJOR", null);
+        when(studentProfileRepository.findById(userId)).thenReturn(Optional.of(profile));
         OptimizationJob job = pendingJob();
         when(lifecycleService.createPendingJobAndPublish(
                         any(), any(), any(), any(), any()))
@@ -150,8 +161,10 @@ class OptimizationServiceTest {
 
     private AcademicSection section(
             SectionReference reference, String courseName, List<AcademicMeeting> meetings) {
+        // 이 테스트 스위트는 학과 필터링과 무관한 시나리오만 다루므로 학과 제한이
+        // 없는(공통) 강의로 취급한다.
         return new AcademicSection(
-                reference, courseName, "담당교수", BigDecimal.valueOf(3), meetings);
+                reference, courseName, "담당교수", BigDecimal.valueOf(3), meetings, List.of());
     }
 
     private OptimizationJob pendingJob() {
