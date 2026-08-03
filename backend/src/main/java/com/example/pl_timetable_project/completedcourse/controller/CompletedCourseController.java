@@ -73,9 +73,10 @@ public class CompletedCourseController {
     }
 
     @Operation(
-            summary = "성적표 이미지 OCR",
-            description = "이미지 원본은 저장하지 않습니다. 반환된 텍스트를 사용자가 확인·보정한 뒤 "
-                    + "이수과목 직접 등록 API로 저장해야 합니다.")
+            summary = "성적표·시간표 이미지 OCR 및 강의 DB 매칭",
+            description = "Gemini가 이미지에서 학기·과목·교수·시간·강의실을 구조화하고 실제 강의 "
+                    + "DB의 과목·분반 후보를 반환합니다. 이미지 원본은 저장하지 않으며 결과도 자동 "
+                    + "등록하지 않습니다. 사용자가 확인·보정한 뒤 이수과목 직접 등록 API로 저장해야 합니다.")
     @PostMapping(value = "/ocr", consumes = "multipart/form-data")
     public ApiResponse<CompletedCourseOcrResponse> recognizeTranscript(
             @AuthenticationPrincipal AuthenticatedUser principal,

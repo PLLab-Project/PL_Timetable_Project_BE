@@ -2,11 +2,18 @@ package com.example.pl_timetable_project.completedcourse.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.example.pl_timetable_project.common.exception.BusinessException;
 import com.example.pl_timetable_project.completedcourse.CompletedCourseErrorCode;
 import com.example.pl_timetable_project.completedcourse.CompletedCourseGradingBasis;
+import com.example.pl_timetable_project.completedcourse.dto.OcrDocumentType;
 import java.io.IOException;
+import java.time.DayOfWeek;
+import java.time.LocalTime;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
@@ -68,6 +75,9 @@ class CompletedCourseOcrServiceTest {
         assertThat(response.provider()).isEqualTo("GEMINI_3_5_FLASH_LITE");
         assertThat(response.extractedText()).isEqualTo("과목코드  과목명\n\n855121  자료구조");
         assertThat(response.lines()).containsExactly("과목코드  과목명", "855121  자료구조");
+        assertThat(response.documentType()).isEqualTo(OcrDocumentType.OTHER);
+        assertThat(response.recognizedSemester()).isNull();
+        assertThat(response.resolvedSemester()).isNull();
         assertThat(response.recognizedCourses()).isEmpty();
         assertThat(response.requiresConfirmation()).isTrue();
     }
@@ -79,19 +89,32 @@ class CompletedCourseOcrServiceTest {
                 true,
                 10_000,
                 (project, location, model, tokens, bytes, contentType) ->
-                        "2026-1 전공선택 자료구조 3 A+",
-                (project, location, model, tokens, transcription) -> {
+                        "2026년 1학기 전공선택 전공심화 자료구조 박정규 월 15:30 17:30 공다A 411 3 A+",
+                (project, location, model, tokens, bytes, contentType, transcription) -> {
+                    assertThat(bytes).containsExactly(1);
+                    assertThat(contentType).isEqualTo("image/png");
                     transcriptionUsed.set(transcription);
                     return """
                             {
+                              "documentType": "TIMETABLE",
+                              "semester": "2026년 1학기",
                               "recognizedCourses": [
                                 {
                                   "courseName": "자료구조",
+                                  "professor": "박정규",
                                   "credits": 3.0,
                                   "gradingBasis": "LETTER",
                                   "category": "전공선택",
                                   "area": "전공심화",
-                                  "semester": "2026-1",
+                                  "semester": null,
+                                  "meetings": [
+                                    {
+                                      "dayOfWeek": "MONDAY",
+                                      "startTime": "15:30",
+                                      "endTime": "17:30",
+                                      "room": "공다A 411"
+                                    }
+                                  ],
                                   "confidence": 0.94
                                 }
                               ]
@@ -101,7 +124,11 @@ class CompletedCourseOcrServiceTest {
 
         var response = service.recognize(image("image/png", new byte[] {1}));
 
-        assertThat(transcriptionUsed).hasValue("2026-1 전공선택 자료구조 3 A+");
+        assertThat(transcriptionUsed).hasValue(
+                "2026년 1학기 전공선택 전공심화 자료구조 박정규 월 15:30 17:30 공다A 411 3 A+");
+        assertThat(response.recognizedSemester()).isEqualTo("2026-1");
+        assertThat(response.resolvedSemester()).isEqualTo("2026-1");
+        assertThat(response.documentType()).isEqualTo(OcrDocumentType.TIMETABLE);
         assertThat(response.recognizedCourses()).singleElement().satisfies(course -> {
             assertThat(course.courseName()).isEqualTo("자료구조");
             assertThat(course.credits()).isEqualByComparingTo("3.0");
@@ -110,6 +137,13 @@ class CompletedCourseOcrServiceTest {
             assertThat(course.area()).isEqualTo("전공심화");
             assertThat(course.semester()).isEqualTo("2026-1");
             assertThat(course.confidence()).isEqualByComparingTo("0.94");
+            assertThat(course.professor()).isEqualTo("박정규");
+            assertThat(course.meetings()).singleElement().satisfies(meeting -> {
+                assertThat(meeting.dayOfWeek()).isEqualTo(DayOfWeek.MONDAY);
+                assertThat(meeting.startTime()).isEqualTo(LocalTime.of(15, 30));
+                assertThat(meeting.endTime()).isEqualTo(LocalTime.of(17, 30));
+                assertThat(meeting.room()).isEqualTo("공다A 411");
+            });
         });
     }
 
@@ -120,7 +154,7 @@ class CompletedCourseOcrServiceTest {
                 10_000,
                 (project, location, model, tokens, bytes, contentType) ->
                         "자료구조 3학점",
-                (project, location, model, tokens, transcription) ->
+                (project, location, model, tokens, bytes, contentType, transcription) ->
                         "not-json");
 
         var response = service.recognize(image("image/png", new byte[] {1}));
@@ -155,8 +189,9 @@ class CompletedCourseOcrServiceTest {
                 enabled,
                 maxFileSizeBytes,
                 extractor,
-                (project, location, model, tokens, transcription) ->
-                        "{\"recognizedCourses\":[]}");
+                (project, location, model, tokens, bytes, contentType, transcription) ->
+                        "{\"documentType\":\"OTHER\",\"semester\":null,"
+                                + "\"recognizedCourses\":[]}");
     }
 
     private static CompletedCourseOcrService service(
@@ -173,7 +208,18 @@ class CompletedCourseOcrServiceTest {
                 8192,
                 textExtractor,
                 courseExtractor,
+                passthroughMatcher(),
                 new ObjectMapper());
+    }
+
+    private static CompletedCourseSectionMatcher passthroughMatcher() {
+        CompletedCourseSectionMatcher matcher = mock(CompletedCourseSectionMatcher.class);
+        when(matcher.match(
+                nullable(OcrDocumentType.class), nullable(String.class), anyList()))
+                .thenAnswer(invocation ->
+                new CompletedCourseSectionMatcher.MatchingResult(
+                        invocation.getArgument(1), invocation.getArgument(2)));
+        return matcher;
     }
 
     private static void assertBusinessError(
