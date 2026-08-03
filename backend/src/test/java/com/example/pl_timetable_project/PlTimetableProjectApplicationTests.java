@@ -113,7 +113,7 @@ class PlTimetableProjectApplicationTests {
                 """, Integer.class);
 
         assertThat(version).startsWith("18.4");
-        assertThat(successfulMigrations).isEqualTo(14);
+        assertThat(successfulMigrations).isEqualTo(15);
         assertThat(graduationProfiles).isEqualTo("graduation_credit_profiles");
         assertThat(socialIdentities).isEqualTo("social_identities");
         assertThat(academicUnits).isEqualTo("academic_units");
@@ -265,6 +265,127 @@ class PlTimetableProjectApplicationTests {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM section_academic_units WHERE academic_unit_code = 'D1'",
                 Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    @Transactional
+    void normalizesOfficialCatalogNotesFromPreservedRawCellsIdempotently() {
+        jdbcTemplate.execute("""
+                INSERT INTO semesters (
+                    id, prepared_at, dataset_version, source_checksum, is_active, created_at
+                ) VALUES (
+                    '2026-2', current_date, 'official-pdf-v1-7c5f280277b6',
+                    '7c5f280277b63c302d02546a425afa95ea062a420afe178e7cede0af1551283c',
+                    true, now()
+                );
+
+                INSERT INTO courses (
+                    semester_id, course_code, name, category, credits
+                ) VALUES (
+                    '2026-2', '123456', '공식비고검증', '전공', 3
+                );
+
+                INSERT INTO sections (
+                    semester_id, course_code, section_code, professor,
+                    raw_lecture_time, time_to_be_announced, warning_codes,
+                    notes, source_page, source_row, source_snapshot
+                ) VALUES
+                    (
+                        '2026-2', '123456', '01', NULL, '', true, '[]'::jsonb,
+                        '자과생(1학년)우 선수강/변경둘째 날10시전체', 1, 1,
+                        jsonb_build_object(
+                            'notes', '자과생(1학년)우 선수강/변경둘째 날10시전체'
+                        )
+                    ),
+                    (
+                        '2026-2', '123456', '02', NULL, '', true, '[]'::jsonb,
+                        '자과생(1학년)우 선수강/변경둘째 날10시전체', 1, 2,
+                        jsonb_build_object(
+                            'notes', '자과생(1학년)우 선수강/변경둘째 날10시전체'
+                        )
+                    );
+
+                INSERT INTO catalog_sources (
+                    checksum, semester_id, source_kind, original_file_name,
+                    published_on, parser_version, raw_row_count,
+                    supplemental_row_count, unique_section_count, imported_at, metadata
+                ) VALUES (
+                    '7c5f280277b63c302d02546a425afa95ea062a420afe178e7cede0af1551283c',
+                    '2026-2', 'OFFICIAL_PDF', 'official.pdf', current_date,
+                    'official-catalog-pdf-v1', 2, 0, 2, now(),
+                    jsonb_build_object(
+                        'parserVersion', 'official-catalog-pdf-v1',
+                        'datasetVersion', 'official-pdf-v1-7c5f280277b6'
+                    )
+                );
+
+                INSERT INTO catalog_source_rows (
+                    source_checksum, semester_id, course_code, section_code,
+                    page_number, row_number, context_label, is_shaded, raw_cells
+                ) VALUES
+                    (
+                        '7c5f280277b63c302d02546a425afa95ea062a420afe178e7cede0af1551283c',
+                        '2026-2', '123456', '01', 1, 1, '테스트학과', false,
+                        jsonb_build_object(
+                            '교과번호', '123456',
+                            '비고', E'자과생(1학년)우\n선수강/변경둘째\n날10시전체'
+                        )
+                    ),
+                    (
+                        '7c5f280277b63c302d02546a425afa95ea062a420afe178e7cede0af1551283c',
+                        '2026-2', '123456', '02', 1, 2, '테스트학과', false,
+                        jsonb_build_object('교과번호', NULL, '비고', NULL)
+                    );
+
+                INSERT INTO data_imports (
+                    id, semester_id, checksum, parser_version, status, report, created_at
+                ) VALUES (
+                    '00000000-0000-0000-0000-000000000014', '2026-2',
+                    '7c5f280277b63c302d02546a425afa95ea062a420afe178e7cede0af1551283c',
+                    'official-catalog-pdf-v1', 'SUCCEEDED',
+                    jsonb_build_object(
+                        'parserVersion', 'official-catalog-pdf-v1',
+                        'datasetVersion', 'official-pdf-v1-7c5f280277b6'
+                    ),
+                    now()
+                );
+                """);
+
+        executeCatalogNoteNormalization();
+        executeCatalogNoteNormalization();
+
+        assertThat(jdbcTemplate.queryForList("""
+                SELECT notes
+                  FROM sections
+                 WHERE semester_id = '2026-2'
+                 ORDER BY section_code
+                """, String.class)).containsExactly(
+                        "자과생(1학년)우선수강/변경둘째날10시전체",
+                        "자과생(1학년)우선수강/변경둘째날10시전체");
+        assertThat(jdbcTemplate.queryForList("""
+                SELECT source_snapshot ->> 'notes'
+                  FROM sections
+                 WHERE semester_id = '2026-2'
+                 ORDER BY section_code
+                """, String.class)).containsExactly(
+                        "자과생(1학년)우선수강/변경둘째날10시전체",
+                        "자과생(1학년)우선수강/변경둘째날10시전체");
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT raw_cells ->> '비고'
+                  FROM catalog_source_rows
+                 WHERE semester_id = '2026-2'
+                   AND section_code = '01'
+                """, String.class)).contains("우\n선수강");
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT dataset_version
+                  FROM semesters
+                 WHERE id = '2026-2'
+                """, String.class)).isEqualTo("official-pdf-v2-7c5f280277b6");
+        assertThat(jdbcTemplate.queryForObject("""
+                SELECT parser_version
+                  FROM data_imports
+                 WHERE semester_id = '2026-2'
+                """, String.class)).isEqualTo("official-catalog-pdf-v2");
     }
 
     @Test
@@ -523,6 +644,14 @@ class PlTimetableProjectApplicationTests {
         ScriptUtils.executeSqlScript(
                 connection,
                 new ClassPathResource("db/normalization/normalize_academic_units.sql"));
+    }
+
+    private void executeCatalogNoteNormalization() {
+        Connection connection = DataSourceUtils.getConnection(dataSource);
+        ScriptUtils.executeSqlScript(
+                connection,
+                new ClassPathResource(
+                        "db/migration/V2026_08_03_014__normalize_official_catalog_notes.sql"));
     }
 
 }
