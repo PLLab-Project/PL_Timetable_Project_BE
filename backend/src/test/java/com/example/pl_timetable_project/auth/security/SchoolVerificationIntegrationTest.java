@@ -83,12 +83,14 @@ class SchoolVerificationIntegrationTest {
     }
 
     @Test
-    void blocksStudentFeaturesUntilSchoolOtpSucceedsAndThenUpdatesSession() throws Exception {
+    void allowsStudentFeaturesWithoutSchoolOtp() throws Exception {
         mockMvc.perform(get("/api/v1/timetables")
                         .with(authentication(unverifiedAuthentication)))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("SCHOOL_VERIFICATION_REQUIRED"));
+                .andExpect(status().isOk());
+    }
 
+    @Test
+    void optionalSchoolVerificationUpdatesSession() throws Exception {
         jdbcTemplate.update("""
                 INSERT INTO login_otp_challenges (
                     student_number, email, code_hash,

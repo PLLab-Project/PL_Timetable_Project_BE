@@ -161,7 +161,35 @@ class UserWithdrawalIntegrationTest {
     }
 
     @Test
-    void rejectsStudentNumberChangeWithoutSchoolOtpVerification() {
+    void updatesStudentNumberWithoutSchoolOtpVerification() {
+        var response = userService.update(
+                USER_ID,
+                new UserUpdateRequest(
+                        "2026999999",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null));
+
+        assertThat(response.studentNumber()).isEqualTo("2026999999");
+        assertThat(response.schoolVerified()).isFalse();
+    }
+
+    @Test
+    void rejectsDuplicateStudentNumber() {
+        UUID otherUserId = UUID.fromString("30000000-0000-0000-0000-000000000002");
+        jdbcTemplate.update("""
+                INSERT INTO users (id, display_name, primary_email)
+                VALUES (?, '다른 사용자', 'other@example.ac.kr')
+                """, otherUserId);
+        jdbcTemplate.update("""
+                INSERT INTO student_profiles (user_id, student_number)
+                VALUES (?, '2026999999')
+                """, otherUserId);
+
         assertThatThrownBy(() -> userService.update(
                 USER_ID,
                 new UserUpdateRequest(
@@ -175,7 +203,7 @@ class UserWithdrawalIntegrationTest {
                         null)))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
                         assertThat(exception.errorCode())
-                                .isEqualTo(UserErrorCode.STUDENT_NUMBER_VERIFICATION_REQUIRED));
+                                .isEqualTo(UserErrorCode.STUDENT_NUMBER_DUPLICATE));
     }
 
     private void assertCount(String table, String column, UUID value, int expected) {
