@@ -611,6 +611,11 @@ class PlTimetableProjectApplicationTests {
                 RETURNING id
                 """,
                 UUID.class);
+        // OptimizationService.createJob()이 학과 필터링을 위해 StudentProfile을
+        // 조회하므로, 실제 가입 사용자처럼 프로필 행이 존재해야 한다. 학과는 미설정
+        // 상태(NULL)로 두어 이 파일의 다른 테스트에 영향을 주지 않는다.
+        jdbcTemplate.update(
+                "INSERT INTO student_profiles (user_id) VALUES (?)", userId);
         jdbcTemplate.execute("""
                 INSERT INTO semesters (
                     id, prepared_at, dataset_version, source_checksum, is_active, created_at
