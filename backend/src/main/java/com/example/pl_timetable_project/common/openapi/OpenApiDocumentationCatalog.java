@@ -95,10 +95,13 @@ final class OpenApiDocumentationCatalog {
 
         put(values, HttpMethod.GET, "/api/v1/users/me",
                 "로그인 사용자의 회원 정보와 학생 프로필을 조회합니다. "
-                        + "departmentId는 academic_units의 정규 학과 코드입니다.");
+                        + "academicPrograms에는 주전공을 첫 항목으로 복수전공·부전공·마이크로전공 전체를 반환합니다. "
+                        + "departmentId와 programPath는 기존 클라이언트 호환용 요약 필드입니다.");
         put(values, HttpMethod.PATCH, "/api/v1/users/me",
-                "이름·학년·학과·입학연도·학생구분·전공방식·튜토리얼 상태를 부분 수정합니다. "
-                        + "학번 변경은 학교 이메일 OTP 인증 API만 허용하며, null이거나 생략한 필드는 기존 값을 유지합니다.");
+                "이름·학년·입학연도·학생구분·전공 목록·튜토리얼 상태를 부분 수정합니다. "
+                        + "academicPrograms를 전달하면 기존 전공 목록 전체를 교체하며 PRIMARY는 정확히 하나여야 하고 "
+                        + "같은 학과 코드는 중복할 수 없습니다. 목록을 생략하거나 null로 보내면 기존 목록을 유지합니다. "
+                        + "전공 개수는 고정하지 않으며 departmentId와 programPath는 기존 클라이언트 호환용입니다.");
         put(values, HttpMethod.POST, "/api/v1/users/me/privacy-consents",
                 "개인정보 처리방침 버전별 동의 여부를 저장합니다. 동일 버전의 기존 동의가 있으면 그 기록을 반환합니다.");
         put(values, HttpMethod.GET, "/api/v1/users/me/privacy-consents",
@@ -275,10 +278,15 @@ final class OpenApiDocumentationCatalog {
                         "studentNumber", "20261234",
                         "name", "홍길동",
                         "grade", 3,
-                        "departmentId", "AA0846",
                         "admissionYear", 2022,
                         "studentType", "DOMESTIC",
-                        "programPath", "ADVANCED_MAJOR",
+                        "academicPrograms", List.of(
+                                ordered(
+                                        "academicUnitCode", "AA0194",
+                                        "role", "PRIMARY"),
+                                ordered(
+                                        "academicUnitCode", "AA0242",
+                                        "role", "DOUBLE_MAJOR")),
                         "tutorialCompleted", true));
         example(values, HttpMethod.POST, "/api/v1/users/me/privacy-consents",
                 Map.of("consentVersion", "privacy-v1", "agreed", true));
@@ -373,6 +381,9 @@ final class OpenApiDocumentationCatalog {
                 error(429, "TOO_MANY_ATTEMPTS", "인증번호 확인 횟수를 초과했습니다."));
 
         notFound(values, HttpMethod.GET, "/api/v1/users/me", "USER_NOT_FOUND", "사용자 정보를 찾을 수 없습니다.");
+        addError(values, HttpMethod.PATCH, "/api/v1/users/me",
+                error(400, "INVALID_ACADEMIC_PROGRAMS",
+                        "PRIMARY는 정확히 하나여야 하며 같은 학과 코드는 중복할 수 없습니다."));
         notFound(values, HttpMethod.PATCH, "/api/v1/users/me", "DEPARTMENT_NOT_FOUND", "학과 정보를 찾을 수 없습니다.");
         notFound(values, HttpMethod.GET, "/api/v1/departments/{code}", "ACADEMIC_RESOURCE_NOT_FOUND", "학과 정보를 찾을 수 없습니다.");
         notFound(values, HttpMethod.GET, "/api/v1/semesters/{semesterId}", "ACADEMIC_RESOURCE_NOT_FOUND", "학기를 찾을 수 없습니다.");

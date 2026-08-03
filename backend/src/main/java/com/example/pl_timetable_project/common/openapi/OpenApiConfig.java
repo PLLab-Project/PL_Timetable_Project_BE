@@ -129,6 +129,13 @@ public class OpenApiConfig {
 
     private void documentErrors(
             String path, HttpMethod method, Operation operation) {
+        OpenApiDocumentationCatalog.businessErrors(path, method)
+                .forEach(error -> operation.getResponses().putIfAbsent(
+                        Integer.toString(error.status()),
+                        errorResponse(
+                                "업무 규칙 위반: " + error.message(),
+                                error.code(),
+                                error.message())));
         operation.getResponses().putIfAbsent(
                 "400", errorResponse(
                         "요청값 또는 조회 조건이 올바르지 않음",
@@ -151,13 +158,6 @@ public class OpenApiConfig {
                             "COMMON_FORBIDDEN",
                             "접근 권한이 없습니다."));
         }
-        OpenApiDocumentationCatalog.businessErrors(path, method)
-                .forEach(error -> operation.getResponses().putIfAbsent(
-                        Integer.toString(error.status()),
-                        errorResponse(
-                                "업무 규칙 위반: " + error.message(),
-                                error.code(),
-                                error.message())));
     }
 
     private ApiResponse errorResponse(

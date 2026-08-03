@@ -43,7 +43,7 @@ public record UserUpdateRequest(
         String studentType,
 
         @Schema(
-                description = "전공 이수 경로",
+                description = "기존 클라이언트 호환용 전공 이수 경로. academicPrograms를 전달하면 서버가 목록의 역할을 기준으로 다시 계산",
                 example = "ADVANCED_MAJOR",
                 allowableValues = {
                         "ADVANCED_MAJOR", "DOUBLE_MAJOR", "MINOR", "MICRO_MAJOR"
@@ -55,8 +55,8 @@ public record UserUpdateRequest(
         Boolean tutorialCompleted,
 
         @Schema(
-                description = "주전공을 포함한 전체 전공 목록. null이면 기존 목록 유지",
-                example = "[{\"academicUnitCode\":\"CSE\",\"role\":\"PRIMARY\"}]")
+                description = "주전공을 포함한 전체 전공 목록. 생략하거나 null이면 기존 목록을 유지하고, 전달하면 기존 목록 전체를 교체. PRIMARY는 정확히 하나여야 하며 같은 학과 코드는 역할이 달라도 중복 불가. 개수는 고정하지 않음",
+                example = "[{\"academicUnitCode\":\"AA0194\",\"role\":\"PRIMARY\"},{\"academicUnitCode\":\"AA0242\",\"role\":\"DOUBLE_MAJOR\"}]")
         @Valid
         @Size(min = 1)
         List<@NotNull @Valid AcademicProgramUpdateRequest> academicPrograms

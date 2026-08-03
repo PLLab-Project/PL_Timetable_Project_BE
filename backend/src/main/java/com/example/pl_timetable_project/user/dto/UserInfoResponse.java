@@ -32,7 +32,9 @@ public record UserInfoResponse(
         @Schema(description = "졸업요건 학생 구분", example = "DOMESTIC")
         String studentType,
 
-        @Schema(description = "전공 이수 경로", example = "ADVANCED_MAJOR")
+        @Schema(
+                description = "기존 클라이언트 호환용 전공 이수 경로. academicPrograms 역할을 DOUBLE_MAJOR, MINOR, MICRO_MAJOR, ADVANCED_MAJOR 우선순위로 요약",
+                example = "DOUBLE_MAJOR")
         String programPath,
 
         @Schema(description = "학년·학과 기본 프로필 입력 완료 여부")
@@ -53,6 +55,8 @@ public record UserInfoResponse(
         @Schema(description = "회원 레코드 생성 시각", example = "2026-07-25T03:00:00Z")
         Instant createdAt,
 
-        @Schema(description = "주전공을 포함한 가변 길이 전공 목록")
+        @Schema(
+                description = "주전공을 첫 항목으로 반환하는 가변 길이 전공 목록",
+                example = "[{\"id\":\"50db78a7-cf6e-445f-b99c-e4211d8669d6\",\"academicUnitCode\":\"AA0194\",\"academicUnitName\":\"컴퓨터공학전공\",\"role\":\"PRIMARY\",\"status\":\"ACTIVE\",\"displayOrder\":0},{\"id\":\"a10cfc0f-09c5-4bd6-8228-ae1ec7516423\",\"academicUnitCode\":\"AA0242\",\"academicUnitName\":\"경영학과\",\"role\":\"DOUBLE_MAJOR\",\"status\":\"ACTIVE\",\"displayOrder\":1}]")
         List<AcademicProgramResponse> academicPrograms) {
 }

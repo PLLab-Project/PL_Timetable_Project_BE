@@ -37,6 +37,7 @@ class OpenApiDocumentationIntegrationTest {
     private static final List<String> REQUEST_SCHEMAS = List.of(
             "OtpStartRequest",
             "OtpVerifyRequest",
+            "AcademicProgramUpdateRequest",
             "UserUpdateRequest",
             "ConsentCreateRequest",
             "UserDeleteRequest",
@@ -227,6 +228,55 @@ class OpenApiDocumentationIntegrationTest {
                         .isTrue();
             });
         }
+    }
+
+    @Test
+    void documentsAcademicProgramReplacementContractForFrontend() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/users/me'].patch.description",
+                        org.hamcrest.Matchers.allOf(
+                                org.hamcrest.Matchers.containsString("academicPrograms"),
+                                org.hamcrest.Matchers.containsString("전체를 교체"),
+                                org.hamcrest.Matchers.containsString("PRIMARY는 정확히 하나"),
+                                org.hamcrest.Matchers.containsString("중복할 수 없습니다"))))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/users/me'].patch.requestBody.content['application/json'].example.academicPrograms.length()")
+                        .value(2))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/users/me'].patch.requestBody.content['application/json'].example.academicPrograms[0].academicUnitCode")
+                        .value("AA0194"))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/users/me'].patch.requestBody.content['application/json'].example.academicPrograms[0].role")
+                        .value("PRIMARY"))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/users/me'].patch.requestBody.content['application/json'].example.academicPrograms[1].role")
+                        .value("DOUBLE_MAJOR"))
+                .andExpect(jsonPath(
+                        "$.components.schemas.UserUpdateRequest.properties.academicPrograms.description",
+                        org.hamcrest.Matchers.allOf(
+                                org.hamcrest.Matchers.containsString("전체를 교체"),
+                                org.hamcrest.Matchers.containsString("PRIMARY는 정확히 하나"),
+                                org.hamcrest.Matchers.containsString("중복 불가"),
+                                org.hamcrest.Matchers.containsString("개수는 고정하지 않음"))))
+                .andExpect(jsonPath(
+                        "$.components.schemas.UserUpdateRequest.properties.programPath.description",
+                        org.hamcrest.Matchers.containsString("호환용")))
+                .andExpect(jsonPath(
+                        "$.components.schemas.AcademicProgramUpdateRequest.properties.role.enum",
+                        org.hamcrest.Matchers.hasItems(
+                                "PRIMARY", "DOUBLE_MAJOR", "MINOR", "MICRO_MAJOR")))
+                .andExpect(jsonPath(
+                        "$.components.schemas.UserInfoResponse.properties.academicPrograms.description",
+                        org.hamcrest.Matchers.containsString("가변 길이")))
+                .andExpect(jsonPath(
+                        "$.components.schemas.AcademicProgramResponse.properties.status.enum",
+                        org.hamcrest.Matchers.hasItems(
+                                "PLANNED", "ACTIVE", "COMPLETED")))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/users/me'].patch.responses['400'].content['application/json'].example.code")
+                        .value("INVALID_ACADEMIC_PROGRAMS"));
     }
 
     @Test
