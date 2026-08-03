@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-28T13:00:00+09:00",
+  "generatedAt": "2026-08-03T16:18:35+09:00",
   "database": {
     "engine": "PostgreSQL",
     "sourceVersion": "18.4",
@@ -28,12 +28,12 @@
   },
   "officialCatalog": {
     "semester": "2026-2",
-    "datasetVersion": "official-pdf-v1-7c5f280277b6",
+    "datasetVersion": "official-pdf-v2-7c5f280277b6",
     "sourceFile": "2026학년도 2학기 종합강의시간표_게시용.pdf",
     "sourceChecksum": "7c5f280277b63c302d02546a425afa95ea062a420afe178e7cede0af1551283c",
-    "parserVersion": "official-catalog-pdf-v1",
+    "parserVersion": "official-catalog-pdf-v2",
     "file": "official-catalog-2026-2.sql.gz",
-    "sha256": "482bb681ae14972f280d4f1d83d9d32b83ddd8aa8b4ad41978539607af71802f",
+    "sha256": "6cf17aefaa34e40bcfc17ad7d38fa4bc5198be363d3e30b264e786fc1f0fb2c3",
     "rawRows": 1568,
     "uniqueSections": 1558,
     "microMajorRows": 194,

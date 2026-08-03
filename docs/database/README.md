@@ -75,6 +75,8 @@ DB 작업 전에 중단합니다.
 `SOURCE_NOT_FOUND`로 명시합니다.
 
 원본 PDF에서 적재 페이로드를 다시 생성할 때는 별도 가상환경에서 실행합니다.
+비고 셀은 PDF 레이아웃 때문에 생긴 줄바꿈만 이어 붙여 `우\n선수강` 같은 단어 분리를
+교정하며, 감사용 `catalog_source_rows.raw_cells`에는 추출된 원문 셀을 그대로 보존합니다.
 
 ```bash
 python3 -m venv .venv-academic-data

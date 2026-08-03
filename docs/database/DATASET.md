@@ -82,3 +82,7 @@
 디렉터리에서 각 조각의 SHA-256을 검증합니다. 검증이 끝난 파일만
 `bootstrap-school.sh`가 PostgreSQL로 스트리밍합니다. 교수명과 원천 강의계획서
 payload를 포함할 수 있는 번들은 공개 저장소에서 재배포하지 않습니다.
+
+2026-2 카탈로그 v2는 PDF 표 셀의 시각적 줄바꿈으로 분리된 비고 단어를 이어 붙입니다.
+화면·검색용 `sections.notes`만 교정하고, 원문 감사가 가능하도록
+`catalog_source_rows.raw_cells`는 변경하지 않습니다.

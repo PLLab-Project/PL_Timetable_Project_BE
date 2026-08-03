@@ -23,7 +23,8 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-PARSER_VERSION = "official-catalog-pdf-v1"
+PARSER_VERSION = "official-catalog-pdf-v2"
+DATASET_VERSION = "official-pdf-v2"
 COURSE_CODE_PATTERN = re.compile(r"^\d{6}$")
 SECTION_CODE_PATTERN = re.compile(r"^\d{2}$")
 TIME_PATTERN = re.compile(
@@ -115,6 +116,17 @@ def clean_compact(value: str | None) -> str | None:
 
 def clean_text(value: str | None) -> str | None:
     cleaned = re.sub(r"\s+", " ", value or "").strip()
+    return cleaned or None
+
+
+def clean_notes(value: str | None) -> str | None:
+    # pdfplumber inserts line breaks when text wraps inside a table cell. Those
+    # wraps can split Korean words (for example, "우\n선수강"), so join only
+    # physical lines and preserve intentional spaces that existed on one line.
+    joined_lines = re.sub(
+        r"[^\S\r\n]*(?:\r\n?|\n)+[^\S\r\n]*", "", value or ""
+    )
+    cleaned = re.sub(r"[^\S\r\n]+", " ", joined_lines).strip()
     return cleaned or None
 
 
@@ -328,7 +340,7 @@ def extract_rows(
                             "course_name": course_name,
                             "professor": clean_text(raw_cells.get("담당교수")),
                             "raw_location": clean_compact(raw_cells.get("강의실")),
-                            "notes": clean_text(raw_cells.get("비고")),
+                            "notes": clean_notes(raw_cells.get("비고")),
                             "is_shaded": row_is_shaded(page, code_cell),
                         }
                     elif active_course is None:
@@ -341,11 +353,12 @@ def extract_rows(
                         ("notes", "비고"),
                     ):
                         raw_value = raw_cells.get(header)
-                        cleaned = (
-                            clean_compact(raw_value)
-                            if header == "강의실"
-                            else clean_text(raw_value)
-                        )
+                        if header == "강의실":
+                            cleaned = clean_compact(raw_value)
+                        elif header == "비고":
+                            cleaned = clean_notes(raw_value)
+                        else:
+                            cleaned = clean_text(raw_value)
                         if cleaned is not None:
                             active_course[inherited_field] = cleaned
 
@@ -657,7 +670,7 @@ def generate_sql(
         "semester": semester_id,
         "parserVersion": PARSER_VERSION,
         "sourceChecksum": checksum,
-        "datasetVersion": f"official-pdf-v1-{checksum[:12]}",
+        "datasetVersion": f"{DATASET_VERSION}-{checksum[:12]}",
         "rawRows": len(source_rows),
         "microMajorRows": len(program_rows),
         "microMajorOfferedRows": sum(row.is_offered for row in program_rows),
@@ -682,7 +695,12 @@ def generate_sql(
         "ambiguousRoomMappings": ambiguous_room_count,
         **metadata,
     }
-    import_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"catalog:{semester_id}:{checksum}"))
+    import_id = str(
+        uuid.uuid5(
+            uuid.NAMESPACE_URL,
+            f"catalog:{semester_id}:{checksum}:{PARSER_VERSION}",
+        )
+    )
     generated_at = f"{prepared_on.isoformat()}T00:00:00+00:00"
     original_name = pdf_path.name
 
