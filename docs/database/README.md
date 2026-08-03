@@ -148,7 +148,7 @@ PostgreSQL 설치가 필요하지 않습니다. 학교 서버 운영 절차는
 
 ## 인증 관련 범위
 
-현재 마이그레이션에는 `users`, `student_profiles`, `privacy_consents`,
+현재 마이그레이션에는 `users`, `student_profiles`, `student_academic_programs`, `privacy_consents`,
 `social_identities`, `login_otp_challenges`가 포함됩니다. 학교 이메일 OTP와 Spring
 Security 서버 세션은 구현되어 있습니다. `social_identities`는 향후 공급자 식별자
 연결을 위한 계약이며 OAuth2 Client·소셜 공급자 콜백은 아직 구현되지 않았습니다.

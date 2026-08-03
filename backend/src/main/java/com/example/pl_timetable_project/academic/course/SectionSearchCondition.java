@@ -11,7 +11,7 @@ public record SectionSearchCondition(
         List<String> collegeCodes,
         List<String> completionCategories,
         List<String> targetGrades,
-        String preferredAcademicUnitCode,
+        List<String> preferredAcademicUnitCodes,
         String professor,
         BigDecimal credits,
         String dayCode) {

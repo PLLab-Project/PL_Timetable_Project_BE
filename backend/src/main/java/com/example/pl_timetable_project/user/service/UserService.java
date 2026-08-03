@@ -3,6 +3,8 @@ package com.example.pl_timetable_project.user.service;
 import com.example.pl_timetable_project.auth.repository.LoginOtpChallengeRepository;
 import com.example.pl_timetable_project.common.exception.BusinessException;
 import com.example.pl_timetable_project.user.UserErrorCode;
+import com.example.pl_timetable_project.user.dto.AcademicProgramResponse;
+import com.example.pl_timetable_project.user.dto.AcademicProgramUpdateRequest;
 import com.example.pl_timetable_project.user.dto.ConsentCreateRequest;
 import com.example.pl_timetable_project.user.dto.ConsentResponse;
 import com.example.pl_timetable_project.user.dto.UserDeleteResponse;
@@ -14,9 +16,11 @@ import com.example.pl_timetable_project.user.entity.UserAccount;
 import com.example.pl_timetable_project.user.repository.AcademicUnitLookupRepository;
 import com.example.pl_timetable_project.user.repository.AcademicUnitLookupRepository.AcademicUnit;
 import com.example.pl_timetable_project.user.repository.PrivacyConsentRepository;
+import com.example.pl_timetable_project.user.repository.StudentAcademicProgramRepository;
 import com.example.pl_timetable_project.user.repository.StudentProfileRepository;
 import com.example.pl_timetable_project.user.repository.UserAccountRepository;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -30,16 +34,19 @@ public class UserService {
     private final StudentProfileRepository profileRepository;
     private final PrivacyConsentRepository consentRepository;
     private final AcademicUnitLookupRepository academicUnitRepository;
+    private final StudentAcademicProgramRepository academicProgramRepository;
     private final LoginOtpChallengeRepository otpChallengeRepository;
 
     public UserService(UserAccountRepository userRepository, StudentProfileRepository profileRepository,
                        PrivacyConsentRepository consentRepository,
                        AcademicUnitLookupRepository academicUnitRepository,
+                       StudentAcademicProgramRepository academicProgramRepository,
                        LoginOtpChallengeRepository otpChallengeRepository) {
         this.userRepository = userRepository;
         this.profileRepository = profileRepository;
         this.consentRepository = consentRepository;
         this.academicUnitRepository = academicUnitRepository;
+        this.academicProgramRepository = academicProgramRepository;
         this.otpChallengeRepository = otpChallengeRepository;
     }
 
@@ -57,9 +64,25 @@ public class UserService {
         }
         String academicUnitCode = null;
         if (request.departmentId() != null) {
-            academicUnitCode = academicUnitRepository.findCurrentByCode(request.departmentId())
+            academicUnitCode = academicUnitRepository.findCurrentByCode(request.departmentId().trim())
                     .map(AcademicUnit::code)
                     .orElseThrow(() -> new BusinessException(UserErrorCode.DEPARTMENT_NOT_FOUND));
+        }
+        List<AcademicProgramUpdateRequest> programs = null;
+        if (request.academicPrograms() != null) {
+            programs = validatePrograms(request.academicPrograms());
+            String primaryCode = programs.stream()
+                    .filter(program -> "PRIMARY".equals(program.role()))
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessException(
+                            UserErrorCode.INVALID_ACADEMIC_PROGRAMS))
+                    .academicUnitCode();
+            if (academicUnitCode != null && !academicUnitCode.equals(primaryCode)) {
+                throw new BusinessException(
+                        UserErrorCode.INVALID_ACADEMIC_PROGRAMS,
+                        "departmentId와 PRIMARY 전공 코드가 일치해야 합니다.");
+            }
+            academicUnitCode = primaryCode;
         }
         String studentNumber = normalizeOptional(request.studentNumber());
         if (studentNumber != null && !studentNumber.equals(profile.studentNumber())) {
@@ -69,7 +92,17 @@ public class UserService {
             profile.updateStudentNumber(studentNumber);
         }
         String studentType = uppercaseOptional(request.studentType());
-        String programPath = uppercaseOptional(request.programPath());
+        if (studentType == null && profile.studentType() == null) {
+            studentType = "DOMESTIC";
+        }
+        String programPath = programs == null
+                ? uppercaseOptional(request.programPath())
+                : deriveProgramPath(programs);
+        if (programPath == null
+                && profile.programPath() == null
+                && (academicUnitCode != null || profile.academicUnitCode() != null)) {
+            programPath = "ADVANCED_MAJOR";
+        }
         profile.update(
                 request.grade(),
                 academicUnitCode,
@@ -77,6 +110,11 @@ public class UserService {
                 studentType,
                 programPath,
                 request.tutorialCompleted());
+        if (programs != null) {
+            academicProgramRepository.replaceActivePrograms(userId, programs);
+        } else if (academicUnitCode != null) {
+            academicProgramRepository.replacePrimary(userId, academicUnitCode);
+        }
         return toResponse(user, profile);
     }
 
@@ -135,22 +173,104 @@ public class UserService {
         AcademicUnit academicUnit = profile.academicUnitCode() == null
                 ? null
                 : academicUnitRepository.findByCode(profile.academicUnitCode()).orElse(null);
+        List<AcademicProgramResponse> programs =
+                academicProgramRepository.findActiveByUserId(profile.userId());
+        String programPath = programs.isEmpty()
+                ? profile.programPath()
+                : deriveProgramPathFromResponses(programs);
         boolean graduationProfileCompleted = profile.admissionYear() != null
                 && profile.academicUnitCode() != null
                 && profile.studentType() != null
-                && profile.programPath() != null;
+                && programPath != null;
         return new UserInfoResponse(user.id(), profile.studentNumber(), user.displayName(), profile.grade(),
                 academicUnit == null ? null : academicUnit.code(),
                 academicUnit == null ? null : academicUnit.name(),
                 profile.admissionYear(),
                 profile.studentType(),
-                profile.programPath(),
+                programPath,
                 profile.profileCompleted(),
                 graduationProfileCompleted,
                 profile.tutorialCompleted(),
                 profile.schoolVerified(),
                 profile.schoolVerifiedAt(),
-                user.createdAt());
+                user.createdAt(),
+                programs);
+    }
+
+    private List<AcademicProgramUpdateRequest> validatePrograms(
+            List<AcademicProgramUpdateRequest> requestedPrograms) {
+        if (requestedPrograms.isEmpty()) {
+            throw new BusinessException(UserErrorCode.INVALID_ACADEMIC_PROGRAMS);
+        }
+        List<AcademicProgramUpdateRequest> programs = requestedPrograms.stream()
+                .map(this::normalizeProgram)
+                .toList();
+        long primaryCount = programs.stream()
+                .filter(program -> "PRIMARY".equals(program.role()))
+                .count();
+        if (primaryCount != 1) {
+            throw new BusinessException(
+                    UserErrorCode.INVALID_ACADEMIC_PROGRAMS,
+                    "PRIMARY 전공은 정확히 하나여야 합니다.");
+        }
+        HashSet<String> academicUnitCodes = new HashSet<>();
+        for (AcademicProgramUpdateRequest program : programs) {
+            if (!academicUnitCodes.add(program.academicUnitCode())) {
+                throw new BusinessException(
+                        UserErrorCode.INVALID_ACADEMIC_PROGRAMS,
+                        "같은 학과를 여러 전공 역할로 중복 등록할 수 없습니다.");
+            }
+            academicUnitRepository.findCurrentByCode(program.academicUnitCode())
+                    .orElseThrow(() -> new BusinessException(
+                            UserErrorCode.DEPARTMENT_NOT_FOUND));
+        }
+        return programs.stream()
+                .sorted((left, right) -> Boolean.compare(
+                        !"PRIMARY".equals(left.role()),
+                        !"PRIMARY".equals(right.role())))
+                .toList();
+    }
+
+    private AcademicProgramUpdateRequest normalizeProgram(
+            AcademicProgramUpdateRequest program) {
+        if (program == null
+                || normalizeOptional(program.academicUnitCode()) == null
+                || normalizeOptional(program.role()) == null) {
+            throw new BusinessException(UserErrorCode.INVALID_ACADEMIC_PROGRAMS);
+        }
+        String role = program.role().trim().toUpperCase(Locale.ROOT);
+        if (!List.of("PRIMARY", "DOUBLE_MAJOR", "MINOR", "MICRO_MAJOR")
+                .contains(role)) {
+            throw new BusinessException(UserErrorCode.INVALID_ACADEMIC_PROGRAMS);
+        }
+        return new AcademicProgramUpdateRequest(program.academicUnitCode().trim(), role);
+    }
+
+    private String deriveProgramPath(List<AcademicProgramUpdateRequest> programs) {
+        List<String> roles = programs.stream()
+                .map(AcademicProgramUpdateRequest::role)
+                .toList();
+        return deriveProgramPath(roles);
+    }
+
+    private String deriveProgramPathFromResponses(List<AcademicProgramResponse> programs) {
+        List<String> roles = programs.stream()
+                .map(AcademicProgramResponse::role)
+                .toList();
+        return deriveProgramPath(roles);
+    }
+
+    private String deriveProgramPath(java.util.Collection<String> roles) {
+        if (roles.contains("DOUBLE_MAJOR")) {
+            return "DOUBLE_MAJOR";
+        }
+        if (roles.contains("MINOR")) {
+            return "MINOR";
+        }
+        if (roles.contains("MICRO_MAJOR")) {
+            return "MICRO_MAJOR";
+        }
+        return "ADVANCED_MAJOR";
     }
 
     private String normalizeOptional(String value) {

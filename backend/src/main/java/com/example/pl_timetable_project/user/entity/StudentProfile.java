@@ -61,6 +61,7 @@ public class StudentProfile {
     public StudentProfile(UUID userId, String studentNumber) {
         this.userId = userId;
         this.studentNumber = studentNumber;
+        this.studentType = "DOMESTIC";
         if (studentNumber != null) {
             this.schoolVerifiedAt = Instant.now();
         }

@@ -37,7 +37,7 @@ public class SectionSearchController {
             @RequestParam(required = false) List<String> collegeCode,
             @RequestParam(required = false) List<String> completionCategory,
             @RequestParam(required = false) List<String> targetGrade,
-            @RequestParam(required = false) String preferredAcademicUnitCode,
+            @RequestParam(required = false) List<String> preferredAcademicUnitCode,
             @RequestParam(required = false) String professor,
             @RequestParam(required = false) BigDecimal credits,
             @RequestParam(required = false) String day,

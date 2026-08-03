@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.pl_timetable_project.common.exception.BusinessException;
 import com.example.pl_timetable_project.user.dto.UserDeleteResponse;
+import com.example.pl_timetable_project.user.dto.AcademicProgramUpdateRequest;
 import com.example.pl_timetable_project.user.dto.UserUpdateRequest;
 import com.example.pl_timetable_project.user.service.UserService;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -176,6 +178,70 @@ class UserWithdrawalIntegrationTest {
 
         assertThat(response.studentNumber()).isEqualTo("2026999999");
         assertThat(response.schoolVerified()).isFalse();
+    }
+
+    @Test
+    void storesVariableLengthAcademicProgramsAndDerivesLegacyProgramPath() {
+        jdbcTemplate.execute("""
+                INSERT INTO academic_colleges (
+                    code, name, first_seen_year, last_seen_year, is_current
+                ) VALUES ('C1', '공과대학', 2020, 2026, true);
+
+                INSERT INTO academic_units (
+                    code, college_code, name, code_source,
+                    first_seen_year, last_seen_year, is_current
+                ) VALUES
+                    ('D1', 'C1', '컴퓨터공학과', 'OFFICIAL_CURRICULUM', 2020, 2026, true),
+                    ('D2', 'C1', '경영학과', 'OFFICIAL_CURRICULUM', 2020, 2026, true),
+                    ('D3', 'C1', '일본학전공', 'OFFICIAL_CURRICULUM', 2020, 2026, true);
+                """);
+
+        var response = userService.update(
+                USER_ID,
+                new UserUpdateRequest(
+                        STUDENT_NUMBER,
+                        "다전공 사용자",
+                        (short) 3,
+                        "D1",
+                        2022,
+                        null,
+                        null,
+                        true,
+                        List.of(
+                                new AcademicProgramUpdateRequest("D1", "PRIMARY"),
+                                new AcademicProgramUpdateRequest("D2", "DOUBLE_MAJOR"),
+                                new AcademicProgramUpdateRequest("D3", "MINOR"))));
+
+        assertThat(response.studentType()).isEqualTo("DOMESTIC");
+        assertThat(response.programPath()).isEqualTo("DOUBLE_MAJOR");
+        assertThat(response.graduationProfileCompleted()).isTrue();
+        assertThat(response.academicPrograms())
+                .extracting(program -> program.role())
+                .containsExactly("PRIMARY", "DOUBLE_MAJOR", "MINOR");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM student_academic_programs WHERE user_id = ?",
+                Integer.class,
+                USER_ID)).isEqualTo(3);
+
+        var reduced = userService.update(
+                USER_ID,
+                new UserUpdateRequest(
+                        null,
+                        null,
+                        null,
+                        "D1",
+                        null,
+                        null,
+                        null,
+                        null,
+                        List.of(
+                                new AcademicProgramUpdateRequest("D1", "PRIMARY"),
+                                new AcademicProgramUpdateRequest("D3", "MINOR"))));
+
+        assertThat(reduced.programPath()).isEqualTo("MINOR");
+        assertThat(reduced.academicPrograms())
+                .extracting(program -> program.academicUnitCode())
+                .containsExactly("D1", "D3");
     }
 
     @Test

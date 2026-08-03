@@ -1,10 +1,13 @@
 package com.example.pl_timetable_project.user.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 
 /** null인 필드는 유지하고, 전달된 필드만 수정합니다. */
 @Schema(description = "내 학생 프로필 부분 수정 요청. 생략하거나 null인 필드는 유지됩니다.")
@@ -49,6 +52,26 @@ public record UserUpdateRequest(
         String programPath,
 
         @Schema(description = "최초 사용 튜토리얼 완료 여부", example = "true")
-        Boolean tutorialCompleted
+        Boolean tutorialCompleted,
+
+        @Schema(
+                description = "주전공을 포함한 전체 전공 목록. null이면 기존 목록 유지",
+                example = "[{\"academicUnitCode\":\"CSE\",\"role\":\"PRIMARY\"}]")
+        @Valid
+        @Size(min = 1)
+        List<@NotNull @Valid AcademicProgramUpdateRequest> academicPrograms
 ) {
+    /** 기존 모바일·웹 클라이언트와 내부 호출을 위한 호환 생성자입니다. */
+    public UserUpdateRequest(
+            String studentNumber,
+            String name,
+            Short grade,
+            String departmentId,
+            Integer admissionYear,
+            String studentType,
+            String programPath,
+            Boolean tutorialCompleted) {
+        this(studentNumber, name, grade, departmentId, admissionYear, studentType,
+                programPath, tutorialCompleted, null);
+    }
 }

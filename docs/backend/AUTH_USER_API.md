@@ -207,7 +207,11 @@ Google 로그인에서는 OTP를 반복하지 않으며, 학번을 변경할 때
   "departmentId": "CSE",
   "admissionYear": 2022,
   "studentType": "DOMESTIC",
-  "programPath": "ADVANCED_MAJOR",
+  "academicPrograms": [
+    { "academicUnitCode": "CSE", "role": "PRIMARY" },
+    { "academicUnitCode": "BUS", "role": "DOUBLE_MAJOR" },
+    { "academicUnitCode": "JPN", "role": "MINOR" }
+  ],
   "tutorialCompleted": true
 }
 ```
@@ -218,6 +222,11 @@ Google 로그인에서는 OTP를 반복하지 않으며, 학번을 변경할 때
 - `studentNumber`: Google 로그인 후 온보딩 또는 내 정보에서 직접 설정·변경
 - `admissionYear`: 1900~2100
 - `programPath`: `ADVANCED_MAJOR`, `DOUBLE_MAJOR`, `MINOR`, `MICRO_MAJOR`
+- `academicPrograms`: 주전공을 포함한 전체 전공 목록. 전달하면 기존 목록을 교체하며
+  `PRIMARY`는 정확히 하나여야 한다. 같은 학과를 여러 역할로 중복 등록할 수 없다.
+- 새 클라이언트는 `academicPrograms`를 사용한다. `programPath`는 기존 클라이언트를 위한
+  요약값이며, 목록을 전달하면 서버가 `DOUBLE_MAJOR` → `MINOR` → `MICRO_MAJOR` →
+  `ADVANCED_MAJOR` 우선순위로 계산한다.
 
 사용자 응답의 `data`:
 
@@ -237,9 +246,23 @@ Google 로그인에서는 OTP를 반복하지 않으며, 학번을 변경할 때
   "tutorialCompleted": true,
   "schoolVerified": true,
   "schoolVerifiedAt": "2026-07-31T06:00:00Z",
-  "createdAt": "2026-07-24T04:00:00Z"
+  "createdAt": "2026-07-24T04:00:00Z",
+  "academicPrograms": [
+    {
+      "id": "50db78a7-cf6e-445f-b99c-e4211d8669d6",
+      "academicUnitCode": "CSE",
+      "academicUnitName": "컴퓨터공학과",
+      "role": "PRIMARY",
+      "status": "ACTIVE",
+      "displayOrder": 0
+    }
+  ]
 }
 ```
+
+`studentType`을 보내지 않은 국내 학생 온보딩은 현재 지원 졸업요건 데이터에 맞춰
+`DOMESTIC`으로 저장한다. 전공 목록의 개수는 컬럼으로 제한하지 않으며, 학교 정책상
+허용 개수는 애플리케이션 정책으로 검증할 수 있도록 관계 행으로 저장한다.
 
 ### 개인정보 동의
 

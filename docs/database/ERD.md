@@ -9,12 +9,14 @@
 erDiagram
     USERS ||--o{ SOCIAL_IDENTITIES : authenticates_with
     USERS ||--o| STUDENT_PROFILES : has
+    USERS ||--o{ STUDENT_ACADEMIC_PROGRAMS : pursues
     USERS ||--o{ PRIVACY_CONSENTS : agrees
     USERS ||--o{ COURSE_REVIEWS : writes
     USERS ||--o{ COMPLETED_COURSES : completes
     USERS ||--o{ TIMETABLES : owns
     USERS ||--o{ OPTIMIZATION_JOBS : requests
     ACADEMIC_UNITS ||--o{ STUDENT_PROFILES : identifies
+    ACADEMIC_UNITS ||--o{ STUDENT_ACADEMIC_PROGRAMS : identifies
 
     SEMESTERS ||--o{ COURSES : contains
     COURSES ||--o{ SECTIONS : offers
@@ -65,7 +67,8 @@ erDiagram
 
 - **인증·사용자 계약**: `users`와 `social_identities`로 서비스 사용자와 외부 공급자
   식별자를 분리합니다. `student_profiles`에는 학번·입학연도 같은 학사 프로필과
-  `academic_units`를 참조하는 학과 코드를 둡니다. 학교 이메일 OTP와 Spring Security
+  기존 클라이언트 호환용 주전공 코드를 둡니다. `student_academic_programs`는 한 학생의
+  주전공·복수전공·부전공·마이크로전공을 가변 길이 관계로 저장합니다. 학교 이메일 OTP와 Spring Security
   세션은 구현되어 있고 소셜 로그인 공급자 연동은 후속 범위입니다.
 - **현재 강의 카탈로그**: 2026-1과 공식 2026-2 학기의
   강의·분반·수업시간·강의실을 정규화합니다.

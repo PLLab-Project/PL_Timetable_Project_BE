@@ -66,7 +66,8 @@
 - `completionCategory`: 학과 문맥별 이수구분 다중 선택 (`전필`, `전선`, `교필`,
   `교선`, `교직`, `전기`, `일선`)
 - `targetGrade`: `1`~`4` 또는 `1학년`~`4학년` 다중 선택
-- `preferredAcademicUnitCode`: 공개 호출에서 우선 정렬할 학과. 로그인 시 프로필 사용
+- `preferredAcademicUnitCode`: 공개 호출에서 우선 정렬할 학과. 여러 번 전달할 수 있으며
+  로그인 시 저장된 주전공·복수전공·부전공 목록 순서를 사용
 
 다중 파라미터는 같은 이름을 반복하거나 쉼표로 구분한다. `DEFAULT`는 분반의 원본
 카탈로그 페이지·행 순이고 `NAME_ASC`는 별도 이름순이다. `preferredAcademicUnitCode`가

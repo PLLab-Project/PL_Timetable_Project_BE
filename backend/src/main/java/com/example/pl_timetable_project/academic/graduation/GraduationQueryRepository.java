@@ -90,10 +90,48 @@ public class GraduationQueryRepository {
                        unit.normalized_key AS academic_unit_key,
                        unit.name AS academic_unit_name,
                        profile.student_type,
-                       profile.program_path
+                       coalesce(
+                           CASE
+                               WHEN EXISTS (
+                                   SELECT 1
+                                     FROM student_academic_programs selected
+                                    WHERE selected.user_id = profile.user_id
+                                      AND selected.status <> 'WITHDRAWN'
+                                      AND selected.program_role = 'DOUBLE_MAJOR'
+                               ) THEN 'DOUBLE_MAJOR'
+                               WHEN EXISTS (
+                                   SELECT 1
+                                     FROM student_academic_programs selected
+                                    WHERE selected.user_id = profile.user_id
+                                      AND selected.status <> 'WITHDRAWN'
+                                      AND selected.program_role = 'MINOR'
+                               ) THEN 'MINOR'
+                               WHEN EXISTS (
+                                   SELECT 1
+                                     FROM student_academic_programs selected
+                                    WHERE selected.user_id = profile.user_id
+                                      AND selected.status <> 'WITHDRAWN'
+                                      AND selected.program_role = 'MICRO_MAJOR'
+                               ) THEN 'MICRO_MAJOR'
+                               WHEN primary_program.academic_unit_code IS NOT NULL
+                                   THEN 'ADVANCED_MAJOR'
+                           END,
+                           profile.program_path
+                       ) AS program_path
                   FROM student_profiles profile
+                  LEFT JOIN LATERAL (
+                      SELECT selected.academic_unit_code
+                        FROM student_academic_programs selected
+                       WHERE selected.user_id = profile.user_id
+                         AND selected.status <> 'WITHDRAWN'
+                         AND selected.program_role = 'PRIMARY'
+                       ORDER BY selected.display_order, selected.created_at
+                       LIMIT 1
+                  ) primary_program ON true
                   LEFT JOIN academic_units unit
-                    ON unit.code = profile.academic_unit_code
+                    ON unit.code = coalesce(
+                        primary_program.academic_unit_code,
+                        profile.academic_unit_code)
                  WHERE profile.user_id = :userId
                 """, Map.of("userId", userId), (rs, rowNum) -> new StudentScope(
                 rs.getObject("admission_year", Integer.class),

@@ -222,7 +222,7 @@ public class SectionSearchQueryRepository {
                 .map(row -> row.toResponse(
                         sessions.getOrDefault(row.key(), List.of()),
                         classifications.getOrDefault(row.key(), List.of()),
-                        condition.preferredAcademicUnitCode(),
+                        condition.preferredAcademicUnitCodes(),
                         condition.completionCategories(),
                         condition.targetGrades()))
                 .toList();
@@ -379,20 +379,23 @@ public class SectionSearchQueryRepository {
                 .addValue("targetGradesEmpty", condition.targetGrades().isEmpty())
                 .addValue("targetGrades", placeholder(condition.targetGrades()))
                 .addValue(
-                        "preferredAcademicUnitCode",
-                        condition.preferredAcademicUnitCode())
+                        "preferredAcademicUnitCodesEmpty",
+                        condition.preferredAcademicUnitCodes().isEmpty())
+                .addValue(
+                        "preferredAcademicUnitCodes",
+                        placeholder(condition.preferredAcademicUnitCodes()))
                 .addValue("professor", condition.professor())
                 .addValue("credits", condition.credits())
                 .addValue("dayCode", condition.dayCode());
     }
 
     private String orderBy(SectionSearchCondition condition, CourseSort sort) {
-        String preferredSection = condition.preferredAcademicUnitCode() != null
+        String preferredSection = !condition.preferredAcademicUnitCodes().isEmpty()
                 ? """
                   CASE WHEN EXISTS (
                       SELECT 1
                         FROM academic_units preferred_unit
-                       WHERE preferred_unit.code = :preferredAcademicUnitCode
+                       WHERE preferred_unit.code IN (:preferredAcademicUnitCodes)
                          AND (
                               coalesce(section.notes, '') ILIKE
                                   '%' || preferred_unit.name || '%'
@@ -503,7 +506,7 @@ public class SectionSearchQueryRepository {
         private SectionSearchResponse toResponse(
                 List<CourseSessionResponse> sessions,
                 List<SectionClassificationResponse> classifications,
-                String preferredAcademicUnitCode,
+                List<String> preferredAcademicUnitCodes,
                 List<String> requestedCompletionCategories,
                 List<String> requestedTargetGrades) {
             return new SectionSearchResponse(
@@ -521,11 +524,11 @@ public class SectionSearchQueryRepository {
                     timeToBeAnnounced,
                     selectTargetGrade(
                             classifications,
-                            preferredAcademicUnitCode,
+                            preferredAcademicUnitCodes,
                             requestedTargetGrades),
                     selectCompletionCategory(
                             classifications,
-                            preferredAcademicUnitCode,
+                            preferredAcademicUnitCodes,
                             requestedCompletionCategories),
                     capacity,
                     notes,
@@ -539,19 +542,17 @@ public class SectionSearchQueryRepository {
 
         private String selectTargetGrade(
                 List<SectionClassificationResponse> classifications,
-                String preferredAcademicUnitCode,
+                List<String> preferredAcademicUnitCodes,
                 List<String> requestedTargetGrades) {
             if (requestedTargetGrades.isEmpty() && targetGrade != null) {
                 return targetGrade;
             }
-            if (preferredAcademicUnitCode != null) {
+            for (String preferredAcademicUnitCode : preferredAcademicUnitCodes) {
                 for (SectionClassificationResponse classification : classifications) {
-                    if (preferredAcademicUnitCode.equals(
-                                    classification.academicUnitCode())
+                    if (preferredAcademicUnitCode.equals(classification.academicUnitCode())
                             && classification.targetGrade() != null
                             && (requestedTargetGrades.isEmpty()
-                            || requestedTargetGrades.contains(
-                                    classification.targetGrade()))) {
+                            || requestedTargetGrades.contains(classification.targetGrade()))) {
                         return classification.targetGrade();
                     }
                 }
@@ -586,15 +587,13 @@ public class SectionSearchQueryRepository {
 
         private String selectCompletionCategory(
                 List<SectionClassificationResponse> classifications,
-                String preferredAcademicUnitCode,
+                List<String> preferredAcademicUnitCodes,
                 List<String> requestedCompletionCategories) {
-            if (preferredAcademicUnitCode != null) {
+            for (String preferredAcademicUnitCode : preferredAcademicUnitCodes) {
                 for (SectionClassificationResponse classification : classifications) {
-                    if (preferredAcademicUnitCode.equals(
-                                    classification.academicUnitCode())
+                    if (preferredAcademicUnitCode.equals(classification.academicUnitCode())
                             && (requestedCompletionCategories.isEmpty()
-                            || requestedCompletionCategories.contains(
-                                    classification.completionCategory()))) {
+                            || requestedCompletionCategories.contains(classification.completionCategory()))) {
                         return classification.completionCategory();
                     }
                 }

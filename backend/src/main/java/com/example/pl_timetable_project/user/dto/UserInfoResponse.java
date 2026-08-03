@@ -2,6 +2,7 @@ package com.example.pl_timetable_project.user.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /** 마이페이지에서 사용하는 회원·학사 통합 정보입니다. */
@@ -50,5 +51,8 @@ public record UserInfoResponse(
         Instant schoolVerifiedAt,
 
         @Schema(description = "회원 레코드 생성 시각", example = "2026-07-25T03:00:00Z")
-        Instant createdAt) {
+        Instant createdAt,
+
+        @Schema(description = "주전공을 포함한 가변 길이 전공 목록")
+        List<AcademicProgramResponse> academicPrograms) {
 }

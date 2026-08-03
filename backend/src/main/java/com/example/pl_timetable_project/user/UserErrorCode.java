@@ -6,6 +6,10 @@ import com.example.pl_timetable_project.common.exception.ErrorCode;
 public enum UserErrorCode implements ErrorCode {
     USER_NOT_FOUND(404, "USER_NOT_FOUND", "사용자 정보를 찾을 수 없습니다."),
     DEPARTMENT_NOT_FOUND(404, "DEPARTMENT_NOT_FOUND", "학과 정보를 찾을 수 없습니다."),
+    INVALID_ACADEMIC_PROGRAMS(
+            400,
+            "INVALID_ACADEMIC_PROGRAMS",
+            "주전공을 포함한 전공 목록을 확인해주세요."),
     STUDENT_NUMBER_DUPLICATE(409, "STUDENT_NUMBER_DUPLICATE", "이미 사용 중인 학번입니다."),
     STUDENT_NUMBER_VERIFICATION_REQUIRED(
             409,

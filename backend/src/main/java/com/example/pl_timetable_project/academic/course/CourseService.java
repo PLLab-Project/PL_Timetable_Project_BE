@@ -10,6 +10,8 @@ import com.example.pl_timetable_project.academic.course.dto.SectionSearchRespons
 import com.example.pl_timetable_project.academic.course.dto.SectionSummaryResponse;
 import com.example.pl_timetable_project.exception.AcademicResourceNotFoundException;
 import com.example.pl_timetable_project.exception.InvalidAcademicQueryException;
+import com.example.pl_timetable_project.user.repository.StudentAcademicProgramRepository;
+import com.example.pl_timetable_project.user.repository.StudentProfileRepository;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
@@ -17,7 +19,6 @@ import java.util.UUID;
 import java.util.function.Function;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.example.pl_timetable_project.user.repository.StudentProfileRepository;
 
 @Service
 @Transactional(readOnly = true)
@@ -26,16 +27,19 @@ public class CourseService {
     private final CourseQueryRepository repository;
     private final SectionQueryRepository sectionRepository;
     private final SectionSearchQueryRepository sectionSearchRepository;
+    private final StudentAcademicProgramRepository academicProgramRepository;
     private final StudentProfileRepository studentProfileRepository;
 
     public CourseService(
             CourseQueryRepository repository,
             SectionQueryRepository sectionRepository,
             SectionSearchQueryRepository sectionSearchRepository,
+            StudentAcademicProgramRepository academicProgramRepository,
             StudentProfileRepository studentProfileRepository) {
         this.repository = repository;
         this.sectionRepository = sectionRepository;
         this.sectionSearchRepository = sectionSearchRepository;
+        this.academicProgramRepository = academicProgramRepository;
         this.studentProfileRepository = studentProfileRepository;
     }
 
@@ -92,7 +96,7 @@ public class CourseService {
             List<String> collegeCodes,
             List<String> completionCategories,
             List<String> targetGrades,
-            String preferredAcademicUnitCode,
+            List<String> preferredAcademicUnitCodes,
             String professor,
             BigDecimal credits,
             String day,
@@ -109,7 +113,7 @@ public class CourseService {
                 normalizeValues(collegeCodes, TextQuery::optional),
                 normalizeValues(completionCategories, this::normalizeCompletionCategory),
                 normalizeValues(targetGrades, this::parseTargetGrade),
-                resolvePreferredAcademicUnitCode(userId, preferredAcademicUnitCode),
+                resolvePreferredAcademicUnitCodes(userId, preferredAcademicUnitCodes),
                 TextQuery.optional(professor),
                 validateCredits(credits),
                 parseDay(day));
@@ -214,15 +218,24 @@ public class CourseService {
         };
     }
 
-    private String resolvePreferredAcademicUnitCode(
-            UUID userId, String requestedCode) {
-        String normalized = TextQuery.optional(requestedCode);
-        if (normalized != null || userId == null) {
+    private List<String> resolvePreferredAcademicUnitCodes(
+            UUID userId, List<String> requestedCodes) {
+        List<String> normalized = normalizeValues(requestedCodes, TextQuery::optional);
+        if (!normalized.isEmpty() || userId == null) {
             return normalized;
         }
+        List<String> savedPrograms = academicProgramRepository.findActiveByUserId(userId).stream()
+                .map(program -> program.academicUnitCode())
+                .distinct()
+                .toList();
+        if (!savedPrograms.isEmpty()) {
+            return savedPrograms;
+        }
         return studentProfileRepository.findById(userId)
-                .map(profile -> profile.academicUnitCode())
-                .orElse(null);
+                .map(profile -> profile.academicUnitCode() == null
+                        ? List.<String>of()
+                        : List.of(profile.academicUnitCode()))
+                .orElseGet(List::of);
     }
 
     private List<String> normalizeValues(
