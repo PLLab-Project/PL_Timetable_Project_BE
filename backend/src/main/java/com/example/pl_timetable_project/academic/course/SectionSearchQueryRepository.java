@@ -23,22 +23,26 @@ public class SectionSearchQueryRepository {
 
     private static final String REVIEW_CTE = """
             WITH review_stats AS (
-                SELECT course_code,
+                SELECT semester, course_code,
                        avg(rating)::numeric(4,2) AS rating_average,
                        count(*) AS review_count
                   FROM course_reviews
-                 WHERE semester = :semesterId
-                 GROUP BY course_code
+                 WHERE (CAST(:semesterId AS text) IS NULL OR semester = :semesterId)
+                 GROUP BY semester, course_code
             ),
             global_review_stats AS (
-                SELECT avg(rating)::numeric(4,2) AS global_average
+                SELECT semester, avg(rating)::numeric(4,2) AS global_average
                   FROM course_reviews
-                 WHERE semester = :semesterId
+                 WHERE (CAST(:semesterId AS text) IS NULL OR semester = :semesterId)
+                 GROUP BY semester
             )
             """;
 
     private static final String SEARCH_FILTER = """
-             WHERE section.semester_id = :semesterId
+             WHERE (
+                    CAST(:semesterId AS text) IS NULL
+                    OR section.semester_id = :semesterId
+               )
                AND (
                     CAST(:query AS text) IS NULL
                     OR lower(course.course_code) LIKE '%'
@@ -50,7 +54,8 @@ public class SectionSearchQueryRepository {
                )
                AND (
                     CAST(:categoriesEmpty AS boolean) = true
-                    OR course.category IN (:categories)
+                    OR coalesce(section.offering_category, course.category)
+                        IN (:categories)
                )
                AND (
                     CAST(:academicUnitCodesEmpty AS boolean) = true
@@ -93,6 +98,7 @@ public class SectionSearchQueryRepository {
                                     IN (:academicUnitCodes)
                            )
                     )
+                    OR section.offering_category IN (:completionCategories)
                )
                AND (
                     CAST(:targetGradesEmpty AS boolean) = true
@@ -122,7 +128,8 @@ public class SectionSearchQueryRepository {
                )
                AND (
                     CAST(:credits AS numeric) IS NULL
-                    OR course.credits = CAST(:credits AS numeric)
+                    OR coalesce(section.offering_credits, course.credits)
+                        = CAST(:credits AS numeric)
                )
                AND (
                     CAST(:dayCode AS text) IS NULL
@@ -166,8 +173,15 @@ public class SectionSearchQueryRepository {
         List<SectionRow> rows = jdbcTemplate.query(REVIEW_CTE + """
                 SELECT section.semester_id, section.course_code,
                        course.name AS course_name, section.section_code,
-                       section.professor, course.category, course.credits,
-                       course.lecture_hours, course.practice_hours,
+                       section.offering_id, section.source_type,
+                       section.historical_offering_id,
+                       section.professor,
+                       coalesce(section.offering_category, course.category) AS category,
+                       coalesce(section.offering_credits, course.credits) AS credits,
+                       coalesce(section.offering_lecture_hours, course.lecture_hours)
+                           AS lecture_hours,
+                       coalesce(section.offering_practice_hours, course.practice_hours)
+                           AS practice_hours,
                        section.raw_lecture_time, section.raw_location,
                        section.time_to_be_announced, section.target_grade,
                        section.capacity, section.notes,
@@ -181,8 +195,10 @@ public class SectionSearchQueryRepository {
                     ON course.semester_id = section.semester_id
                    AND course.course_code = section.course_code
                   LEFT JOIN review_stats review
-                    ON review.course_code = section.course_code
-                  CROSS JOIN global_review_stats global_review
+                    ON review.semester = section.semester_id
+                   AND review.course_code = section.course_code
+                  LEFT JOIN global_review_stats global_review
+                    ON global_review.semester = section.semester_id
                 """ + SEARCH_FILTER
                 + " ORDER BY " + orderBy(condition, sort)
                 + " LIMIT :limit OFFSET :offset",
@@ -192,6 +208,9 @@ public class SectionSearchQueryRepository {
                         result.getString("course_code"),
                         result.getString("course_name"),
                         result.getString("section_code"),
+                        result.getString("offering_id"),
+                        result.getString("source_type"),
+                        result.getString("historical_offering_id"),
                         result.getString("professor"),
                         result.getString("category"),
                         result.getBigDecimal("credits"),
@@ -213,10 +232,9 @@ public class SectionSearchQueryRepository {
 
         Set<SectionKey> keys = new LinkedHashSet<>();
         rows.forEach(row -> keys.add(row.key()));
-        Map<SectionKey, List<CourseSessionResponse>> sessions =
-                findSessions(condition.semesterId(), keys);
+        Map<SectionKey, List<CourseSessionResponse>> sessions = findSessions(keys);
         Map<SectionKey, List<SectionClassificationResponse>> classifications =
-                findClassifications(condition.semesterId(), keys);
+                findClassifications(keys);
 
         return rows.stream()
                 .map(row -> row.toResponse(
@@ -242,11 +260,13 @@ public class SectionSearchQueryRepository {
     }
 
     private Map<SectionKey, List<CourseSessionResponse>> findSessions(
-            String semesterId, Set<SectionKey> keys) {
+            Set<SectionKey> keys) {
+        Set<String> semesterIds = semesterIds(keys);
         Set<String> courseCodes = courseCodes(keys);
         Map<Long, MutableSession> sessions = new LinkedHashMap<>();
         jdbcTemplate.query("""
-                SELECT session.id, session.course_code, session.section_code,
+                SELECT session.id, session.semester_id,
+                       session.course_code, session.section_code,
                        session.day, session.start_minute, session.end_minute,
                        session.room_code,
                        primary_room.label AS room_label,
@@ -265,15 +285,16 @@ public class SectionSearchQueryRepository {
                   LEFT JOIN rooms linked_room
                     ON linked_room.semester_id = linked.semester_id
                    AND linked_room.code = linked.room_code
-                 WHERE session.semester_id = :semesterId
+                 WHERE session.semester_id IN (:semesterIds)
                    AND session.course_code IN (:courseCodes)
                  ORDER BY session.course_code, session.section_code,
                           session.sequence_no, session.id, linked.position
                 """, Map.of(
-                        "semesterId", semesterId,
+                        "semesterIds", semesterIds,
                         "courseCodes", courseCodes),
                 result -> {
                     SectionKey key = new SectionKey(
+                            result.getString("semester_id"),
                             result.getString("course_code"),
                             result.getString("section_code"));
                     if (!keys.contains(key)) {
@@ -317,23 +338,25 @@ public class SectionSearchQueryRepository {
     }
 
     private Map<SectionKey, List<SectionClassificationResponse>> findClassifications(
-            String semesterId, Set<SectionKey> keys) {
+            Set<SectionKey> keys) {
         Map<SectionKey, List<SectionClassificationResponse>> bySection =
                 new LinkedHashMap<>();
         jdbcTemplate.query("""
-                SELECT course_code, section_code, context_label, context_kind,
+                SELECT semester_id, course_code, section_code,
+                       context_label, context_kind,
                        academic_unit_code, completion_category, target_grade,
                        is_primary, is_shaded, source_page
                   FROM section_classification_contexts
-                 WHERE semester_id = :semesterId
+                 WHERE semester_id IN (:semesterIds)
                    AND course_code IN (:courseCodes)
                  ORDER BY course_code, section_code, is_primary DESC,
                           source_page, source_row
                 """, Map.of(
-                        "semesterId", semesterId,
+                        "semesterIds", semesterIds(keys),
                         "courseCodes", courseCodes(keys)),
                 result -> {
                     SectionKey key = new SectionKey(
+                            result.getString("semester_id"),
                             result.getString("course_code"),
                             result.getString("section_code"));
                     if (!keys.contains(key)) {
@@ -357,6 +380,12 @@ public class SectionSearchQueryRepository {
     private Set<String> courseCodes(Set<SectionKey> keys) {
         Set<String> values = new LinkedHashSet<>();
         keys.forEach(key -> values.add(key.courseCode()));
+        return values;
+    }
+
+    private Set<String> semesterIds(Set<SectionKey> keys) {
+        Set<String> values = new LinkedHashSet<>();
+        keys.forEach(key -> values.add(key.semesterId()));
         return values;
     }
 
@@ -414,6 +443,7 @@ public class SectionSearchQueryRepository {
         return switch (sort) {
             case DEFAULT ->
                     """
+                    section.semester_id DESC,
                     (SELECT first_section.source_page
                        FROM sections first_section
                       WHERE first_section.semester_id = section.semester_id
@@ -436,10 +466,10 @@ public class SectionSearchQueryRepository {
                             + "section.source_row ASC NULLS LAST, "
                             + "section.section_code ASC";
             case NAME_ASC ->
-                    "course.name ASC, course.course_code ASC, "
+                    "course.name ASC, course.course_code ASC, section.semester_id DESC, "
                             + preferredSection + "section.section_code ASC";
             case NAME_DESC ->
-                    "course.name DESC, course.course_code DESC, "
+                    "course.name DESC, course.course_code DESC, section.semester_id DESC, "
                             + preferredSection + "section.section_code DESC";
             case REVIEW_COUNT_DESC ->
                     "coalesce(review.review_count, 0) DESC, course.name ASC, "
@@ -475,7 +505,8 @@ public class SectionSearchQueryRepository {
         };
     }
 
-    private record SectionKey(String courseCode, String sectionCode) {
+    private record SectionKey(
+            String semesterId, String courseCode, String sectionCode) {
     }
 
     private record SectionRow(
@@ -483,6 +514,9 @@ public class SectionSearchQueryRepository {
             String courseCode,
             String courseName,
             String sectionCode,
+            String offeringId,
+            String sourceType,
+            String historicalOfferingId,
             String professor,
             String category,
             BigDecimal credits,
@@ -500,7 +534,7 @@ public class SectionSearchQueryRepository {
             BigDecimal bayesianRating) {
 
         private SectionKey key() {
-            return new SectionKey(courseCode, sectionCode);
+            return new SectionKey(semesterId, courseCode, sectionCode);
         }
 
         private SectionSearchResponse toResponse(
@@ -514,6 +548,9 @@ public class SectionSearchQueryRepository {
                     courseCode,
                     courseName,
                     sectionCode,
+                    offeringId,
+                    sourceType,
+                    historicalOfferingId,
                     professor,
                     category,
                     credits,
@@ -612,7 +649,7 @@ public class SectionSearchQueryRepository {
                 }
             }
             return classifications.isEmpty()
-                    ? null
+                    ? category
                     : classifications.get(0).completionCategory();
         }
     }

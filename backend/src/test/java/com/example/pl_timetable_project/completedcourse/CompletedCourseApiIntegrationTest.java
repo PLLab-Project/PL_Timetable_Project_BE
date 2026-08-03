@@ -231,9 +231,38 @@ class CompletedCourseApiIntegrationTest {
                 .andExpect(jsonPath("$.data.semester").value("2020-1"))
                 .andExpect(jsonPath("$.data.historicalOfferingId")
                         .value("history-2020-1-927313-01"))
+                .andExpect(jsonPath("$.data.offeringId")
+                        .value("2020-1:927313:01"))
                 .andExpect(jsonPath("$.data.sectionCode").value("01"))
                 .andExpect(jsonPath("$.data.inputSource").value("OCR"))
                 .andExpect(jsonPath("$.data.sourceSnapshot.professorName").value("김지연"));
+    }
+
+    @Test
+    void storesDirectCatalogSelectionUsingUnifiedOfferingId() throws Exception {
+        insertHistoricalOfferingFixture();
+
+        mockMvc.perform(post("/api/v1/completed-courses")
+                        .with(authenticatedAs(USER_ONE))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "courseName": "사용자 오타",
+                                  "credits": 1.00,
+                                  "category": "교양선택",
+                                  "status": "COMPLETED",
+                                  "offeringId": "2020-1:927313:01"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.courseCode").value("927313"))
+                .andExpect(jsonPath("$.data.courseName").value("컴퓨팅사고와문제해결"))
+                .andExpect(jsonPath("$.data.credits").value(2.0))
+                .andExpect(jsonPath("$.data.category").value("교양필수"))
+                .andExpect(jsonPath("$.data.offeringId")
+                        .value("2020-1:927313:01"))
+                .andExpect(jsonPath("$.data.inputSource").value("CATALOG"));
     }
 
     @Test
@@ -376,6 +405,7 @@ class CompletedCourseApiIntegrationTest {
                     '[]'::json, '[]'::json, '컴퓨팅사고와문제해결', '', '{}'::json
                 );
                 """);
+        jdbcTemplate.execute("SELECT reconcile_historical_course_offerings()");
     }
 
     private Long insertTimetableFixture() {

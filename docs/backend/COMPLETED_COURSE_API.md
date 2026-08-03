@@ -12,9 +12,10 @@
 ## 상태와 입력 출처
 
 - `status`: `COMPLETED`, `IN_PROGRESS`, `PLANNED`, `FAILED`, `WITHDRAWN`
-- `inputSource`: `MANUAL`, `TIMETABLE`, `OCR`, `IMPORT`
+- `inputSource`: `MANUAL`, `CATALOG`, `TIMETABLE`, `OCR`, `IMPORT`
 - 직접 등록 API는 기본적으로 `MANUAL`이며, OCR 후보의 `historicalOfferingId`를
   함께 보내면 `OCR`로 저장한다. 시간표 가져오기는 `TIMETABLE`을 서버가 설정한다.
+- 통합 `/api/v1/sections` 검색에서 선택한 `offeringId`를 보내면 `CATALOG`로 저장한다.
 - 시간표에서 가져온 과목은 먼저 `IN_PROGRESS`가 된다.
 
 ## 직접 등록
@@ -32,17 +33,22 @@
   "area": "전공핵심",
   "semester": "2026-1",
   "status": "IN_PROGRESS",
-  "historicalOfferingId": null
+  "historicalOfferingId": null,
+  "offeringId": "2026-1:CSE100:01"
 }
 ```
 
-`courseCode`, `area`, `semester`, `historicalOfferingId`는 선택값이다. 학점은 `0` 이상,
+`courseCode`, `area`, `semester`, `historicalOfferingId`, `offeringId`는 선택값이다. 학점은 `0` 이상,
 소수점 둘째 자리까지 허용한다.
+
+이미지 없이 직접 검색한 강의는 `/api/v1/sections` 응답의 `offeringId`를 전송한다.
+서버는 해당 정규 분반에서 과목코드·과목명·학점·이수구분·학기·분반을 다시 확인하여
+저장하고 응답의 `inputSource`를 `CATALOG`로 설정한다.
 
 OCR의 `matchedSection` 또는 사용자가 확정한 `matchCandidates[]`에
 `historicalOfferingId`가 있으면 등록 요청에도 같은 값을 보낸다. 서버는 해당 ID가 실제
-`historical_course_offerings`에 있는지 확인하고 과목 코드·과목명·학점·이수구분·학기·분반을
-과거 원장의 정규값으로 저장한다. 응답의 `inputSource`는 `OCR`이며
+원본과 연결된 정규 `sections` 분반인지 확인하고 과목 코드·과목명·학점·이수구분·
+학기·분반을 저장한다. 응답의 `inputSource`는 `OCR`이며 `offeringId`,
 `historicalOfferingId`, `sectionCode`도 보존된다.
 
 P/N 과목은 학점을 0으로 보내지 않는다. `credits`에는 실제 인정 학점을 넣고
@@ -56,9 +62,9 @@ P/N 과목은 학점을 0으로 보내지 않는다. `credits`에는 실제 인�
 서버가 원본을 저장하지 않고 Gemini 3.5 Flash-Lite 비전에 직접 전달한다. 첫 번째 호출로
 원문을 전사하고, 두 번째 호출은 이미지 자체와 전사문을 함께 사용해 학기·과목·교수·요일·
 시간·강의실을 구조화한다. 이후 과목명, 학기, 교수, 시간, 강의실을 현재 강의 카탈로그와
-2020~2026 과거 강의 개설 원장 20,031건에 함께 비교해 과목 코드와 분반 후보를
-결정적으로 반환한다. 현재 카탈로그와 과거 원장에 같은 분반이 있으면 현재 카탈로그의
-정규화 수업 세션을 사용하고 후보를 중복 반환하지 않는다.
+2020~2026 전체 정규 강의 개설 카탈로그와 비교해 과목 코드와 분반 후보를 결정적으로
+반환한다. 현재 카탈로그와 과거 원장에 같은 분반이 있으면 하나의 정규 분반과 공식
+수업 세션을 사용하므로 후보가 중복되지 않는다.
 `extractedText`, 빈 줄을 제거한 `lines`도 그대로 유지하므로 사용자가 구조화 결과와
 원문을 대조할 수 있다.
 

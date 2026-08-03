@@ -5,6 +5,7 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 DATA_DIR=${DATA_DIR:-/workspace/data/database}
 EXPECTED_COUNTS=${EXPECTED_COUNTS:-$DATA_DIR/expected-row-counts.tsv}
 NORMALIZATION_SQL=${NORMALIZATION_SQL:-/workspace/normalization/normalize_academic_units.sql}
+OFFERING_NORMALIZATION_SQL=${OFFERING_NORMALIZATION_SQL:-/workspace/normalization/normalize_course_offerings.sql}
 VERIFY_SCRIPT=${VERIFY_SCRIPT:-$SCRIPT_DIR/verify-database.sh}
 REFERENCE_PACKAGE_ID=academic-reference-2026-07-18-v1
 REFERENCE_ARCHIVE_SHA256=78a388b2e8a2b014c0ea0fc38788428520019051c8de71a2d3004e3e45a57de8
@@ -21,6 +22,11 @@ done
 
 if [ ! -f "$NORMALIZATION_SQL" ]; then
     echo "missing academic-unit normalization SQL: $NORMALIZATION_SQL" >&2
+    exit 1
+fi
+
+if [ ! -f "$OFFERING_NORMALIZATION_SQL" ]; then
+    echo "missing course-offering normalization SQL: $OFFERING_NORMALIZATION_SQL" >&2
     exit 1
 fi
 
@@ -85,6 +91,9 @@ else
     echo "Loading the official 2026-2 course catalog..."
     gzip -dc official-catalog-2026-2.sql.gz | psql -X -q -v ON_ERROR_STOP=1
 fi
+
+echo "Projecting all historical offerings into the canonical catalog..."
+psql -X -q -v ON_ERROR_STOP=1 --single-transaction -f "$OFFERING_NORMALIZATION_SQL"
 
 echo "Normalizing colleges, academic units, aliases, and section mappings..."
 psql -X -q -v ON_ERROR_STOP=1 --single-transaction -f "$NORMALIZATION_SQL"

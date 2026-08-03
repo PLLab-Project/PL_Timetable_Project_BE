@@ -3,7 +3,7 @@
 ## 적용된 구성
 
 - PostgreSQL `18.4`
-- Flyway `12.11.0`과 버전 마이그레이션 10개
+- Flyway `12.11.0`과 버전 마이그레이션 17개
 - Spring Data JPA와 PostgreSQL JDBC 드라이버
 - Testcontainers PostgreSQL 통합 테스트
 - Docker Compose의 `db`, `migrate`, `ingest`, `api` 서비스
@@ -32,14 +32,27 @@ Flyway는 테이블·제약조건·인덱스 같은 **DB 구조**를 관리합�
 2. `reference_data_imports.package_id`로 기준 데이터 패키지의 기존 적재 여부 확인
 3. `data_imports.checksum`으로 학기별 카탈로그의 기존 적재 여부 확인
 4. 미적재 패키지만 트랜잭션으로 적재
-5. 학과·전공 코드, 연도별 별칭, 현재 분반 연결 정규화
-6. `expected-row-counts.tsv`에 정의된 44개 기준·적재관리 테이블의 행 수 확인
-7. 공식 PDF 원본 행·분류 문맥·복수 강의실 보존 여부 확인
-8. 핵심 참조 무결성과 Flyway 실패 이력 확인
+5. 과거 원본을 전체 학기 `courses`·`sections`·`sessions` 정규 카탈로그로 투영
+6. 학과·전공 코드, 연도별 별칭, 전체 분반 연결 정규화
+7. `expected-row-counts.tsv`에 정의된 44개 기준·적재관리 테이블의 행 수 확인
+8. 공식 PDF 원본 행·분류 문맥·복수 강의실 보존 여부 확인
+9. 핵심 참조 무결성과 Flyway 실패 이력 확인
 
 동일 패키지를 다시 실행하면 적재 단계는 건너뛰고 검증만 수행합니다. 따라서 같은
 패키지의 재실행은 `users`, `course_reviews`, `completed_courses`를 변경하지 않습니다.
-학과 정규화는 매번 같은 원천에서 다시 계산하며 중복 행을 만들지 않습니다.
+강의 개설·학과 정규화는 매번 같은 원천에서 다시 계산하며 중복 행을 만들지 않습니다.
+
+## 전체 학기 강의 개설 정규화
+
+- `historical_course_offerings`: 변경하지 않는 원본·재처리 계층
+- `courses`, `sections`, `sessions`, `rooms`: 현재와 과거를 함께 제공하는 서비스 계층
+- `sections.offering_id`: `학기:과목코드:분반` 형식의 안정적인 공개 식별자
+- `sections.source_type`: `OFFICIAL_CATALOG` 또는 `HISTORICAL_ARCHIVE`
+- `sections.historical_offering_id`: 정규 분반에서 과거 원본으로 가는 추적 FK
+
+학기가 바뀔 때 행을 과거 테이블로 이동하지 않습니다. 새 학기도 같은 정규 테이블에
+적재하고, 기존 학기 행은 그대로 유지합니다. 일반 검색과 OCR은 모두 정규 분반만
+조회합니다.
 
 새 번들을 배치하면 번들 SHA-256 변경을 감지해 내부 파일을 다시 검증합니다. 압축에
 허용하지 않은 파일이 있거나 Git의 `SHA256SUMS`와 다르면 기존 검증 파일을 보존한 채

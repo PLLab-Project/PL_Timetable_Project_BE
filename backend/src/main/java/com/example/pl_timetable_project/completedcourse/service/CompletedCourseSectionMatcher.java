@@ -8,8 +8,8 @@ import com.example.pl_timetable_project.completedcourse.dto.OcrDocumentType;
 import com.example.pl_timetable_project.completedcourse.dto.OcrSectionMatchCandidateResponse;
 import com.example.pl_timetable_project.completedcourse.dto.RecognizedCourseMeetingResponse;
 import com.example.pl_timetable_project.completedcourse.dto.RecognizedCourseResponse;
-import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOcrMatchRepository;
-import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOcrMatchRepository.SectionCandidate;
+import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOfferingQueryRepository;
+import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOfferingQueryRepository.SectionCandidate;
 import com.example.pl_timetable_project.user.repository.StudentProfileRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -41,13 +41,13 @@ public class CompletedCourseSectionMatcher {
     private static final double UNIQUE_GAP_THRESHOLD = 0.02;
     private static final int MAX_CANDIDATES = 5;
 
-    private final CompletedCourseOcrMatchRepository matchRepository;
+    private final CompletedCourseOfferingQueryRepository matchRepository;
     private final SemesterQueryRepository semesterRepository;
     private final StudentProfileRepository studentProfileRepository;
 
     @Autowired
     public CompletedCourseSectionMatcher(
-            CompletedCourseOcrMatchRepository matchRepository,
+            CompletedCourseOfferingQueryRepository matchRepository,
             SemesterQueryRepository semesterRepository,
             StudentProfileRepository studentProfileRepository) {
         this.matchRepository = matchRepository;
@@ -56,7 +56,7 @@ public class CompletedCourseSectionMatcher {
     }
 
     CompletedCourseSectionMatcher(
-            CompletedCourseOcrMatchRepository matchRepository,
+            CompletedCourseOfferingQueryRepository matchRepository,
             SemesterQueryRepository semesterRepository) {
         this(matchRepository, semesterRepository, null);
     }

@@ -19,7 +19,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @SpringBootTest
 @Testcontainers
 @Transactional
-class CompletedCourseOcrMatchRepositoryIntegrationTest {
+class CompletedCourseOfferingQueryRepositoryIntegrationTest {
 
     @Container
     @ServiceConnection
@@ -27,7 +27,7 @@ class CompletedCourseOcrMatchRepositoryIntegrationTest {
             new PostgreSQLContainer("postgres:18.4-alpine");
 
     @Autowired
-    private CompletedCourseOcrMatchRepository repository;
+    private CompletedCourseOfferingQueryRepository repository;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -150,6 +150,7 @@ class CompletedCourseOcrMatchRepositoryIntegrationTest {
                     'LCT LearningbyCommunication Teamwork', '', '{}'::json
                 );
                 """);
+        jdbcTemplate.execute("SELECT reconcile_historical_course_offerings()");
     }
 
     @Test
@@ -204,19 +205,6 @@ class CompletedCourseOcrMatchRepositoryIntegrationTest {
     void exposesHistoricalSemesterIds() {
         assertThat(repository.findHistoricalSemesterIds())
                 .contains("2020-1", "2026-2");
-    }
-
-    @Test
-    void loadsHistoricalOfferingReferenceForConfirmedSave() {
-        assertThat(repository.findHistoricalOffering("history-2020-1-927313-01"))
-                .hasValueSatisfying(offering -> {
-                    assertThat(offering.semesterId()).isEqualTo("2020-1");
-                    assertThat(offering.courseCode()).isEqualTo("927313");
-                    assertThat(offering.sectionCode()).isEqualTo("01");
-                    assertThat(offering.courseName()).isEqualTo("컴퓨팅사고와문제해결");
-                    assertThat(offering.credits()).isEqualByComparingTo("2.0");
-                    assertThat(offering.completionCategory()).isEqualTo("교필");
-                });
     }
 
     @Test

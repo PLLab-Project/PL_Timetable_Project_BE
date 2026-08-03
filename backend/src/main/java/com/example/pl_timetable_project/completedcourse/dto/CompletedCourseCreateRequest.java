@@ -64,5 +64,12 @@ public record CompletedCourseCreateRequest(
                 example = "2020-1-927313-01",
                 nullable = true)
         @Size(max = 36)
-        String historicalOfferingId) {
+        String historicalOfferingId,
+
+        @Schema(
+                description = "통합 강의 검색 응답에서 선택한 정규 분반 ID",
+                example = "2020-1:927313:01",
+                nullable = true)
+        @Size(max = 104)
+        String offeringId) {
 }
