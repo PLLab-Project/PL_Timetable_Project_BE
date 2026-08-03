@@ -131,7 +131,8 @@ class ScheduleSearchServiceTest {
                 "교수" + courseId,
                 credit * 100,
                 false,
-                List.of(new CourseTimeSlot(day, LocalTime.parse(start), LocalTime.parse(end))));
+                List.of(new CourseTimeSlot(day, LocalTime.parse(start), LocalTime.parse(end))),
+                List.of());
     }
 
     private OptimizationConstraints constraints(int minCredit, int maxCredit, int targetCredit, long searchTimeLimitMillis) {

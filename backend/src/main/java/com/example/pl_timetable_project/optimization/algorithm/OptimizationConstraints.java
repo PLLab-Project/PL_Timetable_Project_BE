@@ -17,11 +17,13 @@ public record OptimizationConstraints(
         LocalTime lunchTimeStart,
         LocalTime lunchTimeEnd,
         int maxDailyClassMinutes,
-        long searchTimeLimitMillis) {
+        long searchTimeLimitMillis,
+        List<String> userAcademicUnitCodes) {
 
     public OptimizationConstraints {
         availableTimes = List.copyOf(availableTimes);
         blockedTimes = List.copyOf(blockedTimes);
+        userAcademicUnitCodes = List.copyOf(userAcademicUnitCodes);
     }
 
     public OptimizationConstraints(
@@ -48,6 +50,36 @@ public record OptimizationConstraints(
                 lunchTimeStart,
                 lunchTimeEnd,
                 maxDailyClassMinutes,
-                searchTimeLimitMillis);
+                searchTimeLimitMillis,
+                List.of());
+    }
+
+    public OptimizationConstraints(
+            int minCreditUnits,
+            int maxCreditUnits,
+            int targetCreditUnits,
+            Set<DayOfWeek> excludedDays,
+            Set<SectionReference> requiredSections,
+            LocalTime availableTimeStart,
+            LocalTime availableTimeEnd,
+            LocalTime lunchTimeStart,
+            LocalTime lunchTimeEnd,
+            int maxDailyClassMinutes,
+            long searchTimeLimitMillis,
+            List<String> userAcademicUnitCodes) {
+        this(
+                minCreditUnits,
+                maxCreditUnits,
+                targetCreditUnits,
+                excludedDays,
+                requiredSections,
+                List.of(new OptimizationTimeRange(
+                        availableTimeStart, availableTimeEnd)),
+                List.of(),
+                lunchTimeStart,
+                lunchTimeEnd,
+                maxDailyClassMinutes,
+                searchTimeLimitMillis,
+                userAcademicUnitCodes);
     }
 }
