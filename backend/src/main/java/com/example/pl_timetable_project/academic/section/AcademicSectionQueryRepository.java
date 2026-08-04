@@ -23,28 +23,17 @@ public class AcademicSectionQueryRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    /** 학과 필터 없이 학기의 모든 분반을 읽는다. 시간표 수동 편집처럼 학과 제한이 없는 조회에 쓴다. */
-    public Map<SectionReference, AcademicSection> findBySemesterId(String semesterId) {
-        return findBySemesterId(semesterId, List.of());
-    }
-
     /**
-     * 학기의 분반을 읽되, academicUnitCodes가 비어 있지 않으면 학과 필터를 적용한다.
-     *
-     * <p>분반의 과목 category에 "교양"이 포함되거나 section_academic_units에
-     * 연결된 학과가 없으면(미분류) 학과 무관으로 보고 항상 포함한다. 그 외에는
-     * 연결된 학과 중 하나라도 academicUnitCodes에 있어야 포함한다.</p>
+     * 학기의 모든 분반을 읽는다. 학과 필터로 후보를 배제하지 않는다 — 학과
+     * 연관성은 {@link AcademicSection#restrictedAcademicUnitCodes()}에 구조화된
+     * 정보로만 담아 반환하고, 실제로 우선순위를 줄지 배제할지는 호출부(자동편성
+     * 점수 계산 등)가 판단한다.
      */
-    public Map<SectionReference, AcademicSection> findBySemesterId(
-            String semesterId, List<String> academicUnitCodes) {
+    public Map<SectionReference, AcademicSection> findBySemesterId(String semesterId) {
         Map<SectionReference, MutableSection> sections = new LinkedHashMap<>();
 
         MapSqlParameterSource parameters = new MapSqlParameterSource()
-                .addValue("semesterId", semesterId)
-                .addValue("academicUnitCodesEmpty", academicUnitCodes.isEmpty())
-                .addValue(
-                        "academicUnitCodes",
-                        academicUnitCodes.isEmpty() ? List.of("") : academicUnitCodes);
+                .addValue("semesterId", semesterId);
 
         jdbcTemplate.query("""
                 SELECT s.semester_id, s.course_code, s.section_code,
@@ -54,25 +43,6 @@ public class AcademicSectionQueryRepository {
                     ON c.semester_id = s.semester_id
                    AND c.course_code = s.course_code
                  WHERE s.semester_id = :semesterId
-                   AND (
-                        CAST(:academicUnitCodesEmpty AS boolean) = true
-                        OR c.category LIKE '%교양%'
-                        OR NOT EXISTS (
-                            SELECT 1
-                              FROM section_academic_units sau
-                             WHERE sau.semester_id = s.semester_id
-                               AND sau.course_code = s.course_code
-                               AND sau.section_code = s.section_code
-                        )
-                        OR EXISTS (
-                            SELECT 1
-                              FROM section_academic_units sau
-                             WHERE sau.semester_id = s.semester_id
-                               AND sau.course_code = s.course_code
-                               AND sau.section_code = s.section_code
-                               AND sau.academic_unit_code IN (:academicUnitCodes)
-                        )
-                   )
                  ORDER BY s.course_code, s.section_code
                 """, parameters, rs -> {
             SectionReference reference = new SectionReference(

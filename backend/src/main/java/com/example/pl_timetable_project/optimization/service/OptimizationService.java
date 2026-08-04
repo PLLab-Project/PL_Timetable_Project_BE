@@ -99,8 +99,7 @@ public class OptimizationService {
                 loadCandidates(
                         timetable.getSemesterId(),
                         request.getCandidateCourses(),
-                        request.getRequiredCourses(),
-                        userAcademicUnitCodes);
+                        request.getRequiredCourses());
         OptimizationConstraints constraints =
                 buildConstraints(request, candidates, userAcademicUnitCodes);
 
@@ -214,8 +213,7 @@ public class OptimizationService {
     private List<CandidateCourse> loadCandidates(
             String semesterId,
             List<CourseCandidateRequest> requests,
-            List<CourseCandidateRequest> requiredRequests,
-            List<String> userAcademicUnitCodes) {
+            List<CourseCandidateRequest> requiredRequests) {
         Set<SectionReference> requiredSections = new HashSet<>();
         if (requiredRequests != null) {
             requiredRequests.forEach(request -> requiredSections.add(
@@ -229,9 +227,8 @@ public class OptimizationService {
         }
 
         if (requests == null || requests.isEmpty()) {
-            // 서버가 후보를 자동 생성하는 경로이므로 학과 필터를 DB 조회 단계에서 바로 적용한다.
             Map<SectionReference, AcademicSection> catalog =
-                    sectionQueryRepository.findBySemesterId(semesterId, userAcademicUnitCodes);
+                    sectionQueryRepository.findBySemesterId(semesterId);
             List<CandidateCourse> serverCandidates = catalog.values().stream()
                     .filter(section -> !section.meetings().isEmpty())
                     .map(section -> toCandidateCourse(
@@ -246,9 +243,7 @@ public class OptimizationService {
             return serverCandidates;
         }
 
-        // 클라이언트가 후보 분반을 직접 지정한 경로이므로, "존재하지 않는 분반" 오류와
-        // "학과가 맞지 않는 분반"을 구분할 수 있도록 학과 필터 없이 전체 카탈로그에서 조회한다.
-        // 학과 필터는 이후 CandidateCourseFilter가 리스트 기반으로 동일하게 적용한다.
+        // 클라이언트가 후보 분반을 직접 지정한 경로이므로 전체 카탈로그에서 조회한다.
         Map<SectionReference, AcademicSection> catalog =
                 sectionQueryRepository.findBySemesterId(semesterId);
         Set<SectionReference> seen = new HashSet<>();
