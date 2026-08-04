@@ -1,6 +1,7 @@
 package com.example.pl_timetable_project.completedcourse.repository;
 
 import com.example.pl_timetable_project.completedcourse.CompletedCourseInputSource;
+import com.example.pl_timetable_project.completedcourse.CompletedCourseStatus;
 import com.example.pl_timetable_project.completedcourse.entity.CompletedCourse;
 import java.util.List;
 import java.util.Optional;
@@ -10,6 +11,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface CompletedCourseRepository extends JpaRepository<CompletedCourse, UUID> {
 
     List<CompletedCourse> findAllByUserIdOrderByCreatedAtDesc(UUID userId);
+
+    List<CompletedCourse> findAllByUserIdAndStatusIn(
+            UUID userId, List<CompletedCourseStatus> statuses);
 
     Optional<CompletedCourse> findByIdAndUserId(UUID id, UUID userId);
 

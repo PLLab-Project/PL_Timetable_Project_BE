@@ -17,6 +17,7 @@ public enum ErrorCode implements com.example.pl_timetable_project.common.excepti
     OPTIMIZATION_JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "편성 작업을 찾을 수 없습니다."),
     REQUIRED_COURSE_CONFLICT(HttpStatus.CONFLICT, "필수 강의끼리 시간이 겹칩니다."),
     REQUIRED_COURSE_EXCLUDED_BY_CONDITION(HttpStatus.CONFLICT, "필수 강의 중 후보 목록에 없거나 조건(제외 요일/수업 가능 시간대)에 맞지 않는 강의가 있습니다."),
+    ALREADY_COMPLETED_COURSE(HttpStatus.CONFLICT, "이미 이수했거나 수강 중인 과목을 필수 강의로 지정했습니다."),
     OPTIMIZATION_ALREADY_FINISHED(HttpStatus.CONFLICT, "이미 종료된 작업은 취소할 수 없습니다."),
     NO_FEASIBLE_TIMETABLE(HttpStatus.valueOf(422), "조건에 맞는 시간표를 찾을 수 없습니다."),
     OPTIMIZATION_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "시간표 편성 시간이 초과되었습니다."),
