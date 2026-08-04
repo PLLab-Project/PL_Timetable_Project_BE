@@ -14,6 +14,10 @@ import com.example.pl_timetable_project.academic.section.AcademicMeeting;
 import com.example.pl_timetable_project.academic.section.AcademicSection;
 import com.example.pl_timetable_project.academic.section.AcademicSectionQueryRepository;
 import com.example.pl_timetable_project.academic.section.SectionReference;
+import com.example.pl_timetable_project.completedcourse.CompletedCourseStatus;
+import com.example.pl_timetable_project.completedcourse.entity.CompletedCourse;
+import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseRepository;
+import com.example.pl_timetable_project.exception.AlreadyCompletedCourseException;
 import com.example.pl_timetable_project.exception.InvalidOptimizationConditionException;
 import com.example.pl_timetable_project.optimization.algorithm.CandidateCourseFilter;
 import com.example.pl_timetable_project.optimization.algorithm.RequiredCoursePlacer;
@@ -50,6 +54,7 @@ class OptimizationServiceTest {
     private TimetableRepository timetableRepository;
     private AcademicSectionQueryRepository sectionQueryRepository;
     private StudentProfileRepository studentProfileRepository;
+    private CompletedCourseRepository completedCourseRepository;
     private OptimizationService service;
     private UUID userId;
 
@@ -59,11 +64,13 @@ class OptimizationServiceTest {
         timetableRepository = mock(TimetableRepository.class);
         sectionQueryRepository = mock(AcademicSectionQueryRepository.class);
         studentProfileRepository = mock(StudentProfileRepository.class);
+        completedCourseRepository = mock(CompletedCourseRepository.class);
         service = new OptimizationService(
                 lifecycleService,
                 timetableRepository,
                 sectionQueryRepository,
                 studentProfileRepository,
+                completedCourseRepository,
                 new CandidateCourseFilter(),
                 new RequiredCoursePlacer(),
                 mock(ScheduleSearchService.class),
@@ -79,6 +86,10 @@ class OptimizationServiceTest {
         StudentProfile profile = new StudentProfile(userId, "20260001");
         profile.update((short) 3, "D1", 2026, "REGULAR", "ADVANCED_MAJOR", null);
         when(studentProfileRepository.findById(userId)).thenReturn(Optional.of(profile));
+        // 기본값은 "이수한 과목 없음" — 이수과목 제외 시나리오를 다루는 테스트만
+        // 이 스텁을 덮어써서 특정 과목이 이미 이수한 것처럼 만든다.
+        when(completedCourseRepository.findAllByUserIdAndStatusIn(any(), any()))
+                .thenReturn(List.of());
         OptimizationJob job = pendingJob();
         when(lifecycleService.createPendingJobAndPublish(
                         any(), any(), any(), any(), any()))
@@ -136,6 +147,100 @@ class OptimizationServiceTest {
                 .hasMessageContaining("자동편성 가능한 분반이 없습니다");
         verify(lifecycleService, never()).createPendingJobAndPublish(
                 any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void excludesCompletedCourseFromServerGeneratedCandidates() {
+        SectionReference completed = reference("004803");
+        SectionReference notCompleted = reference("922503");
+        when(sectionQueryRepository.findBySemesterId(SEMESTER_ID)).thenReturn(Map.of(
+                completed, section(completed, "현장실습I", List.of(new AcademicMeeting(
+                        DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(10, 0)))),
+                notCompleted, section(notCompleted, "세계전쟁사", List.of(new AcademicMeeting(
+                        DayOfWeek.WEDNESDAY, LocalTime.of(13, 30), LocalTime.of(15, 30))))));
+        stubCompletedCourses("004803");
+        OptimizationCreateRequest request = request(List.of());
+
+        service.createJob(userId, request);
+
+        verify(lifecycleService).createPendingJobAndPublish(
+                eq(userId),
+                eq(SEMESTER_ID),
+                eq(request),
+                argThat(candidates -> candidates.size() == 1
+                        && candidates.get(0).section().equals(notCompleted)),
+                any());
+    }
+
+    @Test
+    void queriesOnlyCompletedAndInProgressStatusesSoFailedCoursesRemainEligibleForRetake() {
+        SectionReference scheduled = reference("004803");
+        when(sectionQueryRepository.findBySemesterId(SEMESTER_ID)).thenReturn(Map.of(
+                scheduled, section(scheduled, "현장실습I", List.of(new AcademicMeeting(
+                        DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(10, 0))))));
+
+        service.createJob(userId, request(List.of()));
+
+        verify(completedCourseRepository).findAllByUserIdAndStatusIn(
+                eq(userId),
+                eq(List.of(CompletedCourseStatus.COMPLETED, CompletedCourseStatus.IN_PROGRESS)));
+    }
+
+    @Test
+    void skipsOptionalExplicitCandidateThatIsAlreadyCompleted() {
+        SectionReference completed = reference("004803");
+        SectionReference notCompleted = reference("922503");
+        when(sectionQueryRepository.findBySemesterId(SEMESTER_ID)).thenReturn(Map.of(
+                completed, section(completed, "현장실습I", List.of(new AcademicMeeting(
+                        DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(10, 0)))),
+                notCompleted, section(notCompleted, "세계전쟁사", List.of(new AcademicMeeting(
+                        DayOfWeek.WEDNESDAY, LocalTime.of(13, 30), LocalTime.of(15, 30))))));
+        stubCompletedCourses("004803");
+        OptimizationCreateRequest request = request(List.of(
+                candidate("004803", false),
+                candidate("922503", false)));
+
+        service.createJob(userId, request);
+
+        verify(lifecycleService).createPendingJobAndPublish(
+                eq(userId),
+                eq(SEMESTER_ID),
+                eq(request),
+                argThat(candidates -> candidates.size() == 1
+                        && candidates.get(0).section().equals(notCompleted)),
+                any());
+    }
+
+    @Test
+    void rejectsRequiredExplicitCandidateThatIsAlreadyCompleted() {
+        SectionReference completed = reference("004803");
+        when(sectionQueryRepository.findBySemesterId(SEMESTER_ID)).thenReturn(Map.of(
+                completed, section(completed, "현장실습I", List.of(new AcademicMeeting(
+                        DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(10, 0))))));
+        stubCompletedCourses("004803");
+
+        assertThatThrownBy(() -> service.createJob(
+                        userId, request(List.of(candidate("004803", true)))))
+                .isInstanceOf(AlreadyCompletedCourseException.class)
+                .hasMessageContaining("2026-2:004803:01");
+        verify(lifecycleService, never()).createPendingJobAndPublish(
+                any(), any(), any(), any(), any());
+    }
+
+    /**
+     * completedCourseRepository를 스텁한다. mock()/when()을 다른 when(...).thenReturn(...)
+     * 호출의 인자 자리에서 중첩 호출하면 Mockito의 스터빙 진행 상태가 꼬여
+     * UnfinishedStubbingException이 나므로, 완성된 리스트를 먼저 만든 뒤 스텁한다.
+     */
+    private void stubCompletedCourses(String... courseCodes) {
+        List<CompletedCourse> courses = new java.util.ArrayList<>();
+        for (String courseCode : courseCodes) {
+            CompletedCourse course = mock(CompletedCourse.class);
+            when(course.getCourseCode()).thenReturn(courseCode);
+            courses.add(course);
+        }
+        when(completedCourseRepository.findAllByUserIdAndStatusIn(any(), any()))
+                .thenReturn(courses);
     }
 
     private OptimizationCreateRequest request(List<CourseCandidateRequest> candidates) {

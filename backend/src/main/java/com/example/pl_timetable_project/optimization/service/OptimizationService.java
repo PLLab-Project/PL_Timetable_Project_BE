@@ -4,6 +4,10 @@ import com.example.pl_timetable_project.academic.section.AcademicSection;
 import com.example.pl_timetable_project.academic.section.AcademicSectionQueryRepository;
 import com.example.pl_timetable_project.academic.section.SectionReference;
 import com.example.pl_timetable_project.common.exception.BusinessException;
+import com.example.pl_timetable_project.completedcourse.CompletedCourseStatus;
+import com.example.pl_timetable_project.completedcourse.entity.CompletedCourse;
+import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseRepository;
+import com.example.pl_timetable_project.exception.AlreadyCompletedCourseException;
 import com.example.pl_timetable_project.exception.ApplicationException;
 import com.example.pl_timetable_project.exception.ForbiddenException;
 import com.example.pl_timetable_project.exception.InvalidOptimizationConditionException;
@@ -43,6 +47,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -63,6 +68,7 @@ public class OptimizationService {
     private final TimetableRepository timetableRepository;
     private final AcademicSectionQueryRepository sectionQueryRepository;
     private final StudentProfileRepository studentProfileRepository;
+    private final CompletedCourseRepository completedCourseRepository;
     private final CandidateCourseFilter candidateCourseFilter;
     private final RequiredCoursePlacer requiredCoursePlacer;
     private final ScheduleSearchService scheduleSearchService;
@@ -74,6 +80,7 @@ public class OptimizationService {
             TimetableRepository timetableRepository,
             AcademicSectionQueryRepository sectionQueryRepository,
             StudentProfileRepository studentProfileRepository,
+            CompletedCourseRepository completedCourseRepository,
             CandidateCourseFilter candidateCourseFilter,
             RequiredCoursePlacer requiredCoursePlacer,
             ScheduleSearchService scheduleSearchService,
@@ -83,6 +90,7 @@ public class OptimizationService {
         this.timetableRepository = timetableRepository;
         this.sectionQueryRepository = sectionQueryRepository;
         this.studentProfileRepository = studentProfileRepository;
+        this.completedCourseRepository = completedCourseRepository;
         this.candidateCourseFilter = candidateCourseFilter;
         this.requiredCoursePlacer = requiredCoursePlacer;
         this.scheduleSearchService = scheduleSearchService;
@@ -95,11 +103,13 @@ public class OptimizationService {
         validateRequest(request);
         Timetable timetable = getOwnedTimetable(userId, request.getTimetableId());
         List<String> userAcademicUnitCodes = resolveUserAcademicUnitCodes(userId);
+        Set<String> completedCourseCodes = resolveCompletedCourseCodes(userId);
         List<CandidateCourse> candidates =
                 loadCandidates(
                         timetable.getSemesterId(),
                         request.getCandidateCourses(),
-                        request.getRequiredCourses());
+                        request.getRequiredCourses(),
+                        completedCourseCodes);
         OptimizationConstraints constraints =
                 buildConstraints(request, candidates, userAcademicUnitCodes);
 
@@ -126,6 +136,25 @@ public class OptimizationService {
         return profile.academicUnitCode() == null
                 ? List.of()
                 : List.of(profile.academicUnitCode());
+    }
+
+    /**
+     * 로그인한 사용자가 이미 이수했거나(COMPLETED) 수강 중인(IN_PROGRESS) 과목의
+     * 코드 집합을 만든다. F학점 등으로 재수강이 가능한 과목(FAILED)과 수강철회
+     * (WITHDRAWN)는 일부러 제외하지 않는다 — 졸업요건 추천(GraduationQueryRepository)의
+     * 판정 기준과 동일하다. 과목코드가 없는 레거시/수동입력 이수 기록은 대소문자
+     * 비교만으로는 매칭할 수 없어 이 집합에 담기지 않는다.
+     */
+    private Set<String> resolveCompletedCourseCodes(UUID userId) {
+        return completedCourseRepository
+                .findAllByUserIdAndStatusIn(
+                        userId,
+                        List.of(CompletedCourseStatus.COMPLETED, CompletedCourseStatus.IN_PROGRESS))
+                .stream()
+                .map(CompletedCourse::getCourseCode)
+                .filter(java.util.Objects::nonNull)
+                .map(courseCode -> courseCode.toLowerCase(Locale.ROOT))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     @Transactional(readOnly = true)
@@ -213,7 +242,8 @@ public class OptimizationService {
     private List<CandidateCourse> loadCandidates(
             String semesterId,
             List<CourseCandidateRequest> requests,
-            List<CourseCandidateRequest> requiredRequests) {
+            List<CourseCandidateRequest> requiredRequests,
+            Set<String> completedCourseCodes) {
         Set<SectionReference> requiredSections = new HashSet<>();
         if (requiredRequests != null) {
             requiredRequests.forEach(request -> requiredSections.add(
@@ -231,6 +261,7 @@ public class OptimizationService {
                     sectionQueryRepository.findBySemesterId(semesterId);
             List<CandidateCourse> serverCandidates = catalog.values().stream()
                     .filter(section -> !section.meetings().isEmpty())
+                    .filter(section -> !isAlreadyCompleted(section.reference(), completedCourseCodes))
                     .map(section -> toCandidateCourse(
                             section,
                             requiredSections.contains(section.reference())))
@@ -260,6 +291,14 @@ public class OptimizationService {
                 throw new InvalidOptimizationConditionException(
                         "학사 DB에 존재하지 않는 후보 분반입니다: " + reference.displayKey());
             }
+            if (isAlreadyCompleted(reference, completedCourseCodes)) {
+                if (requiredSections.contains(reference)) {
+                    throw new AlreadyCompletedCourseException(
+                            "이미 이수했거나 수강 중인 과목을 필수 강의로 지정했습니다: "
+                                    + reference.displayKey());
+                }
+                continue;
+            }
             if (academicSection.meetings().isEmpty()) {
                 if (requiredSections.contains(reference)) {
                     throw new InvalidOptimizationConditionException(
@@ -277,6 +316,12 @@ public class OptimizationService {
                     "자동편성 가능한 분반이 없습니다. 수업시간 미정 후보를 확인해 주세요.");
         }
         return candidates;
+    }
+
+    private boolean isAlreadyCompleted(
+            SectionReference reference, Set<String> completedCourseCodes) {
+        return completedCourseCodes.contains(
+                reference.getCourseCode().toLowerCase(Locale.ROOT));
     }
 
     private SectionReference toReference(
