@@ -22,6 +22,8 @@ public class ScheduleScorer {
     private static final double DAILY_OVERLOAD_PENALTY_PER_MINUTE = 1.0;
     /** ScheduleSearchService.SAME_MAJOR_BONUS와 반드시 같은 값으로 맞춘다. */
     private static final double SAME_MAJOR_BONUS = 5.0;
+    /** ScheduleSearchService.SEQUENCE_BONUS와 반드시 같은 값으로 맞춘다. */
+    private static final double SEQUENCE_BONUS = 5.0;
 
     public ScoredCombination score(
             ScheduleCombination combination, OptimizationConstraints constraints) {
@@ -38,6 +40,10 @@ public class ScheduleScorer {
                 .filter(course -> !course.required())
                 .filter(course -> matchesUserAcademicUnit(course, constraints))
                 .count();
+        long sequenceBonusOptionalCount = combination.courses().stream()
+                .filter(course -> !course.required())
+                .filter(course -> matchesSequenceBonus(course, constraints))
+                .count();
 
         double score = 0.0;
         score += (DAYS_IN_WEEK - attendanceDays) * ATTENDANCE_BONUS_PER_DAY;
@@ -47,6 +53,7 @@ public class ScheduleScorer {
         score -= creditDifference * CREDIT_DIFF_PENALTY_PER_CREDIT;
         score -= dailyOverMinutes * DAILY_OVERLOAD_PENALTY_PER_MINUTE;
         score += sameMajorOptionalCount * SAME_MAJOR_BONUS;
+        score += sequenceBonusOptionalCount * SEQUENCE_BONUS;
         return new ScoredCombination(combination, score, attendanceDays, totalFreeMinutes);
     }
 
@@ -62,6 +69,22 @@ public class ScheduleScorer {
         }
         return course.restrictedAcademicUnitCodes().stream()
                 .anyMatch(constraints.userAcademicUnitCodes()::contains);
+    }
+
+    /**
+     * 강의가 사용자가 선택한 교양 영역에 속하고, 큐레이션된 선수과목 중 하나 이상을
+     * 이미 이수했으면 true. ScheduleSearchService.matchesSequenceBonus()와 동일한
+     * 판정이다.
+     */
+    private boolean matchesSequenceBonus(
+            CandidateCourse course, OptimizationConstraints constraints) {
+        boolean areaSelected = course.liberalAreaCode() != null
+                && constraints.selectedLiberalAreas().contains(course.liberalAreaCode());
+        if (!areaSelected) {
+            return false;
+        }
+        return course.prerequisiteCourseCodes().stream()
+                .anyMatch(constraints.completedCourseCodes()::contains);
     }
 
     private Map<DayOfWeek, List<CourseTimeSlot>> groupSlotsByDay(

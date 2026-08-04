@@ -1,5 +1,6 @@
 package com.example.pl_timetable_project.optimization.service;
 
+import com.example.pl_timetable_project.academic.course.CourseSequenceHintService;
 import com.example.pl_timetable_project.academic.section.AcademicSection;
 import com.example.pl_timetable_project.academic.section.AcademicSectionQueryRepository;
 import com.example.pl_timetable_project.academic.section.SectionReference;
@@ -69,6 +70,7 @@ public class OptimizationService {
     private final AcademicSectionQueryRepository sectionQueryRepository;
     private final StudentProfileRepository studentProfileRepository;
     private final CompletedCourseRepository completedCourseRepository;
+    private final CourseSequenceHintService courseSequenceHintService;
     private final CandidateCourseFilter candidateCourseFilter;
     private final RequiredCoursePlacer requiredCoursePlacer;
     private final ScheduleSearchService scheduleSearchService;
@@ -81,6 +83,7 @@ public class OptimizationService {
             AcademicSectionQueryRepository sectionQueryRepository,
             StudentProfileRepository studentProfileRepository,
             CompletedCourseRepository completedCourseRepository,
+            CourseSequenceHintService courseSequenceHintService,
             CandidateCourseFilter candidateCourseFilter,
             RequiredCoursePlacer requiredCoursePlacer,
             ScheduleSearchService scheduleSearchService,
@@ -91,6 +94,7 @@ public class OptimizationService {
         this.sectionQueryRepository = sectionQueryRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.completedCourseRepository = completedCourseRepository;
+        this.courseSequenceHintService = courseSequenceHintService;
         this.candidateCourseFilter = candidateCourseFilter;
         this.requiredCoursePlacer = requiredCoursePlacer;
         this.scheduleSearchService = scheduleSearchService;
@@ -111,7 +115,7 @@ public class OptimizationService {
                         request.getRequiredCourses(),
                         completedCourseCodes);
         OptimizationConstraints constraints =
-                buildConstraints(request, candidates, userAcademicUnitCodes);
+                buildConstraints(request, candidates, userAcademicUnitCodes, completedCourseCodes);
 
         List<CandidateCourse> filtered = candidateCourseFilter.filter(candidates, constraints);
         requiredCoursePlacer.place(filtered, constraints.requiredSections());
@@ -259,12 +263,17 @@ public class OptimizationService {
         if (requests == null || requests.isEmpty()) {
             Map<SectionReference, AcademicSection> catalog =
                     sectionQueryRepository.findBySemesterId(semesterId);
-            List<CandidateCourse> serverCandidates = catalog.values().stream()
+            List<AcademicSection> eligibleSections = catalog.values().stream()
                     .filter(section -> !section.meetings().isEmpty())
                     .filter(section -> !isAlreadyCompleted(section.reference(), completedCourseCodes))
+                    .toList();
+            Map<String, List<String>> prerequisitesByCourseCode =
+                    findPrerequisites(eligibleSections);
+            List<CandidateCourse> serverCandidates = eligibleSections.stream()
                     .map(section -> toCandidateCourse(
                             section,
-                            requiredSections.contains(section.reference())))
+                            requiredSections.contains(section.reference()),
+                            prerequisitesByCourseCode))
                     .toList();
             validateRequiredCandidates(requiredSections, serverCandidates);
             if (serverCandidates.isEmpty()) {
@@ -277,6 +286,8 @@ public class OptimizationService {
         // 클라이언트가 후보 분반을 직접 지정한 경로이므로 전체 카탈로그에서 조회한다.
         Map<SectionReference, AcademicSection> catalog =
                 sectionQueryRepository.findBySemesterId(semesterId);
+        Map<String, List<String>> prerequisitesByCourseCode = courseSequenceHintService.findPrerequisites(
+                requests.stream().map(CourseCandidateRequest::getCourseCode).distinct().toList());
         Set<SectionReference> seen = new HashSet<>();
         List<CandidateCourse> candidates = new ArrayList<>();
 
@@ -308,7 +319,7 @@ public class OptimizationService {
                 continue;
             }
             candidates.add(toCandidateCourse(
-                    academicSection, requiredSections.contains(reference)));
+                    academicSection, requiredSections.contains(reference), prerequisitesByCourseCode));
         }
         validateRequiredCandidates(requiredSections, candidates);
         if (candidates.isEmpty()) {
@@ -316,6 +327,14 @@ public class OptimizationService {
                     "자동편성 가능한 분반이 없습니다. 수업시간 미정 후보를 확인해 주세요.");
         }
         return candidates;
+    }
+
+    private Map<String, List<String>> findPrerequisites(List<AcademicSection> sections) {
+        return courseSequenceHintService.findPrerequisites(
+                sections.stream()
+                        .map(section -> section.reference().getCourseCode())
+                        .distinct()
+                        .toList());
     }
 
     private boolean isAlreadyCompleted(
@@ -331,7 +350,9 @@ public class OptimizationService {
     }
 
     private CandidateCourse toCandidateCourse(
-            AcademicSection academicSection, boolean required) {
+            AcademicSection academicSection,
+            boolean required,
+            Map<String, List<String>> prerequisitesByCourseCode) {
         return new CandidateCourse(
                 academicSection.reference(),
                 academicSection.courseName(),
@@ -344,7 +365,10 @@ public class OptimizationService {
                                 meeting.startTime(),
                                 meeting.endTime()))
                         .toList(),
-                academicSection.restrictedAcademicUnitCodes());
+                academicSection.restrictedAcademicUnitCodes(),
+                academicSection.liberalAreaCode(),
+                prerequisitesByCourseCode.getOrDefault(
+                        academicSection.reference().getCourseCode(), List.of()));
     }
 
     private void validateRequiredCandidates(
@@ -366,7 +390,8 @@ public class OptimizationService {
     private OptimizationConstraints buildConstraints(
             OptimizationCreateRequest request,
             List<CandidateCourse> candidates,
-            List<String> userAcademicUnitCodes) {
+            List<String> userAcademicUnitCodes,
+            Set<String> completedCourseCodes) {
         Set<SectionReference> requiredSections = candidates.stream()
                 .filter(CandidateCourse::required)
                 .map(CandidateCourse::section)
@@ -394,7 +419,10 @@ public class OptimizationService {
                 request.getLunchTime().getEndTime(),
                 request.getMaxDailyClassMinutes(),
                 SEARCH_TIME_LIMIT_MILLIS,
-                userAcademicUnitCodes);
+                userAcademicUnitCodes,
+                request.getSelectedLiberalAreas() == null
+                        ? List.of() : List.copyOf(request.getSelectedLiberalAreas()),
+                completedCourseCodes);
     }
 
     private void validateRequest(OptimizationCreateRequest request) {

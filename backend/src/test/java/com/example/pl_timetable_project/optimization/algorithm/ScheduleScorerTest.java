@@ -11,12 +11,15 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
- * ScheduleScorer의 본인 학과 가중치 계산이 ScheduleSearchService.SAME_MAJOR_BONUS와
- * 같은 크기로, 같은 조건(선택 과목만 대상)으로 동작하는지 검증한다.
+ * ScheduleScorer의 본인 학과 가중치·교양 영역+선수과목 조건부 가중치 계산이
+ * ScheduleSearchService의 상수와 같은 크기로, 같은 조건으로 동작하는지 검증한다.
  */
 class ScheduleScorerTest {
 
     private static final double SAME_MAJOR_BONUS = 5.0;
+    private static final double SEQUENCE_BONUS = 5.0;
+    private static final String SCIENCE_AREA = "제3영역:과학과기술";
+    private static final String ARTS_AREA = "제4영역:예술과문화";
 
     private final ScheduleScorer scorer = new ScheduleScorer();
 
@@ -63,6 +66,73 @@ class ScheduleScorerTest {
         assertThat(ownMajor.score()).isCloseTo(otherMajor.score(), within(1e-9));
     }
 
+    @Test
+    void addsSequenceBonusWhenAreaSelectedAndPrerequisiteCompleted() {
+        OptimizationConstraints constraints = sequenceConstraints(
+                List.of(SCIENCE_AREA), Set.of("005111"));
+
+        ScoredCombination withPrerequisiteMet = scorer.score(
+                combination(liberalCourse("005112", SCIENCE_AREA, List.of("005111"))),
+                constraints);
+        ScoredCombination withoutPrerequisiteHint = scorer.score(
+                combination(liberalCourse("924011", SCIENCE_AREA, List.of())),
+                constraints);
+
+        assertThat(withPrerequisiteMet.score() - withoutPrerequisiteHint.score())
+                .isCloseTo(SEQUENCE_BONUS, within(1e-9));
+    }
+
+    @Test
+    void appliesNoSequenceBonusWhenAreaNotSelected() {
+        // 선수과목(005111)은 이수했지만 사용자가 어떤 교양 영역도 선택하지 않았다.
+        OptimizationConstraints constraints = sequenceConstraints(
+                List.of(), Set.of("005111"));
+
+        ScoredCombination withPrerequisiteMet = scorer.score(
+                combination(liberalCourse("005112", SCIENCE_AREA, List.of("005111"))),
+                constraints);
+        ScoredCombination withoutPrerequisiteHint = scorer.score(
+                combination(liberalCourse("924011", SCIENCE_AREA, List.of())),
+                constraints);
+
+        assertThat(withPrerequisiteMet.score())
+                .isCloseTo(withoutPrerequisiteHint.score(), within(1e-9));
+    }
+
+    @Test
+    void appliesNoSequenceBonusWhenPrerequisiteNotCompleted() {
+        // 제3영역을 선택했지만 선수과목(005111)을 아직 이수하지 않았다.
+        OptimizationConstraints constraints = sequenceConstraints(
+                List.of(SCIENCE_AREA), Set.of());
+
+        ScoredCombination withPrerequisiteHint = scorer.score(
+                combination(liberalCourse("005112", SCIENCE_AREA, List.of("005111"))),
+                constraints);
+        ScoredCombination withoutPrerequisiteHint = scorer.score(
+                combination(liberalCourse("924011", SCIENCE_AREA, List.of())),
+                constraints);
+
+        assertThat(withPrerequisiteHint.score())
+                .isCloseTo(withoutPrerequisiteHint.score(), within(1e-9));
+    }
+
+    @Test
+    void appliesNoSequenceBonusWhenCourseIsInADifferentArea() {
+        // 선수과목은 이수했지만 후보 과목이 선택한 영역(제3영역)이 아니라
+        // 다른 영역(제4영역)이다.
+        OptimizationConstraints constraints = sequenceConstraints(
+                List.of(SCIENCE_AREA), Set.of("005111"));
+
+        ScoredCombination differentArea = scorer.score(
+                combination(liberalCourse("004317", ARTS_AREA, List.of("005111"))),
+                constraints);
+        ScoredCombination noHint = scorer.score(
+                combination(liberalCourse("924011", SCIENCE_AREA, List.of())),
+                constraints);
+
+        assertThat(differentArea.score()).isCloseTo(noHint.score(), within(1e-9));
+    }
+
     private CandidateCourse course(
             String courseCode, List<String> restrictedAcademicUnitCodes, boolean required) {
         return new CandidateCourse(
@@ -73,7 +143,24 @@ class ScheduleScorerTest {
                 required,
                 List.of(new CourseTimeSlot(
                         DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(11, 0))),
-                restrictedAcademicUnitCodes);
+                restrictedAcademicUnitCodes,
+                null,
+                List.of());
+    }
+
+    private CandidateCourse liberalCourse(
+            String courseCode, String liberalAreaCode, List<String> prerequisiteCourseCodes) {
+        return new CandidateCourse(
+                new SectionReference("2026-1", courseCode, "01"),
+                "테스트교양과목",
+                "담당교수",
+                300,
+                false,
+                List.of(new CourseTimeSlot(
+                        DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(11, 0))),
+                List.of(),
+                liberalAreaCode,
+                prerequisiteCourseCodes);
     }
 
     private ScheduleCombination combination(CandidateCourse course) {
@@ -94,5 +181,24 @@ class ScheduleScorerTest {
                 480,
                 1_000,
                 userAcademicUnitCodes);
+    }
+
+    private OptimizationConstraints sequenceConstraints(
+            List<String> selectedLiberalAreas, Set<String> completedCourseCodes) {
+        return new OptimizationConstraints(
+                300,
+                300,
+                300,
+                Set.of(),
+                Set.of(),
+                List.of(new OptimizationTimeRange(LocalTime.of(8, 0), LocalTime.of(20, 0))),
+                List.of(),
+                LocalTime.of(12, 0),
+                LocalTime.of(13, 0),
+                480,
+                1_000,
+                List.of(),
+                selectedLiberalAreas,
+                completedCourseCodes);
     }
 }
