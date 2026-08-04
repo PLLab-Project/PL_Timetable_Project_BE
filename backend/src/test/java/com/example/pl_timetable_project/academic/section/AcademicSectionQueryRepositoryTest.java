@@ -16,8 +16,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
- * 학과 필터가 section_academic_units 구조화된 데이터를 기준으로
- * "학과 전용 분반 제외 / 공통·교양·미분류 분반 포함"을 지키는지 검증한다.
+ * findBySemesterId가 학과와 무관하게 모든 분반을 반환하면서도, section_academic_units와
+ * 과목 category를 기준으로 각 분반의 restrictedAcademicUnitCodes(본인 학과 가중치
+ * 판단에 쓰이는 구조화된 학과 태그)를 정확히 계산하는지 검증한다.
  */
 @SpringBootTest
 @Testcontainers
@@ -83,24 +84,16 @@ class AcademicSectionQueryRepositoryTest {
     }
 
     @Test
-    void unfilteredLookupReturnsEverySectionWithItsRestrictedAcademicUnits() {
+    void returnsEverySectionRegardlessOfDepartmentWithCorrectRestrictedAcademicUnits() {
         Map<SectionReference, AcademicSection> catalog =
                 sectionQueryRepository.findBySemesterId("2099-1");
 
+        // 학과 필터로 배제된 분반이 없어야 한다 — PHY100(D2 전용)도 그대로 포함된다.
         assertThat(catalog).hasSize(4);
         assertThat(restrictedCodesOf(catalog, "CSE100")).containsExactly("D1");
         assertThat(restrictedCodesOf(catalog, "PHY100")).containsExactly("D2");
         assertThat(restrictedCodesOf(catalog, "GEN100")).isEmpty();
         assertThat(restrictedCodesOf(catalog, "UNTAGGED100")).isEmpty();
-    }
-
-    @Test
-    void departmentFilteredLookupExcludesOtherDepartmentOnlySections() {
-        Map<SectionReference, AcademicSection> catalog =
-                sectionQueryRepository.findBySemesterId("2099-1", List.of("D1"));
-
-        assertThat(courseCodesOf(catalog)).containsExactlyInAnyOrder(
-                "CSE100", "GEN100", "UNTAGGED100");
     }
 
     private List<String> restrictedCodesOf(
@@ -110,9 +103,5 @@ class AcademicSectionQueryRepositoryTest {
                 .findFirst()
                 .orElseThrow()
                 .restrictedAcademicUnitCodes();
-    }
-
-    private List<String> courseCodesOf(Map<SectionReference, AcademicSection> catalog) {
-        return catalog.keySet().stream().map(SectionReference::getCourseCode).toList();
     }
 }

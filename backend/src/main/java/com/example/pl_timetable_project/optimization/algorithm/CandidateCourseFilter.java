@@ -17,7 +17,6 @@ public class CandidateCourseFilter {
                 .filter(course -> course.timeSlots().stream().allMatch(slot -> isWithinAvailableTime(slot, constraints)))
                 .filter(course -> course.timeSlots().stream().noneMatch(slot ->
                         constraints.blockedTimes().stream().anyMatch(slot::overlaps)))
-                .filter(course -> matchesUserAcademicUnit(course, constraints))
                 .toList();
     }
 
@@ -27,21 +26,5 @@ public class CandidateCourseFilter {
 
     private boolean isWithinAvailableTime(CourseTimeSlot slot, OptimizationConstraints constraints) {
         return constraints.availableTimes().stream().anyMatch(range -> range.contains(slot));
-    }
-
-    /**
-     * 강의에 학과 제한이 없거나(교양·미분류), 제한된 학과 중 하나라도 사용자의
-     * 학과 코드 목록에 있으면 후보로 남긴다. 사용자의 학과 코드 목록이 비어 있으면
-     * (예: 프로필 미완성) 학과 필터를 적용하지 않는다.
-     */
-    private boolean matchesUserAcademicUnit(CandidateCourse course, OptimizationConstraints constraints) {
-        if (constraints.userAcademicUnitCodes().isEmpty()) {
-            return true;
-        }
-        if (course.restrictedAcademicUnitCodes().isEmpty()) {
-            return true;
-        }
-        return course.restrictedAcademicUnitCodes().stream()
-                .anyMatch(constraints.userAcademicUnitCodes()::contains);
     }
 }

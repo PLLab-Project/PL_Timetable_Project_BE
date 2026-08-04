@@ -51,6 +51,13 @@ public class ScheduleSearchService {
     private static final double LUNCH_BONUS_PER_DAY = 15.0;
     private static final double CREDIT_DIFF_PENALTY_PER_CREDIT_UNIT = 0.05;
     private static final double DAILY_OVERLOAD_PENALTY_PER_MINUTE = 1.0;
+    /**
+     * 선택 후보 중 본인 학과 소속 강의 1개당 주는 가중치. 학점 1단위 편차 페널티(5점,
+     * 크레딧당 CREDIT_DIFF_PENALTY_PER_CREDIT_UNIT*100)와 같은 크기로 잡아,
+     * 등교일수(10점/일)나 점심 확보(15점/일) 같은 실질적 스케줄 품질을 밀어내지
+     * 않으면서도 동률 상황에서는 본인 학과 강의를 우선하도록 한다.
+     */
+    private static final double SAME_MAJOR_BONUS = 5.0;
 
     static {
         Loader.loadNativeLibraries();
@@ -183,6 +190,17 @@ public class ScheduleSearchService {
             vars[i] = model.newBoolVar("course_" + i);
         }
 
+        List<IntVar> objectiveVars = new ArrayList<>();
+        List<Double> objectiveCoeffs = new ArrayList<>();
+
+        // ---- 소프트 제약: 본인 학과 우선 가중치 ----
+        for (int i = 0; i < optionalCandidates.size(); i++) {
+            if (matchesUserAcademicUnit(optionalCandidates.get(i), constraints)) {
+                objectiveVars.add(vars[i]);
+                objectiveCoeffs.add(SAME_MAJOR_BONUS);
+            }
+        }
+
         // ---- 하드 제약: 시간 충돌 ----
         for (int i = 0; i < optionalCandidates.size(); i++) {
             for (int j = i + 1; j < optionalCandidates.size(); j++) {
@@ -234,8 +252,6 @@ public class ScheduleSearchService {
         Set<DayOfWeek> relevantDays = new HashSet<>(requiredMinutesByDay.keySet());
         relevantDays.addAll(optionalSlotsByDay.keySet());
 
-        List<IntVar> objectiveVars = new ArrayList<>();
-        List<Double> objectiveCoeffs = new ArrayList<>();
         LinearExprBuilder totalFreeMinutesBuilder = LinearExpr.newBuilder();
 
         for (DayOfWeek day : relevantDays) {
@@ -353,7 +369,7 @@ public class ScheduleSearchService {
     /**
      * ScheduleScorer의 점수식을 그대로 옮긴 목적함수:
      * (7 - 등교일수)*10 + min(300, 300-공강시간)*0.2 + 점심확보일수*15
-     * - |총학점-목표학점|*5 - 하루초과시간*1
+     * - |총학점-목표학점|*5 - 하루초과시간*1 + 선택된 본인 학과 강의 수*5
      * 가중치가 정수가 아니어서(0.2 등) DoubleLinearExpr로 실수 계수를 그대로 사용한다
      * (정수 배율로 스케일링할 필요가 없다).
      */
@@ -362,6 +378,20 @@ public class ScheduleSearchService {
         double[] coeffsArray = objectiveCoeffs.stream().mapToDouble(Double::doubleValue).toArray();
         double offset = DAYS_IN_WEEK * ATTENDANCE_BONUS_PER_DAY;
         model.maximize(new DoubleLinearExpr(varsArray, coeffsArray, offset));
+    }
+
+    /**
+     * 강의가 사용자의 학과 코드 목록과 겹치는 학과로 제한돼 있으면(=본인 학과 강의)
+     * true. 학과 무관(교양·미분류) 강의나 타 학과 전용 강의는 false — 배제되지 않고
+     * 그냥 가중치를 받지 못할 뿐이다.
+     */
+    private boolean matchesUserAcademicUnit(CandidateCourse course, OptimizationConstraints constraints) {
+        if (constraints.userAcademicUnitCodes().isEmpty()
+                || course.restrictedAcademicUnitCodes().isEmpty()) {
+            return false;
+        }
+        return course.restrictedAcademicUnitCodes().stream()
+                .anyMatch(constraints.userAcademicUnitCodes()::contains);
     }
 
     private boolean overlapsLunch(int startMinutes, int endMinutes, OptimizationConstraints constraints) {
