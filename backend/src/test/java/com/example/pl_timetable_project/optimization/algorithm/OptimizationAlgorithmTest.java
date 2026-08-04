@@ -72,7 +72,9 @@ class OptimizationAlgorithmTest {
                 LocalTime.of(13, 0),
                 480,
                 1_000,
-                List.of());
+                List.of(),
+                List.of(),
+                Set.of());
 
         List<CandidateCourse> filtered = new CandidateCourseFilter().filter(
                 List.of(morning, afternoon, blocked, outside), constraints);
@@ -174,6 +176,8 @@ class OptimizationAlgorithmTest {
                 false,
                 List.of(new CourseTimeSlot(
                         day, LocalTime.of(startHour, 0), LocalTime.of(endHour, 0))),
-                restrictedAcademicUnitCodes);
+                restrictedAcademicUnitCodes,
+                null,
+                List.of());
     }
 }

@@ -58,6 +58,12 @@ public class ScheduleSearchService {
      * 않으면서도 동률 상황에서는 본인 학과 강의를 우선하도록 한다.
      */
     private static final double SAME_MAJOR_BONUS = 5.0;
+    /**
+     * 사용자가 선택한 교양 영역에 속하고, 큐레이션된 선수과목을 이미 이수한
+     * 후보 1개당 주는 조건부 가중치. SAME_MAJOR_BONUS와 같은 크기로 잡아
+     * 등교일수·점심 확보 같은 실질적 스케줄 품질보다 우선하지 않게 한다.
+     */
+    private static final double SEQUENCE_BONUS = 5.0;
 
     static {
         Loader.loadNativeLibraries();
@@ -198,6 +204,14 @@ public class ScheduleSearchService {
             if (matchesUserAcademicUnit(optionalCandidates.get(i), constraints)) {
                 objectiveVars.add(vars[i]);
                 objectiveCoeffs.add(SAME_MAJOR_BONUS);
+            }
+        }
+
+        // ---- 소프트 제약: 교양 영역 선택 + 선수과목 이수 조건부 가중치 ----
+        for (int i = 0; i < optionalCandidates.size(); i++) {
+            if (matchesSequenceBonus(optionalCandidates.get(i), constraints)) {
+                objectiveVars.add(vars[i]);
+                objectiveCoeffs.add(SEQUENCE_BONUS);
             }
         }
 
@@ -370,6 +384,7 @@ public class ScheduleSearchService {
      * ScheduleScorer의 점수식을 그대로 옮긴 목적함수:
      * (7 - 등교일수)*10 + min(300, 300-공강시간)*0.2 + 점심확보일수*15
      * - |총학점-목표학점|*5 - 하루초과시간*1 + 선택된 본인 학과 강의 수*5
+     * + 교양 영역 선택·선수과목 이수 조건을 동시에 만족한 강의 수*5
      * 가중치가 정수가 아니어서(0.2 등) DoubleLinearExpr로 실수 계수를 그대로 사용한다
      * (정수 배율로 스케일링할 필요가 없다).
      */
@@ -392,6 +407,21 @@ public class ScheduleSearchService {
         }
         return course.restrictedAcademicUnitCodes().stream()
                 .anyMatch(constraints.userAcademicUnitCodes()::contains);
+    }
+
+    /**
+     * 강의가 사용자가 선택한 교양 영역에 속하고(liberalAreaCode 일치), 큐레이션된
+     * 선수과목 중 하나 이상을 이미 이수했으면(completedCourseCodes 일치) true.
+     * 둘 중 하나만 맞으면 false — 두 조건을 동시에 만족해야 하는 조건부 가중치다.
+     */
+    private boolean matchesSequenceBonus(CandidateCourse course, OptimizationConstraints constraints) {
+        boolean areaSelected = course.liberalAreaCode() != null
+                && constraints.selectedLiberalAreas().contains(course.liberalAreaCode());
+        if (!areaSelected) {
+            return false;
+        }
+        return course.prerequisiteCourseCodes().stream()
+                .anyMatch(constraints.completedCourseCodes()::contains);
     }
 
     private boolean overlapsLunch(int startMinutes, int endMinutes, OptimizationConstraints constraints) {

@@ -132,6 +132,8 @@ class ScheduleSearchServiceTest {
                 credit * 100,
                 false,
                 List.of(new CourseTimeSlot(day, LocalTime.parse(start), LocalTime.parse(end))),
+                List.of(),
+                null,
                 List.of());
     }
 

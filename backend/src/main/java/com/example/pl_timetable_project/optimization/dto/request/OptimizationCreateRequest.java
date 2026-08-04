@@ -89,6 +89,13 @@ public class OptimizationCreateRequest {
     @Valid
     private List<CourseCandidateRequest> requiredCourses = List.of();
 
+    @Schema(
+            description = "사용자가 선택한 교양 영역 코드 목록. courses.category가 "
+                    + "\"교양선택(제N영역:이름)\" 형태일 때의 \"제N영역:이름\" 값과 같아야 매칭된다. "
+                    + "생략하거나 비우면 교양 영역 기반 가중치를 적용하지 않는다",
+            example = "[\"제3영역:과학과기술\"]")
+    private List<String> selectedLiberalAreas = List.of();
+
     public OptimizationCreateRequest(
             Long timetableId,
             BigDecimal minCredits,
@@ -111,6 +118,7 @@ public class OptimizationCreateRequest {
         this.maxDailyClassMinutes = maxDailyClassMinutes;
         this.candidateCourses = candidateCourses == null ? List.of() : candidateCourses;
         this.requiredCourses = List.of();
+        this.selectedLiberalAreas = List.of();
     }
 
     public OptimizationCreateRequest(
@@ -140,5 +148,6 @@ public class OptimizationCreateRequest {
                 candidateCourses == null ? List.of() : List.copyOf(candidateCourses);
         this.requiredCourses =
                 requiredCourses == null ? List.of() : List.copyOf(requiredCourses);
+        this.selectedLiberalAreas = List.of();
     }
 }

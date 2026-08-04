@@ -10,6 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.example.pl_timetable_project.academic.course.CourseSequenceHintService;
 import com.example.pl_timetable_project.academic.section.AcademicMeeting;
 import com.example.pl_timetable_project.academic.section.AcademicSection;
 import com.example.pl_timetable_project.academic.section.AcademicSectionQueryRepository;
@@ -55,6 +56,7 @@ class OptimizationServiceTest {
     private AcademicSectionQueryRepository sectionQueryRepository;
     private StudentProfileRepository studentProfileRepository;
     private CompletedCourseRepository completedCourseRepository;
+    private CourseSequenceHintService courseSequenceHintService;
     private OptimizationService service;
     private UUID userId;
 
@@ -65,12 +67,14 @@ class OptimizationServiceTest {
         sectionQueryRepository = mock(AcademicSectionQueryRepository.class);
         studentProfileRepository = mock(StudentProfileRepository.class);
         completedCourseRepository = mock(CompletedCourseRepository.class);
+        courseSequenceHintService = mock(CourseSequenceHintService.class);
         service = new OptimizationService(
                 lifecycleService,
                 timetableRepository,
                 sectionQueryRepository,
                 studentProfileRepository,
                 completedCourseRepository,
+                courseSequenceHintService,
                 new CandidateCourseFilter(),
                 new RequiredCoursePlacer(),
                 mock(ScheduleSearchService.class),
@@ -90,6 +94,8 @@ class OptimizationServiceTest {
         // 이 스텁을 덮어써서 특정 과목이 이미 이수한 것처럼 만든다.
         when(completedCourseRepository.findAllByUserIdAndStatusIn(any(), any()))
                 .thenReturn(List.of());
+        // 기본값은 "선수과목 힌트 없음" — 힌트를 다루는 테스트만 이 스텁을 덮어쓴다.
+        when(courseSequenceHintService.findPrerequisites(any())).thenReturn(Map.of());
         OptimizationJob job = pendingJob();
         when(lifecycleService.createPendingJobAndPublish(
                         any(), any(), any(), any(), any()))
@@ -269,7 +275,7 @@ class OptimizationServiceTest {
         // 이 테스트 스위트는 학과 필터링과 무관한 시나리오만 다루므로 학과 제한이
         // 없는(공통) 강의로 취급한다.
         return new AcademicSection(
-                reference, courseName, "담당교수", BigDecimal.valueOf(3), meetings, List.of());
+                reference, courseName, "담당교수", BigDecimal.valueOf(3), meetings, List.of(), null);
     }
 
     private OptimizationJob pendingJob() {
