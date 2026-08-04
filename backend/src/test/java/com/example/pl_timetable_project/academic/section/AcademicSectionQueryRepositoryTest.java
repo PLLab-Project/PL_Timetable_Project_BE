@@ -58,19 +58,37 @@ class AcademicSectionQueryRepositoryTest {
                     ('2099-1', 'PHY100', 'D2 전공필수', '전공필수', 3),
                     ('2099-1', 'GEN100', '교양 과목', '교양선택', 2),
                     ('2099-1', 'UNTAGGED100', '미분류 전공선택', '전공선택', 3),
-                    ('2099-1', 'AREA100', '기초미적분학', '교양선택(제3영역:과학과기술)', 3)
+                    ('2099-1', 'AREA100', '기초미적분학', '교양선택(제3영역:과학과기술)', 3),
+                    ('2099-1', 'RESTRICT_PURE', '전산개론', '전공선택', 3),
+                    ('2099-1', 'RESTRICT_GRADE', '전산개론2', '전공선택', 3),
+                    ('2099-1', 'RESTRICT_TIME_OPEN', '전산개론3', '전공선택', 3),
+                    ('2099-1', 'RESTRICT_NEGATION', '전산개론4', '전공선택', 3),
+                    ('2099-1', 'RESTRICT_INTL', '전산개론5', '전공선택', 3),
+                    ('2099-1', 'RESTRICT_DOUBLE_MAJOR', '전산개론6', '전공선택', 3)
                 """);
 
         jdbcTemplate.update("""
                 insert into sections (
                     semester_id, course_code, section_code, professor,
-                    raw_lecture_time, time_to_be_announced, warning_codes)
+                    raw_lecture_time, time_to_be_announced, warning_codes, notes)
                 values
-                    ('2099-1', 'CSE100', '01', '김교수', '', false, '[]'),
-                    ('2099-1', 'PHY100', '01', '이교수', '', false, '[]'),
-                    ('2099-1', 'GEN100', '01', '박교수', '', false, '[]'),
-                    ('2099-1', 'UNTAGGED100', '01', '최교수', '', false, '[]'),
-                    ('2099-1', 'AREA100', '01', '정교수', '', false, '[]')
+                    ('2099-1', 'CSE100', '01', '김교수', '', false, '[]', NULL),
+                    ('2099-1', 'PHY100', '01', '이교수', '', false, '[]', NULL),
+                    ('2099-1', 'GEN100', '01', '박교수', '', false, '[]', NULL),
+                    ('2099-1', 'UNTAGGED100', '01', '최교수', '', false, '[]', NULL),
+                    ('2099-1', 'AREA100', '01', '정교수', '', false, '[]', NULL),
+                    ('2099-1', 'RESTRICT_PURE', '01', '강교수', '', false, '[]',
+                        '컴퓨터공학과만수강가능'),
+                    ('2099-1', 'RESTRICT_GRADE', '01', '강교수', '', false, '[]',
+                        '컴퓨터공학과2학년만신청가능'),
+                    ('2099-1', 'RESTRICT_TIME_OPEN', '01', '강교수', '', false, '[]',
+                        '컴퓨터공학과만수강가능/셋째날11시해제'),
+                    ('2099-1', 'RESTRICT_NEGATION', '01', '강교수', '', false, '[]',
+                        '컴퓨터공학과우선신청/수강해제없음'),
+                    ('2099-1', 'RESTRICT_INTL', '01', '강교수', '', false, '[]',
+                        '컴퓨터공학과외국인유학생만수강가능'),
+                    ('2099-1', 'RESTRICT_DOUBLE_MAJOR', '01', '강교수', '', false, '[]',
+                        '컴퓨터공학과및복수전공생만신청가능')
                 """);
 
         jdbcTemplate.update("""
@@ -91,7 +109,7 @@ class AcademicSectionQueryRepositoryTest {
                 sectionQueryRepository.findBySemesterId("2099-1");
 
         // 학과 필터로 배제된 분반이 없어야 한다 — PHY100(D2 전용)도 그대로 포함된다.
-        assertThat(catalog).hasSize(5);
+        assertThat(catalog).hasSize(11);
         assertThat(restrictedCodesOf(catalog, "CSE100")).containsExactly("D1");
         assertThat(restrictedCodesOf(catalog, "PHY100")).containsExactly("D2");
         assertThat(restrictedCodesOf(catalog, "GEN100")).isEmpty();
@@ -111,6 +129,27 @@ class AcademicSectionQueryRepositoryTest {
         assertThat(liberalAreaCodeOf(catalog, "UNTAGGED100")).isNull();
     }
 
+    @Test
+    void resolvesHardRestrictionOnlyForCleanEndAnchoredPatternWithoutExceptionKeywords() {
+        Map<SectionReference, AcademicSection> catalog =
+                sectionQueryRepository.findBySemesterId("2099-1");
+
+        // (a) "학과명만수강가능"으로 정확히 끝나면 그 학과 코드로 확정된다.
+        assertThat(hardRestrictedCodeOf(catalog, "RESTRICT_PURE")).isEqualTo("D1");
+        // 학년 숫자가 껴 있어도(선택적 요소) 마찬가지로 확정된다.
+        assertThat(hardRestrictedCodeOf(catalog, "RESTRICT_GRADE")).isEqualTo("D1");
+        // (b) 뒤에 "/셋째날11시해제"가 붙으면(시간 개방 패턴) 제한으로 보지 않는다.
+        assertThat(hardRestrictedCodeOf(catalog, "RESTRICT_TIME_OPEN")).isNull();
+        // (c) "해제없음"처럼 부정어가 있어도,애초에 "만수강가능"으로 끝나지 않으므로
+        // 안전하게 null로 남는다(오분류하지 않음).
+        assertThat(hardRestrictedCodeOf(catalog, "RESTRICT_NEGATION")).isNull();
+        // (d) 유학생/복수전공 같은 예외 키워드가 섞이면 패턴이 맞아도 제한으로 보지 않는다.
+        assertThat(hardRestrictedCodeOf(catalog, "RESTRICT_INTL")).isNull();
+        assertThat(hardRestrictedCodeOf(catalog, "RESTRICT_DOUBLE_MAJOR")).isNull();
+        // notes가 아예 없거나 패턴과 무관한 분반도 당연히 null이다.
+        assertThat(hardRestrictedCodeOf(catalog, "CSE100")).isNull();
+    }
+
     private List<String> restrictedCodesOf(
             Map<SectionReference, AcademicSection> catalog, String courseCode) {
         return sectionOf(catalog, courseCode).restrictedAcademicUnitCodes();
@@ -119,6 +158,11 @@ class AcademicSectionQueryRepositoryTest {
     private String liberalAreaCodeOf(
             Map<SectionReference, AcademicSection> catalog, String courseCode) {
         return sectionOf(catalog, courseCode).liberalAreaCode();
+    }
+
+    private String hardRestrictedCodeOf(
+            Map<SectionReference, AcademicSection> catalog, String courseCode) {
+        return sectionOf(catalog, courseCode).hardRestrictedAcademicUnitCode();
     }
 
     private AcademicSection sectionOf(

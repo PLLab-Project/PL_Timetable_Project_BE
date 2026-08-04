@@ -134,7 +134,8 @@ class ScheduleSearchServiceTest {
                 List.of(new CourseTimeSlot(day, LocalTime.parse(start), LocalTime.parse(end))),
                 List.of(),
                 null,
-                List.of());
+                List.of(),
+                null);
     }
 
     private OptimizationConstraints constraints(int minCredit, int maxCredit, int targetCredit, long searchTimeLimitMillis) {

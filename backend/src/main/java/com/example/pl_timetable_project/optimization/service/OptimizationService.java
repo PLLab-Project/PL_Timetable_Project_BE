@@ -368,7 +368,8 @@ public class OptimizationService {
                 academicSection.restrictedAcademicUnitCodes(),
                 academicSection.liberalAreaCode(),
                 prerequisitesByCourseCode.getOrDefault(
-                        academicSection.reference().getCourseCode(), List.of()));
+                        academicSection.reference().getCourseCode(), List.of()),
+                academicSection.hardRestrictedAcademicUnitCode());
     }
 
     private void validateRequiredCandidates(

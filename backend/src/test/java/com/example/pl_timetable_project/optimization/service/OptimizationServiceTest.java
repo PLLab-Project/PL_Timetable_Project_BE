@@ -275,7 +275,7 @@ class OptimizationServiceTest {
         // 이 테스트 스위트는 학과 필터링과 무관한 시나리오만 다루므로 학과 제한이
         // 없는(공통) 강의로 취급한다.
         return new AcademicSection(
-                reference, courseName, "담당교수", BigDecimal.valueOf(3), meetings, List.of(), null);
+                reference, courseName, "담당교수", BigDecimal.valueOf(3), meetings, List.of(), null, null);
     }
 
     private OptimizationJob pendingJob() {

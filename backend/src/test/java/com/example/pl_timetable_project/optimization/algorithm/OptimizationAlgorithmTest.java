@@ -178,6 +178,7 @@ class OptimizationAlgorithmTest {
                         day, LocalTime.of(startHour, 0), LocalTime.of(endHour, 0))),
                 restrictedAcademicUnitCodes,
                 null,
-                List.of());
+                List.of(),
+                null);
     }
 }
