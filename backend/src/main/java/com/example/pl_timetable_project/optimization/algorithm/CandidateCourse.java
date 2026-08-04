@@ -13,6 +13,11 @@ import java.util.List;
  * <p>prerequisiteCourseCodes: course_sequence_hints에 이 강의를 follow_up_course_code로
  * 등록해 둔 선수과목 코드 목록(수동 큐레이션). 비어 있으면 선수과목 힌트가 없다는 뜻이지,
  * 선수과목이 없다고 단정할 수 있는 정보는 아니다.</p>
+ *
+ * <p>hardRestrictedAcademicUnitCode: 비고(notes)가 "OO학과만신청가능"류로 정확히
+ * 끝나고 유학생·복수전공·교직 같은 예외 키워드가 없을 때만 채워지는 학과 코드다.
+ * restrictedAcademicUnitCodes와 달리 이건 소프트 가중치가 아니라 진짜 하드 배제
+ * 판정에 쓴다. null이면 안전하게 "제한 없음"으로 취급한다.</p>
  */
 public record CandidateCourse(
         SectionReference section,
@@ -23,7 +28,8 @@ public record CandidateCourse(
         List<CourseTimeSlot> timeSlots,
         List<String> restrictedAcademicUnitCodes,
         String liberalAreaCode,
-        List<String> prerequisiteCourseCodes) {
+        List<String> prerequisiteCourseCodes,
+        String hardRestrictedAcademicUnitCode) {
 
     public CandidateCourse {
         timeSlots = List.copyOf(timeSlots);

@@ -145,7 +145,8 @@ class ScheduleScorerTest {
                         DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(11, 0))),
                 restrictedAcademicUnitCodes,
                 null,
-                List.of());
+                List.of(),
+                null);
     }
 
     private CandidateCourse liberalCourse(
@@ -160,7 +161,8 @@ class ScheduleScorerTest {
                         DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(11, 0))),
                 List.of(),
                 liberalAreaCode,
-                prerequisiteCourseCodes);
+                prerequisiteCourseCodes,
+                null);
     }
 
     private ScheduleCombination combination(CandidateCourse course) {
