@@ -86,6 +86,25 @@ public final class GraduationResponses {
             boolean automaticRequirementsSatisfied,
             List<String> sourceRefs,
             List<Warning> warnings,
+            List<NonAutomaticItem> nonAutomaticItems,
+            SecondaryMajorEvaluation secondaryMajor) {
+    }
+
+    /**
+     * 복수전공(DOUBLE_MAJOR) 학과의 졸업요건 판정 결과다. completedCredits/creditGaps가
+     * 없다 — 이수과목 데이터에는 주전공/복수전공 중 어느 학점으로 잡히는지 구분하는
+     * 정보가 없어, 학점은 이 학과 기준으로 자동 계산하지 않고 nonAutomaticItems로만
+     * 안내한다. areaGaps/requiredCourseGaps는 특정 과목을 들었는지 여부만으로 판단
+     * 가능해(전공 귀속과 무관) 정상적으로 자동 판정된다.
+     */
+    public record SecondaryMajorEvaluation(
+            Rule rule,
+            List<AreaGap> areaGaps,
+            List<RequiredCourseGap> requiredCourseGaps,
+            List<Recommendation> recommendations,
+            boolean areaAndRequiredCoursesSatisfied,
+            List<String> sourceRefs,
+            List<Warning> warnings,
             List<NonAutomaticItem> nonAutomaticItems) {
     }
 

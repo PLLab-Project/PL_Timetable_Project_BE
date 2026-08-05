@@ -89,6 +89,8 @@ public class GraduationQueryRepository {
                 SELECT profile.admission_year,
                        unit.normalized_key AS academic_unit_key,
                        unit.name AS academic_unit_name,
+                       secondary_unit.normalized_key AS secondary_academic_unit_key,
+                       secondary_unit.name AS secondary_academic_unit_name,
                        profile.student_type,
                        coalesce(
                            CASE
@@ -132,11 +134,24 @@ public class GraduationQueryRepository {
                     ON unit.code = coalesce(
                         primary_program.academic_unit_code,
                         profile.academic_unit_code)
+                  LEFT JOIN LATERAL (
+                      SELECT selected.academic_unit_code
+                        FROM student_academic_programs selected
+                       WHERE selected.user_id = profile.user_id
+                         AND selected.status <> 'WITHDRAWN'
+                         AND selected.program_role = 'DOUBLE_MAJOR'
+                       ORDER BY selected.display_order, selected.created_at
+                       LIMIT 1
+                  ) secondary_program ON true
+                  LEFT JOIN academic_units secondary_unit
+                    ON secondary_unit.code = secondary_program.academic_unit_code
                  WHERE profile.user_id = :userId
                 """, Map.of("userId", userId), (rs, rowNum) -> new StudentScope(
                 rs.getObject("admission_year", Integer.class),
                 rs.getString("academic_unit_key"),
                 rs.getString("academic_unit_name"),
+                rs.getString("secondary_academic_unit_key"),
+                rs.getString("secondary_academic_unit_name"),
                 rs.getString("student_type"),
                 rs.getString("program_path")))
                 .stream()
@@ -450,6 +465,8 @@ public class GraduationQueryRepository {
             Integer admissionYear,
             String academicUnitKey,
             String academicUnitName,
+            String secondaryAcademicUnitKey,
+            String secondaryAcademicUnitName,
             String studentType,
             String programPath) {
     }
