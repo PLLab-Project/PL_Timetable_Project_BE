@@ -103,7 +103,8 @@ class CandidateCourseFilterTest {
                 List.of(),
                 null,
                 List.of(),
-                hardRestrictedAcademicUnitCode);
+                hardRestrictedAcademicUnitCode,
+                false);
     }
 
     private OptimizationConstraints constraints(List<String> userAcademicUnitCodes) {

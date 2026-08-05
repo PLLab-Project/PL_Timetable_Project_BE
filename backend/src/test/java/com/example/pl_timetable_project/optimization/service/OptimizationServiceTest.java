@@ -11,10 +11,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.pl_timetable_project.academic.course.CourseSequenceHintService;
+import com.example.pl_timetable_project.academic.graduation.GraduationResponses.CompletedCredits;
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.Evaluation;
+import com.example.pl_timetable_project.academic.graduation.GraduationResponses.LiberalRequirements;
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.Recommendation;
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.RequiredCourse;
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.RequiredCourseGap;
+import com.example.pl_timetable_project.academic.graduation.GraduationResponses.Rule;
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.SecondaryMajorEvaluation;
 import com.example.pl_timetable_project.academic.graduation.GraduationService;
 import com.example.pl_timetable_project.academic.section.AcademicMeeting;
@@ -354,8 +357,9 @@ class OptimizationServiceTest {
 
     @Test
     void doesNotResolveGraduationPriorityCourseCodesWhenNotOptedIn() {
-        // prioritizeGraduationRequirements 기본값은 false — 켜지 않으면 졸업요건
-        // 조회 자체를 시도하지 않는다(불필요한 GraduationService 호출·실패 위험 없음).
+        // prioritizeGraduationRequirements 기본값은 false — 우선배치 과목 코드는
+        // 채워지지 않는다. 다만 교양 학점 상한은 옵트인이 아니라 항상 켜져 있으므로
+        // GraduationService.evaluate() 자체는 이 경우에도 호출된다(공유 호출).
         SectionReference scheduled = reference("004803");
         when(sectionQueryRepository.findBySemesterId(SEMESTER_ID)).thenReturn(Map.of(
                 scheduled, section(scheduled, "현장실습I", List.of(new AcademicMeeting(
@@ -363,7 +367,6 @@ class OptimizationServiceTest {
 
         service.createJob(userId, request(List.of()));
 
-        verify(graduationService, never()).evaluate(any(), any());
         verify(lifecycleService).createPendingJobAndPublish(
                 any(), any(), any(), any(),
                 argThat((OptimizationConstraints constraints) ->
@@ -435,6 +438,96 @@ class OptimizationServiceTest {
                 List.of());
     }
 
+    @Test
+    void computesLiberalCreditCapAsRemainingAllowanceRegardlessOfPrioritizeOptIn() {
+        // 교양 학점 상한은 옵트인이 아니라 항상 켜져 있다 — prioritizeGraduationRequirements
+        // 기본값(false)인 request(List.of())를 그대로 써도 반영돼야 한다.
+        SectionReference scheduled = reference("004803");
+        when(sectionQueryRepository.findBySemesterId(SEMESTER_ID)).thenReturn(Map.of(
+                scheduled, section(scheduled, "현장실습I", List.of(new AcademicMeeting(
+                        DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(10, 0))))));
+        // 상한 20학점, 이미 12학점 이수 → 남은 허용량 8학점(=800 creditUnits).
+        when(graduationService.evaluate(userId, SEMESTER_ID))
+                .thenReturn(evaluationWithLiberalCreditCap(20, BigDecimal.valueOf(12)));
+
+        service.createJob(userId, request(List.of()));
+
+        verify(lifecycleService).createPendingJobAndPublish(
+                any(), any(), any(), any(),
+                argThat((OptimizationConstraints constraints) ->
+                        Integer.valueOf(800).equals(constraints.liberalCreditCap())));
+    }
+
+    @Test
+    void clampsLiberalCreditCapAtZeroWhenAlreadyExceeded() {
+        SectionReference scheduled = reference("004803");
+        when(sectionQueryRepository.findBySemesterId(SEMESTER_ID)).thenReturn(Map.of(
+                scheduled, section(scheduled, "현장실습I", List.of(new AcademicMeeting(
+                        DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(10, 0))))));
+        // 상한 10학점인데 이미 15학점 이수 — 음수가 아니라 0으로 clamp한다.
+        when(graduationService.evaluate(userId, SEMESTER_ID))
+                .thenReturn(evaluationWithLiberalCreditCap(10, BigDecimal.valueOf(15)));
+
+        service.createJob(userId, request(List.of()));
+
+        verify(lifecycleService).createPendingJobAndPublish(
+                any(), any(), any(), any(),
+                argThat((OptimizationConstraints constraints) ->
+                        Integer.valueOf(0).equals(constraints.liberalCreditCap())));
+    }
+
+    @Test
+    void leavesLiberalCreditCapNullWhenRuleHasNoMaximum() {
+        SectionReference scheduled = reference("004803");
+        when(sectionQueryRepository.findBySemesterId(SEMESTER_ID)).thenReturn(Map.of(
+                scheduled, section(scheduled, "현장실습I", List.of(new AcademicMeeting(
+                        DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(10, 0))))));
+        when(graduationService.evaluate(userId, SEMESTER_ID))
+                .thenReturn(evaluationWithLiberalCreditCap(null, BigDecimal.valueOf(12)));
+
+        service.createJob(userId, request(List.of()));
+
+        verify(lifecycleService).createPendingJobAndPublish(
+                any(), any(), any(), any(),
+                argThat((OptimizationConstraints constraints) ->
+                        constraints.liberalCreditCap() == null));
+    }
+
+    @Test
+    void leavesLiberalCreditCapNullWhenGraduationEvaluationFails() {
+        // 항상 켜져 있는 기능이라도 졸업요건 조회가 실패하면(프로필 미완성 등)
+        // 자동편성 본연의 기능은 항상 성공해야 한다 — 상한 없이 진행한다.
+        SectionReference scheduled = reference("004803");
+        when(sectionQueryRepository.findBySemesterId(SEMESTER_ID)).thenReturn(Map.of(
+                scheduled, section(scheduled, "현장실습I", List.of(new AcademicMeeting(
+                        DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(10, 0))))));
+        when(graduationService.evaluate(userId, SEMESTER_ID))
+                .thenThrow(new InvalidAcademicQueryException("학생 프로필이 완성되지 않았습니다."));
+
+        var response = service.createJob(userId, request(List.of()));
+
+        assertThat(response.id()).isEqualTo(42L);
+        verify(lifecycleService).createPendingJobAndPublish(
+                any(), any(), any(), any(),
+                argThat((OptimizationConstraints constraints) ->
+                        constraints.liberalCreditCap() == null));
+    }
+
+    private Evaluation evaluationWithLiberalCreditCap(
+            Integer liberalTotalMax, BigDecimal liberalTotalCompleted) {
+        Rule rule = new Rule(
+                null, null, null, 0, null, null, null, null, null,
+                null,
+                new LiberalRequirements(0, 0, 0, liberalTotalMax),
+                List.of(), List.of(), false, List.of(), List.of(), List.of());
+        CompletedCredits completedCredits = new CompletedCredits(
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, liberalTotalCompleted);
+        return new Evaluation(
+                SEMESTER_ID, rule, completedCredits, List.of(), List.of(), List.of(), List.of(),
+                false, List.of(), List.of(), List.of(), null);
+    }
+
     private RequiredCourseGap requiredCourseGap(String courseCode) {
         return new RequiredCourseGap(new RequiredCourse(
                 "MAJOR_REQUIRED", courseCode, "테스트필수과목",
@@ -486,10 +579,19 @@ class OptimizationServiceTest {
 
     private AcademicSection section(
             SectionReference reference, String courseName, List<AcademicMeeting> meetings) {
+        return section(reference, courseName, meetings, false);
+    }
+
+    private AcademicSection section(
+            SectionReference reference,
+            String courseName,
+            List<AcademicMeeting> meetings,
+            boolean liberalCredit) {
         // 이 테스트 스위트는 학과 필터링과 무관한 시나리오만 다루므로 학과 제한이
         // 없는(공통) 강의로 취급한다.
         return new AcademicSection(
-                reference, courseName, "담당교수", BigDecimal.valueOf(3), meetings, List.of(), null, null);
+                reference, courseName, "담당교수", BigDecimal.valueOf(3), meetings,
+                List.of(), null, null, liberalCredit);
     }
 
     private OptimizationJob pendingJob() {

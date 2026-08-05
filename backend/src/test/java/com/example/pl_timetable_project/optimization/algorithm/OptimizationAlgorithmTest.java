@@ -75,7 +75,8 @@ class OptimizationAlgorithmTest {
                 List.of(),
                 List.of(),
                 Set.of(),
-                Set.of());
+                Set.of(),
+                null);
 
         List<CandidateCourse> filtered = new CandidateCourseFilter().filter(
                 List.of(morning, afternoon, blocked, outside), constraints);
@@ -180,6 +181,7 @@ class OptimizationAlgorithmTest {
                 restrictedAcademicUnitCodes,
                 null,
                 List.of(),
-                null);
+                null,
+                false);
     }
 }

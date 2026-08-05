@@ -110,6 +110,40 @@ class ScheduleSearchServiceTest {
         assertThat(distinctCombinations).hasSize(3);
     }
 
+    @Test
+    void prefersNonLiberalAlternativeOverLiberalCourseThatWouldExceedTheCap() {
+        // 같은 요일·시간대(=서로 충돌)라 둘 중 하나만 선택 가능하고, 학점·스케줄
+        // 품질이 완전히 동일하므로 순수하게 교양 학점 상한 페널티만으로 우열이 갈린다.
+        CandidateCourse liberalCourse = liberalCourse(
+                1L, "교양선택1", 3, DayOfWeek.MONDAY, "09:00", "10:30");
+        CandidateCourse majorCourse =
+                course(2L, "전공선택1", 3, DayOfWeek.MONDAY, "09:00", "10:30");
+        OptimizationConstraints constraints =
+                constraintsWithLiberalCreditCap(3, 3, 3, 5_000L, 0);
+
+        List<ScheduleCombination> results = scheduleSearchService.search(
+                List.of(), List.of(liberalCourse, majorCourse), constraints);
+
+        assertThat(results).isNotEmpty();
+        assertThat(courseCodes(results.get(0))).containsExactly("C2");
+    }
+
+    @Test
+    void stillSelectsLiberalCourseExceedingTheCapWhenItIsTheOnlyWayToMeetCreditRange() {
+        // 완전 필수(하드 배제)가 아니라 소프트 페널티이므로, 대안이 전혀 없으면
+        // 상한을 넘더라도 여전히 선택돼 실행 가능한 조합이 나와야 한다.
+        CandidateCourse liberalCourse = liberalCourse(
+                1L, "교양선택1", 3, DayOfWeek.MONDAY, "09:00", "10:30");
+        OptimizationConstraints constraints =
+                constraintsWithLiberalCreditCap(3, 3, 3, 5_000L, 0);
+
+        List<ScheduleCombination> results = scheduleSearchService.search(
+                List.of(), List.of(liberalCourse), constraints);
+
+        assertThat(results).isNotEmpty();
+        assertThat(courseCodes(results.get(0))).containsExactly("C1");
+    }
+
     private void assertNoConflicts(List<CandidateCourse> courses) {
         for (int i = 0; i < courses.size(); i++) {
             for (int j = i + 1; j < courses.size(); j++) {
@@ -135,7 +169,24 @@ class ScheduleSearchServiceTest {
                 List.of(),
                 null,
                 List.of(),
-                null);
+                null,
+                false);
+    }
+
+    private CandidateCourse liberalCourse(
+            Long courseId, String name, int credit, DayOfWeek day, String start, String end) {
+        return new CandidateCourse(
+                new SectionReference("2026-1", "C" + courseId, "01"),
+                name,
+                "교수" + courseId,
+                credit * 100,
+                false,
+                List.of(new CourseTimeSlot(day, LocalTime.parse(start), LocalTime.parse(end))),
+                List.of(),
+                null,
+                List.of(),
+                null,
+                true);
     }
 
     private OptimizationConstraints constraints(int minCredit, int maxCredit, int targetCredit, long searchTimeLimitMillis) {
@@ -147,5 +198,27 @@ class ScheduleSearchServiceTest {
                 Set.of(),
                 LocalTime.of(8, 0), LocalTime.of(18, 0), LocalTime.of(12, 0), LocalTime.of(13, 0),
                 480, searchTimeLimitMillis);
+    }
+
+    private OptimizationConstraints constraintsWithLiberalCreditCap(
+            int minCredit, int maxCredit, int targetCredit, long searchTimeLimitMillis,
+            int liberalCreditCap) {
+        return new OptimizationConstraints(
+                minCredit * 100,
+                maxCredit * 100,
+                targetCredit * 100,
+                Set.of(),
+                Set.of(),
+                List.of(new OptimizationTimeRange(LocalTime.of(8, 0), LocalTime.of(18, 0))),
+                List.of(),
+                LocalTime.of(12, 0),
+                LocalTime.of(13, 0),
+                480,
+                searchTimeLimitMillis,
+                List.of(),
+                List.of(),
+                Set.of(),
+                Set.of(),
+                liberalCreditCap * 100);
     }
 }

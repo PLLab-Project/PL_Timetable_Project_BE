@@ -205,8 +205,8 @@ public class AcademicSectionQueryRepository {
         }
 
         private AcademicSection toAcademicSection() {
-            boolean unrestricted = academicUnitCodes.isEmpty()
-                    || (category != null && category.contains("교양"));
+            boolean liberalCredit = category != null && category.contains("교양");
+            boolean unrestricted = academicUnitCodes.isEmpty() || liberalCredit;
             return new AcademicSection(
                     reference,
                     courseName,
@@ -215,7 +215,8 @@ public class AcademicSectionQueryRepository {
                     meetings,
                     unrestricted ? List.of() : academicUnitCodes,
                     LiberalAreaCode.parse(category),
-                    hardRestrictedAcademicUnitCode);
+                    hardRestrictedAcademicUnitCode,
+                    liberalCredit);
         }
     }
 }

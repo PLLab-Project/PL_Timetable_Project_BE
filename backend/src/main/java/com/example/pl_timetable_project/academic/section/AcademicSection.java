@@ -17,6 +17,14 @@ import java.util.List;
  * 복수전공·교직 같은 예외 키워드가 섞이지 않은 경우에만 채워지는, 그 학과의
  * 코드다. restrictedAcademicUnitCodes(소프트 가중치용)와 달리 이 필드는
  * "진짜 하드 배제" 판정에만 쓴다. null이면 안전하게 "제한 없음"으로 취급한다.</p>
+ *
+ * <p>liberalCredit: courses.category에 "교양"이 포함되면(교양필수·교양선택
+ * 모두 포함) true다. GraduationProgressCalculator.classify()가 이수과목의
+ * 교양 학점을 집계할 때 쓰는 것과 같은 넓은 판정 기준이라, 졸업요건의
+ * "교양 총 학점"(completedCredits.liberalTotal())과 같은 기준으로 맞춰
+ * 자동편성의 교양 학점 상한 계산에 쓸 수 있다. liberalAreaCode보다 넓은
+ * 개념이다 — liberalAreaCode는 "교양선택(제N영역:이름)" 패턴에 걸린 과목만
+ * 가리키지만, liberalCredit은 교양필수·영역 표기 없는 교양선택까지 포함한다.</p>
  */
 public record AcademicSection(
         SectionReference reference,
@@ -26,7 +34,8 @@ public record AcademicSection(
         List<AcademicMeeting> meetings,
         List<String> restrictedAcademicUnitCodes,
         String liberalAreaCode,
-        String hardRestrictedAcademicUnitCode) {
+        String hardRestrictedAcademicUnitCode,
+        boolean liberalCredit) {
 
     public AcademicSection {
         meetings = List.copyOf(meetings);

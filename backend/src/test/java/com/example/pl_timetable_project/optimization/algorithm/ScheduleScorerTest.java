@@ -19,6 +19,7 @@ class ScheduleScorerTest {
     private static final double SAME_MAJOR_BONUS = 5.0;
     private static final double SEQUENCE_BONUS = 5.0;
     private static final double GRADUATION_PRIORITY_BONUS = 8.0;
+    private static final double LIBERAL_CREDIT_CAP_PENALTY_PER_CREDIT = 5.0;
     private static final String SCIENCE_AREA = "제3영역:과학과기술";
     private static final String ARTS_AREA = "제4영역:예술과문화";
 
@@ -128,13 +129,13 @@ class ScheduleScorerTest {
                 "테스트교양과목", "담당교수", 300, false,
                 List.of(new CourseTimeSlot(
                         DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(11, 0))),
-                List.of(), null, List.of(), null);
+                List.of(), null, List.of(), null, false);
         CandidateCourse sectionTwo = new CandidateCourse(
                 new SectionReference("2026-1", "CSE202", "02"),
                 "테스트교양과목", "담당교수", 300, false,
                 List.of(new CourseTimeSlot(
                         DayOfWeek.TUESDAY, LocalTime.of(9, 0), LocalTime.of(11, 0))),
-                List.of(), null, List.of(), null);
+                List.of(), null, List.of(), null, false);
         ScheduleCombination combination =
                 new ScheduleCombination(List.of(sectionOne, sectionTwo), 600);
 
@@ -145,6 +146,60 @@ class ScheduleScorerTest {
 
         assertThat(withPriority.score() - withoutPriority.score())
                 .isCloseTo(GRADUATION_PRIORITY_BONUS, within(1e-9));
+    }
+
+    @Test
+    void appliesLiberalCreditCapPenaltyProportionalToCreditsOverCap() {
+        // 3학점짜리 교양 강의가 2학점 상한을 1학점 초과하므로 5.0점 감점된다.
+        CandidateCourse liberalCourse = course("GEN100", List.of(), false, true);
+
+        ScoredCombination withCap = scorer.score(
+                combination(liberalCourse), constraintsWithLiberalCreditCap(200));
+        ScoredCombination withoutCap = scorer.score(
+                combination(liberalCourse), constraintsWithLiberalCreditCap(null));
+
+        assertThat(withoutCap.score() - withCap.score())
+                .isCloseTo(LIBERAL_CREDIT_CAP_PENALTY_PER_CREDIT, within(1e-9));
+    }
+
+    @Test
+    void appliesNoLiberalCreditCapPenaltyWhenExactlyAtCap() {
+        CandidateCourse liberalCourse = course("GEN100", List.of(), false, true);
+
+        ScoredCombination atCap = scorer.score(
+                combination(liberalCourse), constraintsWithLiberalCreditCap(300));
+        ScoredCombination uncapped = scorer.score(
+                combination(liberalCourse), constraintsWithLiberalCreditCap(null));
+
+        assertThat(atCap.score()).isCloseTo(uncapped.score(), within(1e-9));
+    }
+
+    @Test
+    void doesNotApplyLiberalCreditCapPenaltyToNonLiberalCourse() {
+        CandidateCourse majorCourse = course("CSE100", List.of(), false, false);
+
+        ScoredCombination withCap = scorer.score(
+                combination(majorCourse), constraintsWithLiberalCreditCap(0));
+        ScoredCombination uncapped = scorer.score(
+                combination(majorCourse), constraintsWithLiberalCreditCap(null));
+
+        assertThat(withCap.score()).isCloseTo(uncapped.score(), within(1e-9));
+    }
+
+    @Test
+    void countsRequiredLiberalCourseTowardCapEvenThoughItIsAlreadyFixed() {
+        // SAME_MAJOR_BONUS/SEQUENCE_BONUS/GRADUATION_PRIORITY_BONUS와 달리 이건
+        // "선택 여부에 대한 선호"가 아니라 "총 교양 학점 소비량"에 대한 페널티라
+        // required 강의도 상한 계산에 포함한다(이미 상한을 소모했으므로).
+        CandidateCourse requiredLiberalCourse = course("GEN100", List.of(), true, true);
+
+        ScoredCombination withCap = scorer.score(
+                combination(requiredLiberalCourse), constraintsWithLiberalCreditCap(0));
+        ScoredCombination uncapped = scorer.score(
+                combination(requiredLiberalCourse), constraintsWithLiberalCreditCap(null));
+
+        assertThat(uncapped.score() - withCap.score())
+                .isCloseTo(3 * LIBERAL_CREDIT_CAP_PENALTY_PER_CREDIT, within(1e-9));
     }
 
     @Test
@@ -216,6 +271,14 @@ class ScheduleScorerTest {
 
     private CandidateCourse course(
             String courseCode, List<String> restrictedAcademicUnitCodes, boolean required) {
+        return course(courseCode, restrictedAcademicUnitCodes, required, false);
+    }
+
+    private CandidateCourse course(
+            String courseCode,
+            List<String> restrictedAcademicUnitCodes,
+            boolean required,
+            boolean liberalCredit) {
         return new CandidateCourse(
                 new SectionReference("2026-1", courseCode, "01"),
                 "테스트과목",
@@ -227,7 +290,8 @@ class ScheduleScorerTest {
                 restrictedAcademicUnitCodes,
                 null,
                 List.of(),
-                null);
+                null,
+                liberalCredit);
     }
 
     private CandidateCourse liberalCourse(
@@ -243,7 +307,8 @@ class ScheduleScorerTest {
                 List.of(),
                 liberalAreaCode,
                 prerequisiteCourseCodes,
-                null);
+                null,
+                true);
     }
 
     private ScheduleCombination combination(CandidateCourse course) {
@@ -280,6 +345,19 @@ class ScheduleScorerTest {
             List<String> selectedLiberalAreas,
             Set<String> completedCourseCodes,
             Set<String> graduationPriorityCourseCodes) {
+        return constraintsWithLiberalCreditCap(
+                selectedLiberalAreas, completedCourseCodes, graduationPriorityCourseCodes, null);
+    }
+
+    private OptimizationConstraints constraintsWithLiberalCreditCap(Integer liberalCreditCap) {
+        return constraintsWithLiberalCreditCap(List.of(), Set.of(), Set.of(), liberalCreditCap);
+    }
+
+    private OptimizationConstraints constraintsWithLiberalCreditCap(
+            List<String> selectedLiberalAreas,
+            Set<String> completedCourseCodes,
+            Set<String> graduationPriorityCourseCodes,
+            Integer liberalCreditCap) {
         return new OptimizationConstraints(
                 300,
                 300,
@@ -295,6 +373,7 @@ class ScheduleScorerTest {
                 List.of(),
                 selectedLiberalAreas,
                 completedCourseCodes,
-                graduationPriorityCourseCodes);
+                graduationPriorityCourseCodes,
+                liberalCreditCap);
     }
 }
