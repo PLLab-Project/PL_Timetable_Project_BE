@@ -54,6 +54,30 @@ public class StudentAcademicProgramRepository {
         }
     }
 
+    /**
+     * 자동편성 가중치·수강제한 판정에 "본인 학과"로 취급할 학과 코드 목록이다.
+     * MINOR/MICRO_MAJOR는 제외한다 — 부전공·마이크로전공은 정식 학위 전공이 아니라
+     * 보통 그 학과 강의 전체가 아닌 소수 지정 과목만 이수하면 되고, "OO학과만신청가능"류
+     * 수강제한도 실제로는 정규/복수전공생에게만 열리는 경우가 대부분이라 여기 포함시키면
+     * 자동편성 가중치·제외 판정이 지나치게 넓어진다.
+     */
+    private static final List<String> ACADEMIC_UNIT_MEMBERSHIP_ROLES =
+            List.of("PRIMARY", "DOUBLE_MAJOR");
+
+    public List<String> findMajorAcademicUnitCodes(UUID userId) {
+        return jdbcTemplate.query("""
+                SELECT DISTINCT program.academic_unit_code
+                  FROM student_academic_programs program
+                 WHERE program.user_id = ?
+                   AND program.status <> 'WITHDRAWN'
+                   AND program.program_role IN (?, ?)
+                """,
+                (resultSet, rowNumber) -> resultSet.getString("academic_unit_code"),
+                userId,
+                ACADEMIC_UNIT_MEMBERSHIP_ROLES.get(0),
+                ACADEMIC_UNIT_MEMBERSHIP_ROLES.get(1));
+    }
+
     public void replacePrimary(UUID userId, String academicUnitCode) {
         List<AcademicProgramUpdateRequest> programs = findActiveByUserId(userId).stream()
                 .filter(program -> !"PRIMARY".equals(program.role()))

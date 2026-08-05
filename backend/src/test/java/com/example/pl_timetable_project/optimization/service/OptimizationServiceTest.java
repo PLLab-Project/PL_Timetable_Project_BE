@@ -21,6 +21,7 @@ import com.example.pl_timetable_project.completedcourse.repository.CompletedCour
 import com.example.pl_timetable_project.exception.AlreadyCompletedCourseException;
 import com.example.pl_timetable_project.exception.InvalidOptimizationConditionException;
 import com.example.pl_timetable_project.optimization.algorithm.CandidateCourseFilter;
+import com.example.pl_timetable_project.optimization.algorithm.OptimizationConstraints;
 import com.example.pl_timetable_project.optimization.algorithm.RequiredCoursePlacer;
 import com.example.pl_timetable_project.optimization.algorithm.ScheduleScorer;
 import com.example.pl_timetable_project.optimization.algorithm.ScheduleSearchService;
@@ -33,6 +34,7 @@ import com.example.pl_timetable_project.timetable.entity.Timetable;
 import com.example.pl_timetable_project.timetable.repository.TimetableRepository;
 import com.example.pl_timetable_project.timetable.service.TimetableService;
 import com.example.pl_timetable_project.user.entity.StudentProfile;
+import com.example.pl_timetable_project.user.repository.StudentAcademicProgramRepository;
 import com.example.pl_timetable_project.user.repository.StudentProfileRepository;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -55,6 +57,7 @@ class OptimizationServiceTest {
     private TimetableRepository timetableRepository;
     private AcademicSectionQueryRepository sectionQueryRepository;
     private StudentProfileRepository studentProfileRepository;
+    private StudentAcademicProgramRepository academicProgramRepository;
     private CompletedCourseRepository completedCourseRepository;
     private CourseSequenceHintService courseSequenceHintService;
     private OptimizationService service;
@@ -66,6 +69,7 @@ class OptimizationServiceTest {
         timetableRepository = mock(TimetableRepository.class);
         sectionQueryRepository = mock(AcademicSectionQueryRepository.class);
         studentProfileRepository = mock(StudentProfileRepository.class);
+        academicProgramRepository = mock(StudentAcademicProgramRepository.class);
         completedCourseRepository = mock(CompletedCourseRepository.class);
         courseSequenceHintService = mock(CourseSequenceHintService.class);
         service = new OptimizationService(
@@ -73,6 +77,7 @@ class OptimizationServiceTest {
                 timetableRepository,
                 sectionQueryRepository,
                 studentProfileRepository,
+                academicProgramRepository,
                 completedCourseRepository,
                 courseSequenceHintService,
                 new CandidateCourseFilter(),
@@ -90,6 +95,10 @@ class OptimizationServiceTest {
         StudentProfile profile = new StudentProfile(userId, "20260001");
         profile.update((short) 3, "D1", 2026, "REGULAR", "ADVANCED_MAJOR", null);
         when(studentProfileRepository.findById(userId)).thenReturn(Optional.of(profile));
+        // 기본값은 "student_academic_programs에 선언된 학과 없음" — 이 경우
+        // StudentProfile.academicUnitCode()(D1)로 폴백한다. 복수전공 시나리오를
+        // 다루는 테스트만 이 스텁을 덮어쓴다.
+        when(academicProgramRepository.findMajorAcademicUnitCodes(any())).thenReturn(List.of());
         // 기본값은 "이수한 과목 없음" — 이수과목 제외 시나리오를 다루는 테스트만
         // 이 스텁을 덮어써서 특정 과목이 이미 이수한 것처럼 만든다.
         when(completedCourseRepository.findAllByUserIdAndStatusIn(any(), any()))
@@ -231,6 +240,43 @@ class OptimizationServiceTest {
                 .hasMessageContaining("2026-2:004803:01");
         verify(lifecycleService, never()).createPendingJobAndPublish(
                 any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void resolvesUserAcademicUnitCodesFromDeclaredPrimaryAndDoubleMajorPrograms() {
+        // student_academic_programs에 주전공(D1)·복수전공(D2)이 선언돼 있으면,
+        // StudentProfile.academicUnitCode()(D1) 단일값이 아니라 이 둘을 모두 사용한다.
+        when(academicProgramRepository.findMajorAcademicUnitCodes(userId))
+                .thenReturn(List.of("D1", "D2"));
+        SectionReference scheduled = reference("004803");
+        when(sectionQueryRepository.findBySemesterId(SEMESTER_ID)).thenReturn(Map.of(
+                scheduled, section(scheduled, "현장실습I", List.of(new AcademicMeeting(
+                        DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(10, 0))))));
+
+        service.createJob(userId, request(List.of()));
+
+        verify(lifecycleService).createPendingJobAndPublish(
+                any(), any(), any(), any(),
+                argThat((OptimizationConstraints constraints) ->
+                        constraints.userAcademicUnitCodes()
+                                .containsAll(List.of("D1", "D2"))));
+    }
+
+    @Test
+    void fallsBackToLegacyProfileAcademicUnitWhenNoProgramsAreDeclared() {
+        // student_academic_programs가 비어 있는 레거시 계정은 setUp()의 기본 스텁대로
+        // StudentProfile.academicUnitCode()(D1) 단일값으로 대체된다.
+        SectionReference scheduled = reference("004803");
+        when(sectionQueryRepository.findBySemesterId(SEMESTER_ID)).thenReturn(Map.of(
+                scheduled, section(scheduled, "현장실습I", List.of(new AcademicMeeting(
+                        DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(10, 0))))));
+
+        service.createJob(userId, request(List.of()));
+
+        verify(lifecycleService).createPendingJobAndPublish(
+                any(), any(), any(), any(),
+                argThat((OptimizationConstraints constraints) ->
+                        constraints.userAcademicUnitCodes().equals(List.of("D1"))));
     }
 
     /**

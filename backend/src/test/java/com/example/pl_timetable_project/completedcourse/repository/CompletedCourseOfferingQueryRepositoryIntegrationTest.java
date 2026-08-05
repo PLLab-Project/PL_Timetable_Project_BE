@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.DayOfWeek;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -158,7 +159,7 @@ class CompletedCourseOfferingQueryRepositoryIntegrationTest {
         var candidates = repository.findCandidates(
                 Set.of("2026-2"),
                 Set.of("lctlearningbycommunicationteamwork"),
-                "OCR-MAJOR");
+                List.of("OCR-MAJOR"));
 
         assertThat(candidates).singleElement().satisfies(candidate -> {
             assertThat(candidate.semesterId()).isEqualTo("2026-2");

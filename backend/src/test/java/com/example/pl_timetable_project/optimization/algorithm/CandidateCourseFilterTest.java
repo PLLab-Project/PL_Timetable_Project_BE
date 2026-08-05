@@ -53,6 +53,33 @@ class CandidateCourseFilterTest {
     }
 
     @Test
+    void doesNotExcludeCourseRestrictedToEitherOfTheUsersMultipleAcademicUnits() {
+        // 복수전공생(주전공 D1, 복수전공 D2)에게는 두 학과 중 어느 쪽으로 제한된
+        // 강의도 배제되지 않아야 한다.
+        CandidateCourse restrictedToPrimary = candidate("CSE100", "D1");
+        CandidateCourse restrictedToDoubleMajor = candidate("BUS100", "D2");
+        OptimizationConstraints constraints = constraints(List.of("D1", "D2"));
+
+        List<CandidateCourse> filtered = filter.filter(
+                List.of(restrictedToPrimary, restrictedToDoubleMajor), constraints);
+
+        assertThat(filtered).containsExactly(restrictedToPrimary, restrictedToDoubleMajor);
+    }
+
+    @Test
+    void excludesCourseRestrictedToAcademicUnitOutsideAllOfTheUsersDeclaredPrograms() {
+        // 복수전공생이라도 본인의 두 학과(D1, D2) 어디에도 속하지 않는 제3의 학과(D3)로
+        // 진짜 제한된 강의는 그대로 배제된다.
+        CandidateCourse restrictedToOtherUnit = candidate("PSY100", "D3");
+        OptimizationConstraints constraints = constraints(List.of("D1", "D2"));
+
+        List<CandidateCourse> filtered = filter.filter(
+                List.of(restrictedToOtherUnit), constraints);
+
+        assertThat(filtered).isEmpty();
+    }
+
+    @Test
     void doesNotExcludeWhenUserHasNoAcademicUnitCode() {
         // 사용자 학과 정보 자체가 없으면(프로필 미완성) 판단 근거가 없으므로
         // 안전하게 배제하지 않는다.

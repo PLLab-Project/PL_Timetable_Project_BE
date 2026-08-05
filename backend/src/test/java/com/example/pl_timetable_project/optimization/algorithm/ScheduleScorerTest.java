@@ -67,6 +67,25 @@ class ScheduleScorerTest {
     }
 
     @Test
+    void addsSameMajorBonusForEitherOfTheUsersMultipleAcademicUnits() {
+        // 복수전공생(주전공 D1, 복수전공 D2)은 두 학과 강의 모두 본인 전공 취급되어
+        // 같은 크기의 가중치를 받아야 하고, 어느 쪽에도 속하지 않는 학과(D3) 강의보다
+        // 둘 다 SAME_MAJOR_BONUS만큼 높아야 한다.
+        OptimizationConstraints constraints = constraints(List.of("D1", "D2"));
+
+        ScoredCombination primaryMajor = scorer.score(
+                combination(course("CSE100", List.of("D1"), false)), constraints);
+        ScoredCombination doubleMajor = scorer.score(
+                combination(course("BUS100", List.of("D2"), false)), constraints);
+        ScoredCombination otherUnit = scorer.score(
+                combination(course("PSY100", List.of("D3"), false)), constraints);
+
+        assertThat(primaryMajor.score()).isCloseTo(doubleMajor.score(), within(1e-9));
+        assertThat(primaryMajor.score() - otherUnit.score())
+                .isCloseTo(SAME_MAJOR_BONUS, within(1e-9));
+    }
+
+    @Test
     void addsSequenceBonusWhenAreaSelectedAndPrerequisiteCompleted() {
         OptimizationConstraints constraints = sequenceConstraints(
                 List.of(SCIENCE_AREA), Set.of("005111"));
