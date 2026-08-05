@@ -1,5 +1,6 @@
 package com.example.pl_timetable_project.academic.section;
 
+import com.example.pl_timetable_project.academic.common.LiberalAreaCode;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
@@ -7,8 +8,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -18,14 +17,6 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public class AcademicSectionQueryRepository {
-
-    /**
-     * courses.category가 "교양선택(제3영역:과학과기술)" 형태일 때 "제3영역:과학과기술"만
-     * 뽑아낸다. 전공("전공(학과명)")·교양필수·일반선택·교직 등 다른 형식은 매치되지
-     * 않아 liberalAreaCode가 null로 남는다(방어적 처리).
-     */
-    private static final Pattern LIBERAL_AREA_PATTERN =
-            Pattern.compile("^교양선택\\((제\\d+영역:[^)]+)\\)$");
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -223,16 +214,8 @@ public class AcademicSectionQueryRepository {
                     credits,
                     meetings,
                     unrestricted ? List.of() : academicUnitCodes,
-                    parseLiberalAreaCode(category),
+                    LiberalAreaCode.parse(category),
                     hardRestrictedAcademicUnitCode);
         }
-    }
-
-    private static String parseLiberalAreaCode(String category) {
-        if (category == null) {
-            return null;
-        }
-        Matcher matcher = LIBERAL_AREA_PATTERN.matcher(category);
-        return matcher.matches() ? matcher.group(1) : null;
     }
 }

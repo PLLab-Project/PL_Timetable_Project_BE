@@ -78,17 +78,22 @@ public class GraduationService {
         List<RequiredCourseGap> requiredCourseGaps =
                 progressCalculator.requiredCourseGaps(rule, courses);
         String evaluationSemester = resolveEvaluationSemester(semesterId);
+        Set<String> offeredLiberalAreas =
+                repository.findOfferedLiberalAreaCodes(evaluationSemester);
         List<Recommendation> recommendations = recommendationService.recommend(
                 userId,
                 evaluationSemester,
                 profile,
                 creditGaps,
+                areaGaps,
                 requiredCourseGaps);
-        List<Warning> warnings = new ArrayList<>(evaluationWarnings(rule, areaGaps));
+        List<Warning> warnings = new ArrayList<>(
+                evaluationWarnings(rule, areaGaps, offeredLiberalAreas));
         SecondaryMajorEvaluation secondaryEvaluation = scopes.secondary() == null
                 ? null
                 : evaluateSecondaryMajor(
-                        userId, evaluationSemester, scopes.secondary(), courses, warnings);
+                        userId, evaluationSemester, scopes.secondary(), courses,
+                        offeredLiberalAreas, warnings);
 
         return new Evaluation(
                 evaluationSemester,
@@ -121,6 +126,7 @@ public class GraduationService {
             String evaluationSemester,
             RuleScope secondaryScope,
             List<CompletedCourse> courses,
+            Set<String> offeredLiberalAreas,
             List<Warning> topLevelWarnings) {
         RuleProfile profile;
         try {
@@ -139,7 +145,7 @@ public class GraduationService {
         List<RequiredCourseGap> requiredCourseGaps =
                 progressCalculator.requiredCourseGaps(rule, courses);
         List<Recommendation> recommendations = recommendationService.recommend(
-                userId, evaluationSemester, profile, List.of(), requiredCourseGaps);
+                userId, evaluationSemester, profile, List.of(), areaGaps, requiredCourseGaps);
         List<NonAutomaticItem> nonAutomaticItems =
                 new ArrayList<>(rule.nonAutomaticItems());
         nonAutomaticItems.add(new NonAutomaticItem(
@@ -155,7 +161,7 @@ public class GraduationService {
                 recommendations,
                 areaGaps.isEmpty() && requiredCourseGaps.isEmpty(),
                 rule.sourceRefs(),
-                evaluationWarnings(rule, areaGaps),
+                evaluationWarnings(rule, areaGaps, offeredLiberalAreas),
                 List.copyOf(nonAutomaticItems));
     }
 
@@ -213,13 +219,24 @@ public class GraduationService {
                                 : "학기를 찾을 수 없습니다. semesterId=" + semesterId));
     }
 
+    /**
+     * areaGaps 중 이번 학기 개설 과목이 아예 없는 영역이 있을 때만 경고를 남긴다.
+     * courses.category가 "교양선택(제N영역:이름)"으로 파싱 가능해 실제로 매칭
+     * 추천이 가능한 경우(GraduationRecommendationService.recommend())에는
+     * 더 이상 이 경고를 띄우지 않는다.
+     */
     private List<Warning> evaluationWarnings(
-            Rule rule, List<AreaGap> areaGaps) {
+            Rule rule, List<AreaGap> areaGaps, Set<String> offeredLiberalAreas) {
         List<Warning> warnings = new ArrayList<>(rule.warnings());
-        if (!areaGaps.isEmpty()) {
+        List<String> areasWithoutOfferings = areaGaps.stream()
+                .map(AreaGap::area)
+                .filter(area -> !offeredLiberalAreas.contains(area))
+                .toList();
+        if (!areasWithoutOfferings.isEmpty()) {
             warnings.add(new Warning(
                     "LIBERAL_AREA_RECOMMENDATION_REQUIRES_CATALOG_MAPPING",
-                    "개설 강의 데이터에는 교양 영역이 없어 영역 부족분의 추천은 자동화하지 않습니다.",
+                    "해당 학기에 개설된 과목이 없어 추천이 불가능한 교양 영역이 있습니다: "
+                            + String.join(", ", areasWithoutOfferings),
                     null,
                     null));
         }

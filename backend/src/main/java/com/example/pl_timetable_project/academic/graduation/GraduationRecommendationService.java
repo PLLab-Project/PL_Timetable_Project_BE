@@ -1,8 +1,10 @@
 package com.example.pl_timetable_project.academic.graduation;
 
+import com.example.pl_timetable_project.academic.common.LiberalAreaCode;
 import com.example.pl_timetable_project.academic.graduation.GraduationProgressCalculator.CreditCategory;
 import com.example.pl_timetable_project.academic.graduation.GraduationQueryRepository.OfferedCourse;
 import com.example.pl_timetable_project.academic.graduation.GraduationQueryRepository.RuleProfile;
+import com.example.pl_timetable_project.academic.graduation.GraduationResponses.AreaGap;
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.CreditGap;
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.Recommendation;
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.RequiredCourseGap;
@@ -36,9 +38,13 @@ public class GraduationRecommendationService {
             String semesterId,
             RuleProfile profile,
             List<CreditGap> creditGaps,
+            List<AreaGap> areaGaps,
             List<RequiredCourseGap> requiredCourseGaps) {
         Set<String> gapCodes = creditGaps.stream()
                 .map(CreditGap::code)
+                .collect(Collectors.toSet());
+        Set<String> missingAreas = areaGaps.stream()
+                .map(AreaGap::area)
                 .collect(Collectors.toSet());
         List<Recommendation> result = new ArrayList<>();
         for (OfferedCourse course : repository.findOfferedCourses(
@@ -50,6 +56,7 @@ public class GraduationRecommendationService {
                     || profile.academicUnitCode() == null
                     || course.academicUnitMatch();
             addCreditGaps(fills, gapCodes, category, eligibleForCategory);
+            addAreaGap(fills, missingAreas, course.category());
             if (fills.isEmpty()) {
                 continue;
             }
@@ -107,6 +114,19 @@ public class GraduationRecommendationService {
         if (category.isLiberal()
                 && gapCodes.contains("LIBERAL_TOTAL")) {
             fills.add("LIBERAL_TOTAL");
+        }
+    }
+
+    /**
+     * courses.category가 "교양선택(제N영역:이름)" 형식으로 파싱되는 영역이 부족한
+     * 교양 영역 중 하나와 일치하면 그 영역을 채우는 과목으로 추천한다.
+     * (AcademicSectionQueryRepository의 자동편성용 파싱과 동일한 규칙을 공유한다.)
+     */
+    private void addAreaGap(
+            LinkedHashSet<String> fills, Set<String> missingAreas, String category) {
+        String liberalAreaCode = LiberalAreaCode.parse(category);
+        if (liberalAreaCode != null && missingAreas.contains(liberalAreaCode)) {
+            fills.add("AREA:" + liberalAreaCode);
         }
     }
 }
