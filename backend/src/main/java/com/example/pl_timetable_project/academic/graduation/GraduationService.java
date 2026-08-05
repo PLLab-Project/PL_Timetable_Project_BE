@@ -9,9 +9,11 @@ import com.example.pl_timetable_project.academic.graduation.GraduationResponses.
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.CompletedCredits;
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.CreditGap;
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.Evaluation;
+import com.example.pl_timetable_project.academic.graduation.GraduationResponses.NonAutomaticItem;
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.Recommendation;
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.RequiredCourseGap;
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.Rule;
+import com.example.pl_timetable_project.academic.graduation.GraduationResponses.SecondaryMajorEvaluation;
 import com.example.pl_timetable_project.academic.graduation.GraduationResponses.Warning;
 import com.example.pl_timetable_project.exception.AcademicResourceNotFoundException;
 import com.example.pl_timetable_project.exception.InvalidAcademicQueryException;
@@ -64,7 +66,8 @@ public class GraduationService {
         StudentScope student = repository.findStudentScope(userId)
                 .orElseThrow(() -> new AcademicResourceNotFoundException(
                         "졸업요건 판정에 필요한 학생 프로필을 찾을 수 없습니다."));
-        RuleProfile profile = findProfile(scopeFrom(student));
+        StudentRuleScopes scopes = scopeFrom(student);
+        RuleProfile profile = findProfile(scopes.primary());
         Rule rule = ruleAssembler.assemble(profile);
         List<CompletedCourse> courses = repository.findCompletedCourses(userId);
         CompletedCredits completed = progressCalculator.summarizeCredits(courses);
@@ -81,7 +84,11 @@ public class GraduationService {
                 profile,
                 creditGaps,
                 requiredCourseGaps);
-        List<Warning> warnings = evaluationWarnings(rule, areaGaps);
+        List<Warning> warnings = new ArrayList<>(evaluationWarnings(rule, areaGaps));
+        SecondaryMajorEvaluation secondaryEvaluation = scopes.secondary() == null
+                ? null
+                : evaluateSecondaryMajor(
+                        userId, evaluationSemester, scopes.secondary(), courses, warnings);
 
         return new Evaluation(
                 evaluationSemester,
@@ -95,8 +102,61 @@ public class GraduationService {
                         && areaGaps.isEmpty()
                         && requiredCourseGaps.isEmpty(),
                 rule.sourceRefs(),
-                warnings,
-                rule.nonAutomaticItems());
+                List.copyOf(warnings),
+                rule.nonAutomaticItems(),
+                secondaryEvaluation);
+    }
+
+    /**
+     * 복수전공 학과의 졸업요건을 별도로 판정한다. completed_courses에는 이수과목이
+     * 주전공/복수전공 중 어느 학점으로 귀속되는지 구분하는 데이터가 없어(지난 세션
+     * 확인 사항) 학점(completedCredits/creditGaps)은 이 학과 기준으로 자동 계산하지
+     * 않고 NonAutomaticItem으로만 안내한다. 반면 영역·필수과목 이수 여부는 그 과목을
+     * 들었는지 여부만으로 판단 가능해(전공 귀속과 무관) 그대로 자동 판정한다.
+     * 복수전공 학과의 규칙 데이터 자체가 카탈로그에 없으면(데이터 커버리지 문제)
+     * 전체 판정을 실패시키지 않고 상위 warnings에 안내만 남긴 뒤 null을 반환한다.
+     */
+    private SecondaryMajorEvaluation evaluateSecondaryMajor(
+            UUID userId,
+            String evaluationSemester,
+            RuleScope secondaryScope,
+            List<CompletedCourse> courses,
+            List<Warning> topLevelWarnings) {
+        RuleProfile profile;
+        try {
+            profile = findProfile(secondaryScope);
+        } catch (AcademicResourceNotFoundException notFound) {
+            topLevelWarnings.add(new Warning(
+                    "SECONDARY_MAJOR_RULE_NOT_FOUND",
+                    "복수전공 학과의 졸업요건 데이터를 찾을 수 없어 복수전공 판정은 건너뜁니다. "
+                            + "academicUnit=" + secondaryScope.academicUnit(),
+                    null,
+                    null));
+            return null;
+        }
+        Rule rule = ruleAssembler.assemble(profile);
+        List<AreaGap> areaGaps = progressCalculator.areaGaps(rule, courses);
+        List<RequiredCourseGap> requiredCourseGaps =
+                progressCalculator.requiredCourseGaps(rule, courses);
+        List<Recommendation> recommendations = recommendationService.recommend(
+                userId, evaluationSemester, profile, List.of(), requiredCourseGaps);
+        List<NonAutomaticItem> nonAutomaticItems =
+                new ArrayList<>(rule.nonAutomaticItems());
+        nonAutomaticItems.add(new NonAutomaticItem(
+                "SECONDARY_MAJOR_CREDITS_NOT_AUTOMATED",
+                "복수전공 학점 자동 판정 불가",
+                "이수과목 데이터에는 주전공/복수전공 귀속 구분이 없어 복수전공 기준 학점은 자동 "
+                        + "계산하지 않습니다. 영역·필수과목 이수 여부만 자동 판정됩니다.",
+                profile.datasetSourcePath()));
+        return new SecondaryMajorEvaluation(
+                rule,
+                areaGaps,
+                requiredCourseGaps,
+                recommendations,
+                areaGaps.isEmpty() && requiredCourseGaps.isEmpty(),
+                rule.sourceRefs(),
+                evaluationWarnings(rule, areaGaps),
+                List.copyOf(nonAutomaticItems));
     }
 
     private RuleProfile findProfile(RuleScope scope) {
@@ -109,13 +169,29 @@ public class GraduationService {
                                 + ", programPath=" + scope.programPath()));
     }
 
-    private RuleScope scopeFrom(StudentScope rawStudent) {
+    private StudentRuleScopes scopeFrom(StudentScope rawStudent) {
         StudentScope student = requireComplete(rawStudent);
-        return new RuleScope(
+        RuleScope primary = new RuleScope(
                 validateAdmissionYear(student.admissionYear()),
                 student.academicUnitKey(),
                 normalizeToken(student.studentType(), "학생 구분"),
                 normalizeProgramPath(student.programPath()));
+        RuleScope secondary = TextQuery.optional(student.secondaryAcademicUnitKey()) == null
+                ? null
+                : new RuleScope(
+                        primary.admissionYear(),
+                        student.secondaryAcademicUnitKey(),
+                        primary.studentType(),
+                        "DOUBLE_MAJOR");
+        return new StudentRuleScopes(primary, secondary);
+    }
+
+    /**
+     * 주전공 규칙 조회 범위(primary)와, 복수전공(DOUBLE_MAJOR)이 있을 때만 채워지는
+     * 복수전공 학과의 규칙 조회 범위(secondary)를 함께 담는다. secondary는
+     * student_academic_programs에 DOUBLE_MAJOR 행이 없으면 null이다.
+     */
+    private record StudentRuleScopes(RuleScope primary, RuleScope secondary) {
     }
 
     private StudentScope requireComplete(StudentScope student) {

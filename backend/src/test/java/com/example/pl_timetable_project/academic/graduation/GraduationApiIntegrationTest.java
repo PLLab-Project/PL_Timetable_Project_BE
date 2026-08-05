@@ -155,6 +155,51 @@ class GraduationApiIntegrationTest {
     }
 
     @Test
+    void evaluatesBothPrimaryAndDoubleMajorRequirementsForDoubleMajorStudent()
+            throws Exception {
+        insertDoubleMajorFixture();
+
+        mockMvc.perform(get("/api/v1/graduation/evaluation")
+                        .with(authenticated())
+                        .param("semesterId", "2026-1"))
+                .andExpect(status().isOk())
+                // 주전공(D1) 판정은 단일전공 테스트와 동일한 흐름으로 그대로 계산된다.
+                .andExpect(jsonPath("$.data.completedCredits.total").value(11))
+                .andExpect(jsonPath("$.data.areaGaps[0].area").value("소통"))
+                // 복수전공(D2) 섹션이 별도로 채워진다.
+                .andExpect(jsonPath("$.data.secondaryMajor").exists())
+                .andExpect(jsonPath("$.data.secondaryMajor.rule.academicUnitCode")
+                        .value("D2"))
+                // 영역 요건은 전공 귀속과 무관하게(같은 이수과목 풀로) 자동 판정된다 —
+                // 주전공과 같은 교양 영역 부족분이 그대로 반영된다.
+                .andExpect(jsonPath("$.data.secondaryMajor.areaGaps[0].area")
+                        .value("소통"))
+                .andExpect(jsonPath("$.data.secondaryMajor.areaGaps[0].missingCourses")
+                        .value(1))
+                // 복수전공 학과 자체의 필수과목(BUS201)은 미이수이므로 필수과목 부족분에 잡힌다.
+                // (liberal-set-1을 D2에도 재사용했기 때문에 미이수 교양필수 LIB102도 함께
+                // 잡힌다 — 이는 곧 영역/필수과목 판정이 전공 귀속과 무관함을 보여준다.)
+                .andExpect(jsonPath(
+                        "$.data.secondaryMajor.requiredCourseGaps[?(@.course.courseCode == 'BUS201')]")
+                        .exists())
+                // 학점은 전공 귀속 데이터가 없어 자동 계산하지 않고 수동 확인 항목으로만 안내한다.
+                .andExpect(jsonPath(
+                        "$.data.secondaryMajor.nonAutomaticItems"
+                                + "[?(@.code == 'SECONDARY_MAJOR_CREDITS_NOT_AUTOMATED')]")
+                        .exists());
+    }
+
+    @Test
+    void doesNotIncludeSecondaryMajorSectionForSingleMajorStudent()
+            throws Exception {
+        mockMvc.perform(get("/api/v1/graduation/evaluation")
+                        .with(authenticated())
+                        .param("semesterId", "2026-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.secondaryMajor").doesNotExist());
+    }
+
+    @Test
     void rejectsEvaluationWhenGraduationProfileScopeIsIncomplete()
             throws Exception {
         jdbcTemplate.update("""
@@ -449,6 +494,77 @@ class GraduationApiIntegrationTest {
                         '2026-1', 'CSE300', '01', 'D1',
                         'OFFERING', 'CURRICULUM'
                     );
+                """);
+    }
+
+    /**
+     * 학생을 컴퓨터공학과(D1) 주전공 + 경영학과(D2) 복수전공생으로 확장한다.
+     * DOUBLE_MAJOR 행이 생기면 program_path가 'DOUBLE_MAJOR'로 바뀌므로, 주전공
+     * 판정이 계속 성공하려면 D1의 DOUBLE_MAJOR 스코프 프로필도 함께 있어야 한다.
+     * D2의 교양 영역은 D1과 같은 liberal-set-1을 재사용해 "영역 판정은 전공 귀속과
+     * 무관하다"는 점을, 필수과목(BUS201)은 D2 전용 커리큘럼으로 별도 구성해
+     * "필수과목은 학과별로 정확히 구분된다"는 점을 함께 검증한다.
+     */
+    private void insertDoubleMajorFixture() {
+        jdbcTemplate.execute("""
+                INSERT INTO academic_units (
+                    code, name, code_source,
+                    first_seen_year, last_seen_year, is_current
+                ) VALUES (
+                    'D2', '경영학과', 'OFFICIAL_CURRICULUM', 2020, 2026, true
+                );
+
+                INSERT INTO student_academic_programs (
+                    user_id, academic_unit_code, program_role, status, display_order
+                ) VALUES (
+                    '10000000-0000-0000-0000-000000000001', 'D2', 'DOUBLE_MAJOR',
+                    'ACTIVE', 1
+                );
+
+                INSERT INTO graduation_credit_profiles (
+                    id, dataset_id, source_rule_id,
+                    liberal_requirement_set_id, academic_unit,
+                    academic_unit_key, admission_year, student_type,
+                    program_path, total_credits_min, major_foundation_min,
+                    major_required_min, major_elective_min,
+                    additional_major_min, primary_major_min,
+                    secondary_program_min, requires_manual_review,
+                    academic_unit_code
+                ) VALUES
+                    (
+                        'credit-profile-1-double', 'graduation-test-dataset',
+                        'credit-source-rule-1-double', 'liberal-set-1',
+                        '컴퓨터공학과', '컴퓨터공학과', 2022, 'REGULAR',
+                        'DOUBLE_MAJOR', 20, 3, 6, 3, NULL, 12, NULL, false,
+                        'D1'
+                    ),
+                    (
+                        'credit-profile-2', 'graduation-test-dataset',
+                        'credit-source-rule-2', 'liberal-set-1',
+                        '경영학과', '경영학과', 2022, 'REGULAR',
+                        'DOUBLE_MAJOR', 15, 0, 3, 0, NULL, 3, NULL, false,
+                        'D2'
+                    );
+
+                INSERT INTO curriculum_program_requirements (
+                    id, dataset_id, admission_year, academic_unit,
+                    academic_unit_key, status, source_locators,
+                    source_course_count, required_course_count, raw_payload,
+                    academic_unit_code
+                ) VALUES (
+                    'curriculum-program-2', 'graduation-test-dataset', 2022,
+                    '경영학과', '경영학과', 'NORMALIZED',
+                    '[]'::json, 1, 1, '{}'::json, 'D2'
+                );
+
+                INSERT INTO curriculum_required_courses (
+                    id, program_id, classification, course_code, course_name,
+                    credits, grade, semesters, source_locator, raw_payload
+                ) VALUES (
+                    'major-course-double-1', 'curriculum-program-2', '전필',
+                    'BUS201', '경영학원론', 3, 1, '[1]'::json,
+                    '{"page": 20}'::json, '{}'::json
+                );
                 """);
     }
 }
