@@ -96,6 +96,14 @@ public class TimetableService {
         Timetable timetable = getOwnedTimetable(userId, timetableId);
         List<TimetableCourse> courses = buildConflictFreeCourses(timetable.getSemesterId(), sections);
         timetable.clearCourses();
+        /*
+         * clearCourses()만 하고 바로 addCourse()를 반복하면, Hibernate가 flush 시
+         * orphanRemoval로 인한 기존 행 DELETE보다 새 행 INSERT를 먼저 실행해
+         * (timetable_id, semester_id, course_code, section_code) 유니크 제약과
+         * 충돌한다 (기존 목록과 새 목록에 같은 분반이 겹치는 흔한 경우 재현됨).
+         * clear 직후 flush로 DELETE를 먼저 확정시켜야 안전하다.
+         */
+        timetableRepository.flush();
         courses.forEach(timetable::addCourse);
         timetableRepository.flush();
         return toResponse(timetable);
