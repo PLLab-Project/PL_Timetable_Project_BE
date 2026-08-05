@@ -200,6 +200,39 @@ class GraduationApiIntegrationTest {
     }
 
     @Test
+    void recommendsCoursesForLiberalAreaGapsAndExcludesCoursesAlreadyInProgress()
+            throws Exception {
+        insertLiberalAreaMatchingFixture();
+
+        mockMvc.perform(get("/api/v1/graduation/evaluation")
+                        .with(authenticated())
+                        .param("semesterId", "2026-1"))
+                .andExpect(status().isOk())
+                // 제2영역:역사와철학 부족분에는 실제로 개설된 HIS201이 추천되고,
+                // 이미 수강 중인(IN_PROGRESS) HIS301은 추천에서 빠진다.
+                .andExpect(jsonPath(
+                        "$.data.areaGaps[?(@.area == '제2영역:역사와철학')]").exists())
+                .andExpect(jsonPath(
+                        "$.data.recommendations[?(@.courseCode == 'HIS201')].fills")
+                        .value(org.hamcrest.Matchers.hasItem(
+                                org.hamcrest.Matchers.hasItem("AREA:제2영역:역사와철학"))))
+                .andExpect(jsonPath(
+                        "$.data.recommendations[?(@.courseCode == 'HIS301')]")
+                        .doesNotExist())
+                // 제2영역은 매칭되는 추천이 나오므로 더 이상 경고 대상이 아니다.
+                .andExpect(jsonPath("$.data.warnings[?(@.code == "
+                        + "'LIBERAL_AREA_RECOMMENDATION_REQUIRES_CATALOG_MAPPING')].message")
+                        .value(org.hamcrest.Matchers.not(
+                                org.hamcrest.Matchers.hasItem(
+                                        org.hamcrest.Matchers.containsString("제2영역:역사와철학")))))
+                // 제3영역:과학과기술은 이 학기에 개설된 과목이 아예 없으므로 경고에 남는다.
+                .andExpect(jsonPath("$.data.warnings[?(@.code == "
+                        + "'LIBERAL_AREA_RECOMMENDATION_REQUIRES_CATALOG_MAPPING')].message")
+                        .value(org.hamcrest.Matchers.hasItem(
+                                org.hamcrest.Matchers.containsString("제3영역:과학과기술"))));
+    }
+
+    @Test
     void rejectsEvaluationWhenGraduationProfileScopeIsIncomplete()
             throws Exception {
         jdbcTemplate.update("""
@@ -564,6 +597,59 @@ class GraduationApiIntegrationTest {
                     'major-course-double-1', 'curriculum-program-2', '전필',
                     'BUS201', '경영학원론', 3, 1, '[1]'::json,
                     '{"page": 20}'::json, '{}'::json
+                );
+                """);
+    }
+
+    /**
+     * liberal-set-1(기존 '소통' 영역 하나짜리)에 영역 두 개를 더 추가한다:
+     * - 제2영역:역사와철학 — 이번 학기에 HIS201(미이수)·HIS301(수강 중) 둘 다 개설됨.
+     *   실제로 추천이 가능해지므로 경고 대상에서 빠져야 한다.
+     * - 제3영역:과학과기술 — 이번 학기에 그 영역 과목이 아예 개설되지 않음.
+     *   추천할 게 없으므로 경고가 그대로 남아야 한다.
+     * HIS301은 상태를 IN_PROGRESS(수강 중)로 두어, areaGaps 계산(COMPLETED만 집계)에는
+     * 잡히지 않으면서도 findOfferedCourses의 "이미 이수 중" 제외 로직은 타도록 한다 —
+     * 이미 수강 중인 과목이 추천 목록에서 실제로 빠지는지 검증하기 위함이다.
+     */
+    private void insertLiberalAreaMatchingFixture() {
+        jdbcTemplate.execute("""
+                INSERT INTO graduation_liberal_area_requirements (
+                    id, requirement_set_id, "position", area,
+                    min_courses, min_credits
+                ) VALUES
+                    (
+                        'area-rule-2', 'liberal-set-1', 1, '제2영역:역사와철학', 1, 2
+                    ),
+                    (
+                        'area-rule-3', 'liberal-set-1', 2, '제3영역:과학과기술', 1, 2
+                    );
+
+                INSERT INTO courses (
+                    semester_id, course_code, name, category, credits
+                ) VALUES
+                    (
+                        '2026-1', 'HIS201', '역사의이해',
+                        '교양선택(제2영역:역사와철학)', 3
+                    ),
+                    (
+                        '2026-1', 'HIS301', '철학개론',
+                        '교양선택(제2영역:역사와철학)', 2
+                    );
+
+                INSERT INTO sections (
+                    semester_id, course_code, section_code, professor,
+                    raw_lecture_time, time_to_be_announced, warning_codes
+                ) VALUES
+                    ('2026-1', 'HIS201', '01', '최교수', '월3', false, '[]'::jsonb),
+                    ('2026-1', 'HIS301', '01', '정교수', '화3', false, '[]'::jsonb);
+
+                INSERT INTO completed_courses (
+                    user_id, course_code, course_name, credits, category,
+                    area, semester, status, input_source
+                ) VALUES (
+                    '10000000-0000-0000-0000-000000000001',
+                    'HIS301', '철학개론', 2, '교양선택(제2영역:역사와철학)',
+                    '제2영역:역사와철학', '2026-1', 'IN_PROGRESS', 'MANUAL'
                 );
                 """);
     }

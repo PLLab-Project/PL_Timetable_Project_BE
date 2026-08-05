@@ -1,11 +1,15 @@
 package com.example.pl_timetable_project.academic.graduation;
 
+import com.example.pl_timetable_project.academic.common.LiberalAreaCode;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -444,6 +448,26 @@ public class GraduationQueryRepository {
                 rs.getBigDecimal("credits"),
                 rs.getInt("section_count"),
                 rs.getBoolean("academic_unit_match")));
+    }
+
+    /**
+     * 이 학기에 실제로 개설된 교양 영역 코드 집합이다("제3영역:과학과기술" 형식,
+     * LiberalAreaCode와 동일한 파싱 규칙). AreaGap에 대한 추천을 시도했는데도
+     * 결과가 비어 있을 때, 그게 "이미 다 이수해서 추천할 게 없는 것"인지
+     * "애초에 이 학기에 그 영역 과목이 개설되지 않은 것"인지 구분하는 데 쓴다 —
+     * 후자일 때만 LIBERAL_AREA_RECOMMENDATION_REQUIRES_CATALOG_MAPPING 경고를 남긴다.
+     */
+    public Set<String> findOfferedLiberalAreaCodes(String semesterId) {
+        return jdbcTemplate.queryForList("""
+                SELECT DISTINCT category
+                  FROM courses
+                 WHERE semester_id = :semesterId
+                   AND category LIKE '교양선택(%'
+                """, Map.of("semesterId", semesterId), String.class)
+                .stream()
+                .map(LiberalAreaCode::parse)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     private MapSqlParameterSource scopeParameters(RuleScope scope) {
