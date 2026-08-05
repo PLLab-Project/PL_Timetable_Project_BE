@@ -86,6 +86,32 @@ class TimetableSectionIdIntegrationTest {
     }
 
     @Test
+    void updateSectionsSucceedsWhenNewListOverlapsWithExistingSection() {
+        // 프론트가 "A/01은 유지하고 B/01을 추가"하는 식으로, 기존에 이미 있던
+        // 분반을 그대로 포함한 새 목록을 다시 PATCH로 보내는 흔한 시나리오.
+        // clearCourses() 직후 flush 없이 addCourse()만 반복하면 orphanRemoval
+        // DELETE보다 새 INSERT가 먼저 실행되어 유니크 제약 위반(500)이 났었다.
+        TimetableResponse created = timetableService.createTimetable(
+                userId,
+                new TimetableCreateRequest(
+                        "test",
+                        "2099-1",
+                        List.of(new TimetableCourseRequest("A", "01"))));
+
+        TimetableResponse updated = timetableService.updateSections(
+                userId,
+                created.id(),
+                List.of(
+                        new TimetableCourseRequest("A", "01"),
+                        new TimetableCourseRequest("B", "01")));
+
+        assertThat(updated.sections()).hasSize(2);
+        assertThat(updated.sections())
+                .extracting(section -> section.courseCode() + "/" + section.sectionCode())
+                .containsExactlyInAnyOrder("A/01", "B/01");
+    }
+
+    @Test
     void allowsMultipleFavoriteTimetablesAndOrdersThemFirst() {
         TimetableResponse first = timetableService.createTimetable(
                 userId,
