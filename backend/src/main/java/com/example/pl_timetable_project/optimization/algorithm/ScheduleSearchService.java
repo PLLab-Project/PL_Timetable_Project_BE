@@ -64,6 +64,20 @@ public class ScheduleSearchService {
      * 등교일수·점심 확보 같은 실질적 스케줄 품질보다 우선하지 않게 한다.
      */
     private static final double SEQUENCE_BONUS = 5.0;
+    /**
+     * 졸업요건상 부족한 필수과목·추천과목(courseCode가 graduationPriorityCourseCodes에
+     * 속하는 후보) 1개당 주는 가중치. SAME_MAJOR_BONUS/SEQUENCE_BONUS(5.0)보다는
+     * 의도적으로 높게(8.0) 잡았다 — "이번 학기 졸업요건을 채우는 것"은 단순 학과
+     * 선호(SAME_MAJOR_BONUS)나 교양 영역 선호(SEQUENCE_BONUS)보다 실질적으로 더
+     * 중요한 목표라, 동률 상황뿐 아니라 약간의 다른 손실(예: 자잘한 공강시간 차이)도
+     * 감수하고 우선되길 원할 수 있다. 다만 등교일수(10점/일)·점심 확보(15점/일)
+     * 같은 하루 단위 스케줄 품질 지표보다는 낮게 유지했다 — 완전 필수가 아니라
+     * "가중치"로 설계한 목적(요청 2번) 자체가 시간 충돌 등 다른 조건과 부딪히면
+     * 자연스럽게 밀려날 수 있어야 하기 때문이다. 이 값이 등교일수·점심 확보 값보다
+     * 높아지면 스케줄 품질 전체를 갈아엎으면서까지 이 과목 하나를 넣으려 들 수 있어
+     * 사실상 하드 제약과 다를 바 없어진다.
+     */
+    private static final double GRADUATION_PRIORITY_BONUS = 8.0;
 
     static {
         Loader.loadNativeLibraries();
@@ -212,6 +226,18 @@ public class ScheduleSearchService {
             if (matchesSequenceBonus(optionalCandidates.get(i), constraints)) {
                 objectiveVars.add(vars[i]);
                 objectiveCoeffs.add(SEQUENCE_BONUS);
+            }
+        }
+
+        // ---- 소프트 제약: 졸업요건 우선배치 가중치 ----
+        // 같은 과목의 분반이 여러 개 있어도 시간 충돌 하드 제약(section.sameCourse)이
+        // 항상 그 과목의 분반들끼리 addAtMostOne으로 묶어두므로, 각 분반 후보에
+        // 독립적으로 가중치를 걸어도 실제로는 최대 하나만 선택돼 이중으로 더해지지
+        // 않는다(과목당 최대 1회).
+        for (int i = 0; i < optionalCandidates.size(); i++) {
+            if (matchesGraduationPriority(optionalCandidates.get(i), constraints)) {
+                objectiveVars.add(vars[i]);
+                objectiveCoeffs.add(GRADUATION_PRIORITY_BONUS);
             }
         }
 
@@ -385,6 +411,7 @@ public class ScheduleSearchService {
      * (7 - 등교일수)*10 + min(300, 300-공강시간)*0.2 + 점심확보일수*15
      * - |총학점-목표학점|*5 - 하루초과시간*1 + 선택된 본인 학과 강의 수*5
      * + 교양 영역 선택·선수과목 이수 조건을 동시에 만족한 강의 수*5
+     * + 졸업요건 우선배치 대상 강의 수*8
      * 가중치가 정수가 아니어서(0.2 등) DoubleLinearExpr로 실수 계수를 그대로 사용한다
      * (정수 배율로 스케일링할 필요가 없다).
      */
@@ -422,6 +449,17 @@ public class ScheduleSearchService {
         }
         return course.prerequisiteCourseCodes().stream()
                 .anyMatch(constraints.completedCourseCodes()::contains);
+    }
+
+    /**
+     * 강의의 과목 코드가 graduationPriorityCourseCodes(졸업요건상 부족한 필수과목·
+     * 추천과목)에 속하면 true. 빈 집합이면(우선배치 기능을 켜지 않았거나 졸업요건
+     * 조회에 실패한 경우) 항상 false.
+     */
+    private boolean matchesGraduationPriority(
+            CandidateCourse course, OptimizationConstraints constraints) {
+        return constraints.graduationPriorityCourseCodes()
+                .contains(course.section().getCourseCode());
     }
 
     private boolean overlapsLunch(int startMinutes, int endMinutes, OptimizationConstraints constraints) {

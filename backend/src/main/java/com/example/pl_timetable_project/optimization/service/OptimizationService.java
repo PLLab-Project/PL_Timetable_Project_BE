@@ -1,6 +1,10 @@
 package com.example.pl_timetable_project.optimization.service;
 
 import com.example.pl_timetable_project.academic.course.CourseSequenceHintService;
+import com.example.pl_timetable_project.academic.graduation.GraduationResponses.Evaluation;
+import com.example.pl_timetable_project.academic.graduation.GraduationResponses.Recommendation;
+import com.example.pl_timetable_project.academic.graduation.GraduationResponses.RequiredCourseGap;
+import com.example.pl_timetable_project.academic.graduation.GraduationService;
 import com.example.pl_timetable_project.academic.section.AcademicSection;
 import com.example.pl_timetable_project.academic.section.AcademicSectionQueryRepository;
 import com.example.pl_timetable_project.academic.section.SectionReference;
@@ -71,6 +75,7 @@ public class OptimizationService {
     private final AcademicSectionQueryRepository sectionQueryRepository;
     private final StudentProfileRepository studentProfileRepository;
     private final StudentAcademicProgramRepository academicProgramRepository;
+    private final GraduationService graduationService;
     private final CompletedCourseRepository completedCourseRepository;
     private final CourseSequenceHintService courseSequenceHintService;
     private final CandidateCourseFilter candidateCourseFilter;
@@ -85,6 +90,7 @@ public class OptimizationService {
             AcademicSectionQueryRepository sectionQueryRepository,
             StudentProfileRepository studentProfileRepository,
             StudentAcademicProgramRepository academicProgramRepository,
+            GraduationService graduationService,
             CompletedCourseRepository completedCourseRepository,
             CourseSequenceHintService courseSequenceHintService,
             CandidateCourseFilter candidateCourseFilter,
@@ -97,6 +103,7 @@ public class OptimizationService {
         this.sectionQueryRepository = sectionQueryRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.academicProgramRepository = academicProgramRepository;
+        this.graduationService = graduationService;
         this.completedCourseRepository = completedCourseRepository;
         this.courseSequenceHintService = courseSequenceHintService;
         this.candidateCourseFilter = candidateCourseFilter;
@@ -112,6 +119,10 @@ public class OptimizationService {
         Timetable timetable = getOwnedTimetable(userId, request.getTimetableId());
         List<String> userAcademicUnitCodes = resolveUserAcademicUnitCodes(userId);
         Set<String> completedCourseCodes = resolveCompletedCourseCodes(userId);
+        Set<String> graduationPriorityCourseCodes = request.isPrioritizeGraduationRequirements()
+                ? resolveGraduationPriorityCourseCodes(
+                        userId, timetable.getSemesterId(), completedCourseCodes)
+                : Set.of();
         List<CandidateCourse> candidates =
                 loadCandidates(
                         timetable.getSemesterId(),
@@ -119,7 +130,12 @@ public class OptimizationService {
                         request.getRequiredCourses(),
                         completedCourseCodes);
         OptimizationConstraints constraints =
-                buildConstraints(request, candidates, userAcademicUnitCodes, completedCourseCodes);
+                buildConstraints(
+                        request,
+                        candidates,
+                        userAcademicUnitCodes,
+                        completedCourseCodes,
+                        graduationPriorityCourseCodes);
 
         List<CandidateCourse> filtered = candidateCourseFilter.filter(candidates, constraints);
         requiredCoursePlacer.place(filtered, constraints.requiredSections());
@@ -398,11 +414,71 @@ public class OptimizationService {
         }
     }
 
+    /**
+     * 졸업요건상 부족한 필수과목(requiredCourseGaps)·추천과목(recommendations)의 과목
+     * 코드를 모아, 이번 편성 대상 학기에 실제로 개설된 분반이 있는 것만 남긴다
+     * (AcademicSectionQueryRepository로 확인). 복수전공이 있으면 그 학과 몫도 함께
+     * 담는다. completedCourseCodes로 한 번 더 방어적으로 제외하지만, 애초에
+     * GraduationService.evaluate()의 requiredCourseGaps/recommendations 자체가
+     * 이미 이수·수강 중인 과목은 빼고 계산하므로 이중 방어에 가깝다.
+     *
+     * <p>이 기능은 옵트인(OptimizationCreateRequest.prioritizeGraduationRequirements)
+     * 이라, 졸업요건 조회 자체가 실패해도(프로필 미완성, 카탈로그 규칙 없음 등)
+     * 자동편성 본연의 기능은 항상 성공해야 한다 — 실패 시 조용히 빈 집합으로
+     * 대체한다.</p>
+     */
+    private Set<String> resolveGraduationPriorityCourseCodes(
+            UUID userId, String semesterId, Set<String> completedCourseCodes) {
+        Evaluation evaluation;
+        try {
+            evaluation = graduationService.evaluate(userId, semesterId);
+        } catch (ApplicationException notReady) {
+            log.info(
+                    "자동편성 졸업요건 우선배치를 건너뜁니다(졸업요건 조회 실패). "
+                            + "userId={}, semesterId={}, reason={}",
+                    userId, semesterId, notReady.getMessage());
+            return Set.of();
+        }
+        Set<String> priorityCourseCodes = new HashSet<>();
+        collectPriorityCourseCodes(
+                priorityCourseCodes, evaluation.requiredCourseGaps(), evaluation.recommendations());
+        if (evaluation.secondaryMajor() != null) {
+            collectPriorityCourseCodes(
+                    priorityCourseCodes,
+                    evaluation.secondaryMajor().requiredCourseGaps(),
+                    evaluation.secondaryMajor().recommendations());
+        }
+        priorityCourseCodes.removeIf(
+                courseCode -> completedCourseCodes.contains(courseCode.toLowerCase(Locale.ROOT)));
+
+        Set<String> offeredCourseCodes = sectionQueryRepository.findBySemesterId(semesterId)
+                .keySet().stream()
+                .map(SectionReference::getCourseCode)
+                .collect(java.util.stream.Collectors.toSet());
+        priorityCourseCodes.retainAll(offeredCourseCodes);
+        return Set.copyOf(priorityCourseCodes);
+    }
+
+    private void collectPriorityCourseCodes(
+            Set<String> target,
+            List<RequiredCourseGap> requiredCourseGaps,
+            List<Recommendation> recommendations) {
+        requiredCourseGaps.stream()
+                .map(gap -> gap.course().courseCode())
+                .filter(java.util.Objects::nonNull)
+                .forEach(target::add);
+        recommendations.stream()
+                .map(Recommendation::courseCode)
+                .filter(java.util.Objects::nonNull)
+                .forEach(target::add);
+    }
+
     private OptimizationConstraints buildConstraints(
             OptimizationCreateRequest request,
             List<CandidateCourse> candidates,
             List<String> userAcademicUnitCodes,
-            Set<String> completedCourseCodes) {
+            Set<String> completedCourseCodes,
+            Set<String> graduationPriorityCourseCodes) {
         Set<SectionReference> requiredSections = candidates.stream()
                 .filter(CandidateCourse::required)
                 .map(CandidateCourse::section)
@@ -433,7 +509,8 @@ public class OptimizationService {
                 userAcademicUnitCodes,
                 request.getSelectedLiberalAreas() == null
                         ? List.of() : List.copyOf(request.getSelectedLiberalAreas()),
-                completedCourseCodes);
+                completedCourseCodes,
+                graduationPriorityCourseCodes);
     }
 
     private void validateRequest(OptimizationCreateRequest request) {
