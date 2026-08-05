@@ -17,6 +17,7 @@ import com.example.pl_timetable_project.completedcourse.dto.RecognizedCourseResp
 import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOfferingQueryRepository;
 import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOfferingQueryRepository.SectionCandidate;
 import com.example.pl_timetable_project.user.entity.StudentProfile;
+import com.example.pl_timetable_project.user.repository.StudentAcademicProgramRepository;
 import com.example.pl_timetable_project.user.repository.StudentProfileRepository;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -212,7 +213,7 @@ class CompletedCourseSectionMatcherTest {
         profile.update(null, "D1", null, null, null, null);
         StudentProfileRepository profileRepository = mock(StudentProfileRepository.class);
         when(profileRepository.findById(userId)).thenReturn(Optional.of(profile));
-        when(matchRepository.findCandidates(anySet(), anySet(), eq("D1")))
+        when(matchRepository.findCandidates(anySet(), anySet(), eq(List.of("D1"))))
                 .thenReturn(List.of(
                         candidate("2026-1", "565011", "01", "자바프로그래밍", "김정민"),
                         candidate("2026-1", "565011", "02", "자바프로그래밍", "김정민")));
@@ -231,6 +232,33 @@ class CompletedCourseSectionMatcherTest {
             assertThat(course.credits()).isEqualByComparingTo("3.0");
             assertThat(course.category()).isEqualTo("전공선택");
         });
+    }
+
+    @Test
+    void usesBothPrimaryAndDoubleMajorAcademicUnitsForCanonicalPrefill() {
+        // 복수전공생(주전공 D1, 복수전공 D2)은 두 학과 코드 모두를
+        // preferredAcademicUnitCodes로 전달해 분류 우선순위에 반영해야 한다.
+        UUID userId = UUID.randomUUID();
+        StudentAcademicProgramRepository academicProgramRepository =
+                mock(StudentAcademicProgramRepository.class);
+        when(academicProgramRepository.findMajorAcademicUnitCodes(userId))
+                .thenReturn(List.of("D1", "D2"));
+        when(matchRepository.findCandidates(anySet(), anySet(), eq(List.of("D1", "D2"))))
+                .thenReturn(List.of(
+                        candidate("2026-1", "565011", "01", "자바프로그래밍", "김정민")));
+        CompletedCourseSectionMatcher userAwareMatcher =
+                new CompletedCourseSectionMatcher(
+                        matchRepository, semesterRepository, null, academicProgramRepository);
+
+        var result = userAwareMatcher.match(
+                userId,
+                OcrDocumentType.TRANSCRIPT,
+                "2026-1",
+                List.of(course("자바프로그래밍", null)));
+
+        assertThat(result.courses()).singleElement()
+                .extracting(course -> course.matchStatus())
+                .isEqualTo(OcrCourseMatchStatus.COURSE_MATCHED);
     }
 
     @Test

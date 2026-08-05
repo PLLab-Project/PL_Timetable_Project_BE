@@ -10,6 +10,7 @@ import com.example.pl_timetable_project.completedcourse.dto.RecognizedCourseMeet
 import com.example.pl_timetable_project.completedcourse.dto.RecognizedCourseResponse;
 import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOfferingQueryRepository;
 import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseOfferingQueryRepository.SectionCandidate;
+import com.example.pl_timetable_project.user.repository.StudentAcademicProgramRepository;
 import com.example.pl_timetable_project.user.repository.StudentProfileRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -44,21 +45,31 @@ public class CompletedCourseSectionMatcher {
     private final CompletedCourseOfferingQueryRepository matchRepository;
     private final SemesterQueryRepository semesterRepository;
     private final StudentProfileRepository studentProfileRepository;
+    private final StudentAcademicProgramRepository academicProgramRepository;
 
     @Autowired
     public CompletedCourseSectionMatcher(
             CompletedCourseOfferingQueryRepository matchRepository,
             SemesterQueryRepository semesterRepository,
-            StudentProfileRepository studentProfileRepository) {
+            StudentProfileRepository studentProfileRepository,
+            StudentAcademicProgramRepository academicProgramRepository) {
         this.matchRepository = matchRepository;
         this.semesterRepository = semesterRepository;
         this.studentProfileRepository = studentProfileRepository;
+        this.academicProgramRepository = academicProgramRepository;
     }
 
     CompletedCourseSectionMatcher(
             CompletedCourseOfferingQueryRepository matchRepository,
             SemesterQueryRepository semesterRepository) {
-        this(matchRepository, semesterRepository, null);
+        this(matchRepository, semesterRepository, null, null);
+    }
+
+    CompletedCourseSectionMatcher(
+            CompletedCourseOfferingQueryRepository matchRepository,
+            SemesterQueryRepository semesterRepository,
+            StudentProfileRepository studentProfileRepository) {
+        this(matchRepository, semesterRepository, studentProfileRepository, null);
     }
 
     public MatchingResult match(
@@ -85,15 +96,11 @@ public class CompletedCourseSectionMatcher {
                 .map(CompletedCourseSectionMatcher::normalizeKey)
                 .filter(name -> !name.isEmpty())
                 .forEach(normalizedNames::add);
-        String preferredAcademicUnitCode = userId == null || studentProfileRepository == null
-                ? null
-                : studentProfileRepository.findById(userId)
-                        .map(profile -> profile.academicUnitCode())
-                        .orElse(null);
+        List<String> preferredAcademicUnitCodes = resolvePreferredAcademicUnitCodes(userId);
         List<SectionCandidate> catalogCandidates = userId == null
                 ? matchRepository.findCandidates(semesterIds, normalizedNames)
                 : matchRepository.findCandidates(
-                        semesterIds, normalizedNames, preferredAcademicUnitCode);
+                        semesterIds, normalizedNames, preferredAcademicUnitCodes);
         String matchingSemester = normalizedDocumentSemester != null
                 ? normalizedDocumentSemester
                 : inferTimetableSemester(
@@ -171,6 +178,34 @@ public class CompletedCourseSectionMatcher {
         return directEvidence
                 && candidate.score() >= 0.55
                 && hasRequiredDiscriminatingEvidence(course, candidate);
+    }
+
+    /**
+     * OCR로 인식한 과목명을 실제 분반과 매칭할 때, 동명이 여러 학과에 개설된 경우
+     * 어느 학과 분류를 우선할지 정하는 힌트다. student_academic_programs의
+     * PRIMARY·DOUBLE_MAJOR 학과를 모두 사용한다(OptimizationService.
+     * resolveUserAcademicUnitCodes와 동일한 판단 — MINOR/MICRO_MAJOR는 정식
+     * 전공이 아니라서 제외). 해당 테이블에 데이터가 없는 레거시 계정은
+     * StudentProfile.academicUnitCode() 단일값으로 대체한다.
+     */
+    private List<String> resolvePreferredAcademicUnitCodes(UUID userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        if (academicProgramRepository != null) {
+            List<String> declared = academicProgramRepository.findMajorAcademicUnitCodes(userId);
+            if (!declared.isEmpty()) {
+                return declared;
+            }
+        }
+        if (studentProfileRepository == null) {
+            return List.of();
+        }
+        return studentProfileRepository.findById(userId)
+                .map(profile -> profile.academicUnitCode())
+                .filter(java.util.Objects::nonNull)
+                .map(List::of)
+                .orElse(List.of());
     }
 
     private Set<String> semesterIds(

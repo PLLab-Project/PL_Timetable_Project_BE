@@ -43,6 +43,7 @@ import com.example.pl_timetable_project.timetable.dto.response.TimetableResponse
 import com.example.pl_timetable_project.timetable.service.TimetableService;
 import com.example.pl_timetable_project.user.UserErrorCode;
 import com.example.pl_timetable_project.user.entity.StudentProfile;
+import com.example.pl_timetable_project.user.repository.StudentAcademicProgramRepository;
 import com.example.pl_timetable_project.user.repository.StudentProfileRepository;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -69,6 +70,7 @@ public class OptimizationService {
     private final TimetableRepository timetableRepository;
     private final AcademicSectionQueryRepository sectionQueryRepository;
     private final StudentProfileRepository studentProfileRepository;
+    private final StudentAcademicProgramRepository academicProgramRepository;
     private final CompletedCourseRepository completedCourseRepository;
     private final CourseSequenceHintService courseSequenceHintService;
     private final CandidateCourseFilter candidateCourseFilter;
@@ -82,6 +84,7 @@ public class OptimizationService {
             TimetableRepository timetableRepository,
             AcademicSectionQueryRepository sectionQueryRepository,
             StudentProfileRepository studentProfileRepository,
+            StudentAcademicProgramRepository academicProgramRepository,
             CompletedCourseRepository completedCourseRepository,
             CourseSequenceHintService courseSequenceHintService,
             CandidateCourseFilter candidateCourseFilter,
@@ -93,6 +96,7 @@ public class OptimizationService {
         this.timetableRepository = timetableRepository;
         this.sectionQueryRepository = sectionQueryRepository;
         this.studentProfileRepository = studentProfileRepository;
+        this.academicProgramRepository = academicProgramRepository;
         this.completedCourseRepository = completedCourseRepository;
         this.courseSequenceHintService = courseSequenceHintService;
         this.candidateCourseFilter = candidateCourseFilter;
@@ -126,17 +130,23 @@ public class OptimizationService {
     }
 
     /**
-     * 로그인한 사용자가 속한 학과 코드 목록을 만든다. 지금은 StudentProfile에 학과가
-     * 하나뿐이라 리스트에 최대 한 건만 담기지만, 복수전공으로 두 번째 학과 필드가
-     * 추가되면 이 메서드만 확장하면 나머지 후보 필터링 로직은 그대로 재사용된다.
+     * 로그인한 사용자가 속한 학과 코드 목록을 만든다. student_academic_programs의
+     * PRIMARY·DOUBLE_MAJOR 학과들을 "본인 학과"로 취급해 본인 전공 가중치
+     * (SAME_MAJOR_BONUS)와 타 전공 진짜 제한 배제(hardRestrictedAcademicUnitCode)에
+     * 모두 사용한다 — 복수전공생은 두 학과 강의 전부에서 가중치를 받고, 두 학과 중
+     * 하나에만 걸린 제한 강의도 배제되지 않는다(둘 다 리스트에 담기므로 나머지
+     * 필터링·스코어링 로직은 수정 없이 그대로 동작한다).
+     * student_academic_programs에 데이터가 없는 레거시 계정은
+     * StudentProfile.academicUnitCode() 단일값으로 대체한다.
      */
     private List<String> resolveUserAcademicUnitCodes(UUID userId) {
+        List<String> declaredAcademicUnitCodes =
+                academicProgramRepository.findMajorAcademicUnitCodes(userId);
+        if (!declaredAcademicUnitCodes.isEmpty()) {
+            return declaredAcademicUnitCodes;
+        }
         StudentProfile profile = studentProfileRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
-        return resolveUserAcademicUnitCodes(profile);
-    }
-
-    private List<String> resolveUserAcademicUnitCodes(StudentProfile profile) {
         return profile.academicUnitCode() == null
                 ? List.of()
                 : List.of(profile.academicUnitCode());

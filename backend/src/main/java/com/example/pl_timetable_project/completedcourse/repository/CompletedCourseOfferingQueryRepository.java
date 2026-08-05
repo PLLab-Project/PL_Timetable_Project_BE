@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -27,24 +28,34 @@ public class CompletedCourseOfferingQueryRepository {
 
     public List<SectionCandidate> findCandidates(
             Set<String> semesterIds, Set<String> normalizedCourseNames) {
-        return findCandidates(semesterIds, normalizedCourseNames, null);
+        return findCandidates(semesterIds, normalizedCourseNames, List.of());
     }
 
+    /**
+     * preferredAcademicUnitCodes는 복수전공생의 경우 주전공·복수전공 학과 코드를
+     * 모두 담을 수 있다 — 어느 한쪽 학과의 분류만 매칭해도 그 학과 기준
+     * completion_category를 우선 채택한다(IN 조건이라 우선순위 없이 둘 다 동등하게
+     * 취급된다).
+     */
     public List<SectionCandidate> findCandidates(
             Set<String> semesterIds,
             Set<String> normalizedCourseNames,
-            String preferredAcademicUnitCode) {
+            Collection<String> preferredAcademicUnitCodes) {
         if (semesterIds.isEmpty() || normalizedCourseNames.isEmpty()) {
             return List.of();
         }
 
+        boolean hasPreferredAcademicUnitCodes =
+                preferredAcademicUnitCodes != null && !preferredAcademicUnitCodes.isEmpty();
         Map<String, Object> parameters = new LinkedHashMap<>();
         parameters.put("semesterIds", semesterIds);
         parameters.put("normalizedCourseNames", normalizedCourseNames);
+        parameters.put("hasPreferredAcademicUnitCode", hasPreferredAcademicUnitCodes);
         parameters.put(
-                "hasPreferredAcademicUnitCode",
-                preferredAcademicUnitCode != null);
-        parameters.put("preferredAcademicUnitCode", preferredAcademicUnitCode);
+                "preferredAcademicUnitCodes",
+                hasPreferredAcademicUnitCodes
+                        ? List.copyOf(preferredAcademicUnitCodes)
+                        : List.of("__NONE__"));
         List<SectionRow> rows = jdbcTemplate.query("""
                 SELECT section.semester_id, section.course_code,
                        course.name AS course_name, section.section_code,
@@ -63,8 +74,8 @@ public class CompletedCourseOfferingQueryRepository {
                               AND classification.section_code = section.section_code
                               AND classification.completion_category IS NOT NULL
                               AND :hasPreferredAcademicUnitCode
-                              AND classification.academic_unit_code =
-                                  :preferredAcademicUnitCode
+                              AND classification.academic_unit_code
+                                  IN (:preferredAcademicUnitCodes)
                             ORDER BY classification.is_primary DESC,
                                      classification.source_page,
                                      classification.source_row
