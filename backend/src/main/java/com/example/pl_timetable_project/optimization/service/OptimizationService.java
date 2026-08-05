@@ -119,10 +119,15 @@ public class OptimizationService {
         Timetable timetable = getOwnedTimetable(userId, request.getTimetableId());
         List<String> userAcademicUnitCodes = resolveUserAcademicUnitCodes(userId);
         Set<String> completedCourseCodes = resolveCompletedCourseCodes(userId);
+        // 교양 학점 상한(liberalCreditCap)은 옵트인이 아니라 항상 켜져 있으므로,
+        // prioritizeGraduationRequirements와 무관하게 매번 졸업요건을 조회해 둔다.
+        Evaluation graduationEvaluation =
+                resolveGraduationEvaluation(userId, timetable.getSemesterId());
         Set<String> graduationPriorityCourseCodes = request.isPrioritizeGraduationRequirements()
                 ? resolveGraduationPriorityCourseCodes(
-                        userId, timetable.getSemesterId(), completedCourseCodes)
+                        graduationEvaluation, timetable.getSemesterId(), completedCourseCodes)
                 : Set.of();
+        Integer liberalCreditCap = resolveLiberalCreditCap(graduationEvaluation);
         List<CandidateCourse> candidates =
                 loadCandidates(
                         timetable.getSemesterId(),
@@ -135,7 +140,8 @@ public class OptimizationService {
                         candidates,
                         userAcademicUnitCodes,
                         completedCourseCodes,
-                        graduationPriorityCourseCodes);
+                        graduationPriorityCourseCodes,
+                        liberalCreditCap);
 
         List<CandidateCourse> filtered = candidateCourseFilter.filter(candidates, constraints);
         requiredCoursePlacer.place(filtered, constraints.requiredSections());
@@ -395,7 +401,8 @@ public class OptimizationService {
                 academicSection.liberalAreaCode(),
                 prerequisitesByCourseCode.getOrDefault(
                         academicSection.reference().getCourseCode(), List.of()),
-                academicSection.hardRestrictedAcademicUnitCode());
+                academicSection.hardRestrictedAcademicUnitCode(),
+                academicSection.liberalCredit());
     }
 
     private void validateRequiredCandidates(
@@ -415,6 +422,24 @@ public class OptimizationService {
     }
 
     /**
+     * 자동편성이 필요로 하는 졸업요건 조회(Evaluation)를 한 번만 시도해 두 기능
+     * (졸업요건 우선배치·교양 학점 상한)이 공유한다. 실패해도(프로필 미완성,
+     * 카탈로그 규칙 없음 등) 자동편성 본연의 기능은 항상 성공해야 하므로, 두
+     * 기능 모두 이 메서드가 반환한 null을 "정보 없음"으로 안전하게 취급한다.
+     */
+    private Evaluation resolveGraduationEvaluation(UUID userId, String semesterId) {
+        try {
+            return graduationService.evaluate(userId, semesterId);
+        } catch (ApplicationException notReady) {
+            log.info(
+                    "자동편성에서 졸업요건 조회를 건너뜁니다(우선배치·교양 학점 상한 모두 "
+                            + "미적용). userId={}, semesterId={}, reason={}",
+                    userId, semesterId, notReady.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * 졸업요건상 부족한 필수과목(requiredCourseGaps)·추천과목(recommendations)의 과목
      * 코드를 모아, 이번 편성 대상 학기에 실제로 개설된 분반이 있는 것만 남긴다
      * (AcademicSectionQueryRepository로 확인). 복수전공이 있으면 그 학과 몫도 함께
@@ -423,20 +448,12 @@ public class OptimizationService {
      * 이미 이수·수강 중인 과목은 빼고 계산하므로 이중 방어에 가깝다.
      *
      * <p>이 기능은 옵트인(OptimizationCreateRequest.prioritizeGraduationRequirements)
-     * 이라, 졸업요건 조회 자체가 실패해도(프로필 미완성, 카탈로그 규칙 없음 등)
-     * 자동편성 본연의 기능은 항상 성공해야 한다 — 실패 시 조용히 빈 집합으로
-     * 대체한다.</p>
+     * 이다 — evaluation이 null이면(옵트인했지만 졸업요건 조회 자체가 실패한 경우)
+     * 빈 집합으로 대체한다.</p>
      */
     private Set<String> resolveGraduationPriorityCourseCodes(
-            UUID userId, String semesterId, Set<String> completedCourseCodes) {
-        Evaluation evaluation;
-        try {
-            evaluation = graduationService.evaluate(userId, semesterId);
-        } catch (ApplicationException notReady) {
-            log.info(
-                    "자동편성 졸업요건 우선배치를 건너뜁니다(졸업요건 조회 실패). "
-                            + "userId={}, semesterId={}, reason={}",
-                    userId, semesterId, notReady.getMessage());
+            Evaluation evaluation, String semesterId, Set<String> completedCourseCodes) {
+        if (evaluation == null) {
             return Set.of();
         }
         Set<String> priorityCourseCodes = new HashSet<>();
@@ -473,12 +490,40 @@ public class OptimizationService {
                 .forEach(target::add);
     }
 
+    /**
+     * "이미 채운 교양 학점 + 이번에 새로 채울 교양 학점"이 liberalTotalMax를 넘지
+     * 않도록, 이번 학기에 더 채울 수 있는 교양 학점 상한을 creditUnits(1/100 단위)로
+     * 계산한다. liberalTotalMax가 없는 규칙(상한 자체가 없음)이거나 졸업요건 조회에
+     * 실패했으면(evaluation == null) null — "상한 없음"을 뜻한다. 이미 상한을
+     * 넘겨 이수한 경우 음수가 아니라 0으로 clamp한다(추가로는 못 채우지만, 이미
+     * 편성된/이수한 강의를 소급해서 배제하지는 않는다).
+     *
+     * <p>이 기능은 옵트인이 아니라 항상 켜둔다 — 하드 제약이 아니라 소프트
+     * 페널티(ScheduleSearchService/ScheduleScorer)라 상한을 넘는 조합도 여전히
+     * 나올 수 있고, 실패 시 안전하게 무시되므로 항상 계산해도 위험이 없다.</p>
+     */
+    private Integer resolveLiberalCreditCap(Evaluation evaluation) {
+        if (evaluation == null || evaluation.rule() == null) {
+            return null;
+        }
+        Integer liberalTotalMax = evaluation.rule().liberalArts().totalMaximum();
+        if (liberalTotalMax == null) {
+            return null;
+        }
+        java.math.BigDecimal remaining = java.math.BigDecimal.valueOf(liberalTotalMax)
+                .subtract(evaluation.completedCredits().liberalTotal())
+                .max(java.math.BigDecimal.ZERO)
+                .setScale(2, java.math.RoundingMode.HALF_UP);
+        return CreditUnits.toUnits(remaining);
+    }
+
     private OptimizationConstraints buildConstraints(
             OptimizationCreateRequest request,
             List<CandidateCourse> candidates,
             List<String> userAcademicUnitCodes,
             Set<String> completedCourseCodes,
-            Set<String> graduationPriorityCourseCodes) {
+            Set<String> graduationPriorityCourseCodes,
+            Integer liberalCreditCap) {
         Set<SectionReference> requiredSections = candidates.stream()
                 .filter(CandidateCourse::required)
                 .map(CandidateCourse::section)
@@ -510,7 +555,8 @@ public class OptimizationService {
                 request.getSelectedLiberalAreas() == null
                         ? List.of() : List.copyOf(request.getSelectedLiberalAreas()),
                 completedCourseCodes,
-                graduationPriorityCourseCodes);
+                graduationPriorityCourseCodes,
+                liberalCreditCap);
     }
 
     private void validateRequest(OptimizationCreateRequest request) {

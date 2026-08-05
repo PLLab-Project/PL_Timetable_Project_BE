@@ -26,6 +26,11 @@ public class ScheduleScorer {
     private static final double SEQUENCE_BONUS = 5.0;
     /** ScheduleSearchService.GRADUATION_PRIORITY_BONUS와 반드시 같은 값으로 맞춘다. */
     private static final double GRADUATION_PRIORITY_BONUS = 8.0;
+    /**
+     * ScheduleSearchService.LIBERAL_CREDIT_CAP_PENALTY_PER_CREDIT_UNIT과 같은
+     * 비율(크레딧당 5.0)로 맞춘다.
+     */
+    private static final double LIBERAL_CREDIT_CAP_PENALTY_PER_CREDIT = 5.0;
 
     public ScoredCombination score(
             ScheduleCombination combination, OptimizationConstraints constraints) {
@@ -52,6 +57,7 @@ public class ScheduleScorer {
                 .map(course -> course.section().getCourseCode())
                 .distinct()
                 .count();
+        double liberalOverCredits = liberalOverCredits(combination, constraints);
 
         double score = 0.0;
         score += (DAYS_IN_WEEK - attendanceDays) * ATTENDANCE_BONUS_PER_DAY;
@@ -63,7 +69,28 @@ public class ScheduleScorer {
         score += sameMajorOptionalCount * SAME_MAJOR_BONUS;
         score += sequenceBonusOptionalCount * SEQUENCE_BONUS;
         score += graduationPriorityOptionalCourseCount * GRADUATION_PRIORITY_BONUS;
+        score -= liberalOverCredits * LIBERAL_CREDIT_CAP_PENALTY_PER_CREDIT;
         return new ScoredCombination(combination, score, attendanceDays, totalFreeMinutes);
+    }
+
+    /**
+     * 교양 학점 상한(liberalCreditCap) 초과분(크레딧 단위)이다. ScheduleSearchService의
+     * 소프트 페널티와 동일하게 required 강의도 포함해서 합산한다(교양이면 상한을
+     * 이미 소모하므로) — SAME_MAJOR_BONUS/SEQUENCE_BONUS/GRADUATION_PRIORITY_BONUS와
+     * 달리 이건 "선택 여부에 대한 선호"가 아니라 "총 교양 학점 소비량"에 대한
+     * 페널티라 required를 제외하지 않는다. liberalCreditCap이 null이면(상한 없음)
+     * 0이다.
+     */
+    private double liberalOverCredits(
+            ScheduleCombination combination, OptimizationConstraints constraints) {
+        if (constraints.liberalCreditCap() == null) {
+            return 0.0;
+        }
+        int liberalCreditUnits = combination.courses().stream()
+                .filter(CandidateCourse::liberalCredit)
+                .mapToInt(CandidateCourse::creditUnits)
+                .sum();
+        return Math.max(0, liberalCreditUnits - constraints.liberalCreditCap()) / 100.0;
     }
 
     /**

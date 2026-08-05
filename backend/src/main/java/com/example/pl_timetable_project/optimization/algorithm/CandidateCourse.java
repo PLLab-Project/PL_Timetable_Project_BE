@@ -18,6 +18,11 @@ import java.util.List;
  * 끝나고 유학생·복수전공·교직 같은 예외 키워드가 없을 때만 채워지는 학과 코드다.
  * restrictedAcademicUnitCodes와 달리 이건 소프트 가중치가 아니라 진짜 하드 배제
  * 판정에 쓴다. null이면 안전하게 "제한 없음"으로 취급한다.</p>
+ *
+ * <p>liberalCredit: courses.category에 "교양"이 포함되면(교양필수·교양선택 모두)
+ * true다. AcademicSection.liberalCredit과 동일한 판정 — 교양 학점 상한
+ * (OptimizationConstraints.liberalCreditCap) 계산에 쓴다. liberalAreaCode보다
+ * 넓은 개념이라, "제N영역" 표기 없는 교양선택·교양필수도 포함한다.</p>
  */
 public record CandidateCourse(
         SectionReference section,
@@ -29,7 +34,8 @@ public record CandidateCourse(
         List<String> restrictedAcademicUnitCodes,
         String liberalAreaCode,
         List<String> prerequisiteCourseCodes,
-        String hardRestrictedAcademicUnitCode) {
+        String hardRestrictedAcademicUnitCode,
+        boolean liberalCredit) {
 
     public CandidateCourse {
         timeSlots = List.copyOf(timeSlots);

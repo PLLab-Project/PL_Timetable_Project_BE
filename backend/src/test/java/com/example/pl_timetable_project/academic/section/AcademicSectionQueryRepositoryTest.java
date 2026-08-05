@@ -130,6 +130,28 @@ class AcademicSectionQueryRepositoryTest {
     }
 
     @Test
+    void computesLiberalCreditFromCategoryContainingLiberalKeywordRegardlessOfAreaTag() {
+        Map<SectionReference, AcademicSection> catalog =
+                sectionQueryRepository.findBySemesterId("2099-1");
+
+        // GEN100("교양선택")·AREA100("교양선택(제3영역:...)") 둘 다 교양 학점으로 잡힌다 —
+        // liberalAreaCode(영역 표기가 있는 경우만)보다 넓은 판정이다.
+        assertThat(catalog.values().stream()
+                .filter(section -> section.reference().getCourseCode().equals("GEN100"))
+                .findFirst().orElseThrow().liberalCredit()).isTrue();
+        assertThat(catalog.values().stream()
+                .filter(section -> section.reference().getCourseCode().equals("AREA100"))
+                .findFirst().orElseThrow().liberalCredit()).isTrue();
+        // 전공("CSE100")·미분류("UNTAGGED100")는 교양 학점이 아니다.
+        assertThat(catalog.values().stream()
+                .filter(section -> section.reference().getCourseCode().equals("CSE100"))
+                .findFirst().orElseThrow().liberalCredit()).isFalse();
+        assertThat(catalog.values().stream()
+                .filter(section -> section.reference().getCourseCode().equals("UNTAGGED100"))
+                .findFirst().orElseThrow().liberalCredit()).isFalse();
+    }
+
+    @Test
     void resolvesHardRestrictionOnlyForCleanEndAnchoredPatternWithoutExceptionKeywords() {
         Map<SectionReference, AcademicSection> catalog =
                 sectionQueryRepository.findBySemesterId("2099-1");

@@ -21,7 +21,8 @@ public record OptimizationConstraints(
         List<String> userAcademicUnitCodes,
         List<String> selectedLiberalAreas,
         Set<String> completedCourseCodes,
-        Set<String> graduationPriorityCourseCodes) {
+        Set<String> graduationPriorityCourseCodes,
+        Integer liberalCreditCap) {
 
     public OptimizationConstraints {
         availableTimes = List.copyOf(availableTimes);
@@ -60,7 +61,8 @@ public record OptimizationConstraints(
                 List.of(),
                 List.of(),
                 Set.of(),
-                Set.of());
+                Set.of(),
+                null);
     }
 
     public OptimizationConstraints(
@@ -92,6 +94,7 @@ public record OptimizationConstraints(
                 userAcademicUnitCodes,
                 List.of(),
                 Set.of(),
-                Set.of());
+                Set.of(),
+                null);
     }
 }
