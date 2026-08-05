@@ -74,6 +74,7 @@ class OptimizationAlgorithmTest {
                 1_000,
                 List.of(),
                 List.of(),
+                Set.of(),
                 Set.of());
 
         List<CandidateCourse> filtered = new CandidateCourseFilter().filter(

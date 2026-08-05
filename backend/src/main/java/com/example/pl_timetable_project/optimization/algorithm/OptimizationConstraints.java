@@ -20,7 +20,8 @@ public record OptimizationConstraints(
         long searchTimeLimitMillis,
         List<String> userAcademicUnitCodes,
         List<String> selectedLiberalAreas,
-        Set<String> completedCourseCodes) {
+        Set<String> completedCourseCodes,
+        Set<String> graduationPriorityCourseCodes) {
 
     public OptimizationConstraints {
         availableTimes = List.copyOf(availableTimes);
@@ -28,6 +29,7 @@ public record OptimizationConstraints(
         userAcademicUnitCodes = List.copyOf(userAcademicUnitCodes);
         selectedLiberalAreas = List.copyOf(selectedLiberalAreas);
         completedCourseCodes = Set.copyOf(completedCourseCodes);
+        graduationPriorityCourseCodes = Set.copyOf(graduationPriorityCourseCodes);
     }
 
     public OptimizationConstraints(
@@ -57,6 +59,7 @@ public record OptimizationConstraints(
                 searchTimeLimitMillis,
                 List.of(),
                 List.of(),
+                Set.of(),
                 Set.of());
     }
 
@@ -88,6 +91,7 @@ public record OptimizationConstraints(
                 searchTimeLimitMillis,
                 userAcademicUnitCodes,
                 List.of(),
+                Set.of(),
                 Set.of());
     }
 }

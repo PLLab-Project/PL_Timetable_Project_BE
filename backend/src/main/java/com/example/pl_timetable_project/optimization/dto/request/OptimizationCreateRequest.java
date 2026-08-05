@@ -96,6 +96,14 @@ public class OptimizationCreateRequest {
             example = "[\"제3영역:과학과기술\"]")
     private List<String> selectedLiberalAreas = List.of();
 
+    @Schema(
+            description = "졸업요건상 부족한 필수과목·추천과목(복수전공이 있으면 그 학과 몫 포함)에 "
+                    + "자동편성 가중치를 추가로 줄지 여부. 완전 필수로 강제하지는 않아 시간 충돌 등 "
+                    + "다른 조건과 맞지 않으면 빠질 수 있다. 기본값은 false — 켜지 않으면 이 기능은 "
+                    + "전혀 동작하지 않는다(졸업요건 조회 자체를 시도하지 않음)",
+            example = "false", defaultValue = "false")
+    private boolean prioritizeGraduationRequirements = false;
+
     public OptimizationCreateRequest(
             Long timetableId,
             BigDecimal minCredits,
@@ -119,6 +127,7 @@ public class OptimizationCreateRequest {
         this.candidateCourses = candidateCourses == null ? List.of() : candidateCourses;
         this.requiredCourses = List.of();
         this.selectedLiberalAreas = List.of();
+        this.prioritizeGraduationRequirements = false;
     }
 
     public OptimizationCreateRequest(
@@ -149,5 +158,6 @@ public class OptimizationCreateRequest {
         this.requiredCourses =
                 requiredCourses == null ? List.of() : List.copyOf(requiredCourses);
         this.selectedLiberalAreas = List.of();
+        this.prioritizeGraduationRequirements = false;
     }
 }

@@ -11,6 +11,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.pl_timetable_project.academic.course.CourseSequenceHintService;
+import com.example.pl_timetable_project.academic.graduation.GraduationResponses.Evaluation;
+import com.example.pl_timetable_project.academic.graduation.GraduationResponses.Recommendation;
+import com.example.pl_timetable_project.academic.graduation.GraduationResponses.RequiredCourse;
+import com.example.pl_timetable_project.academic.graduation.GraduationResponses.RequiredCourseGap;
+import com.example.pl_timetable_project.academic.graduation.GraduationResponses.SecondaryMajorEvaluation;
+import com.example.pl_timetable_project.academic.graduation.GraduationService;
 import com.example.pl_timetable_project.academic.section.AcademicMeeting;
 import com.example.pl_timetable_project.academic.section.AcademicSection;
 import com.example.pl_timetable_project.academic.section.AcademicSectionQueryRepository;
@@ -19,6 +25,7 @@ import com.example.pl_timetable_project.completedcourse.CompletedCourseStatus;
 import com.example.pl_timetable_project.completedcourse.entity.CompletedCourse;
 import com.example.pl_timetable_project.completedcourse.repository.CompletedCourseRepository;
 import com.example.pl_timetable_project.exception.AlreadyCompletedCourseException;
+import com.example.pl_timetable_project.exception.InvalidAcademicQueryException;
 import com.example.pl_timetable_project.exception.InvalidOptimizationConditionException;
 import com.example.pl_timetable_project.optimization.algorithm.CandidateCourseFilter;
 import com.example.pl_timetable_project.optimization.algorithm.OptimizationConstraints;
@@ -58,6 +65,7 @@ class OptimizationServiceTest {
     private AcademicSectionQueryRepository sectionQueryRepository;
     private StudentProfileRepository studentProfileRepository;
     private StudentAcademicProgramRepository academicProgramRepository;
+    private GraduationService graduationService;
     private CompletedCourseRepository completedCourseRepository;
     private CourseSequenceHintService courseSequenceHintService;
     private OptimizationService service;
@@ -70,6 +78,7 @@ class OptimizationServiceTest {
         sectionQueryRepository = mock(AcademicSectionQueryRepository.class);
         studentProfileRepository = mock(StudentProfileRepository.class);
         academicProgramRepository = mock(StudentAcademicProgramRepository.class);
+        graduationService = mock(GraduationService.class);
         completedCourseRepository = mock(CompletedCourseRepository.class);
         courseSequenceHintService = mock(CourseSequenceHintService.class);
         service = new OptimizationService(
@@ -78,6 +87,7 @@ class OptimizationServiceTest {
                 sectionQueryRepository,
                 studentProfileRepository,
                 academicProgramRepository,
+                graduationService,
                 completedCourseRepository,
                 courseSequenceHintService,
                 new CandidateCourseFilter(),
@@ -277,6 +287,164 @@ class OptimizationServiceTest {
                 any(), any(), any(), any(),
                 argThat((OptimizationConstraints constraints) ->
                         constraints.userAcademicUnitCodes().equals(List.of("D1"))));
+    }
+
+    @Test
+    void includesGraduationPriorityCourseCodesFromPrimaryAndSecondaryMajorWhenOptedIn() {
+        SectionReference primaryPriority = reference("004803");
+        SectionReference secondaryPriority = reference("922503");
+        when(sectionQueryRepository.findBySemesterId(SEMESTER_ID)).thenReturn(Map.of(
+                primaryPriority, section(primaryPriority, "전공필수1", List.of(new AcademicMeeting(
+                        DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(10, 0)))),
+                secondaryPriority, section(secondaryPriority, "복수전공필수1", List.of(new AcademicMeeting(
+                        DayOfWeek.TUESDAY, LocalTime.of(9, 0), LocalTime.of(10, 0))))));
+        when(graduationService.evaluate(userId, SEMESTER_ID)).thenReturn(
+                evaluationWithPriorityCourses(
+                        List.of("004803"),
+                        List.of(),
+                        secondaryEvaluationWithPriorityCourses(List.of("922503"), List.of())));
+
+        service.createJob(userId, requestWithGraduationPriority(List.of()));
+
+        verify(lifecycleService).createPendingJobAndPublish(
+                any(), any(), any(), any(),
+                argThat((OptimizationConstraints constraints) ->
+                        constraints.graduationPriorityCourseCodes()
+                                .containsAll(Set.of("004803", "922503"))));
+    }
+
+    @Test
+    void excludesAlreadyCompletedCourseFromGraduationPriorityCourseCodes() {
+        SectionReference completed = reference("004803");
+        SectionReference notCompleted = reference("922503");
+        when(sectionQueryRepository.findBySemesterId(SEMESTER_ID)).thenReturn(Map.of(
+                completed, section(completed, "전공필수1", List.of(new AcademicMeeting(
+                        DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(10, 0)))),
+                notCompleted, section(notCompleted, "전공필수2", List.of(new AcademicMeeting(
+                        DayOfWeek.TUESDAY, LocalTime.of(9, 0), LocalTime.of(10, 0))))));
+        stubCompletedCourses("004803");
+        when(graduationService.evaluate(userId, SEMESTER_ID)).thenReturn(
+                evaluationWithPriorityCourses(List.of("004803", "922503"), List.of()));
+
+        service.createJob(userId, requestWithGraduationPriority(List.of()));
+
+        verify(lifecycleService).createPendingJobAndPublish(
+                any(), any(), any(), any(),
+                argThat((OptimizationConstraints constraints) ->
+                        !constraints.graduationPriorityCourseCodes().contains("004803")
+                                && constraints.graduationPriorityCourseCodes().contains("922503")));
+    }
+
+    @Test
+    void excludesGraduationPriorityCourseCodesThatAreNotOfferedThisSemester() {
+        SectionReference scheduled = reference("004803");
+        when(sectionQueryRepository.findBySemesterId(SEMESTER_ID)).thenReturn(Map.of(
+                scheduled, section(scheduled, "현장실습I", List.of(new AcademicMeeting(
+                        DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(10, 0))))));
+        when(graduationService.evaluate(userId, SEMESTER_ID)).thenReturn(
+                evaluationWithPriorityCourses(List.of("NOT_OFFERED_THIS_SEMESTER"), List.of()));
+
+        service.createJob(userId, requestWithGraduationPriority(List.of()));
+
+        verify(lifecycleService).createPendingJobAndPublish(
+                any(), any(), any(), any(),
+                argThat((OptimizationConstraints constraints) ->
+                        constraints.graduationPriorityCourseCodes().isEmpty()));
+    }
+
+    @Test
+    void doesNotResolveGraduationPriorityCourseCodesWhenNotOptedIn() {
+        // prioritizeGraduationRequirements 기본값은 false — 켜지 않으면 졸업요건
+        // 조회 자체를 시도하지 않는다(불필요한 GraduationService 호출·실패 위험 없음).
+        SectionReference scheduled = reference("004803");
+        when(sectionQueryRepository.findBySemesterId(SEMESTER_ID)).thenReturn(Map.of(
+                scheduled, section(scheduled, "현장실습I", List.of(new AcademicMeeting(
+                        DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(10, 0))))));
+
+        service.createJob(userId, request(List.of()));
+
+        verify(graduationService, never()).evaluate(any(), any());
+        verify(lifecycleService).createPendingJobAndPublish(
+                any(), any(), any(), any(),
+                argThat((OptimizationConstraints constraints) ->
+                        constraints.graduationPriorityCourseCodes().isEmpty()));
+    }
+
+    @Test
+    void fallsBackToEmptyGraduationPriorityCourseCodesWhenEvaluationFails() {
+        // 옵트인 기능이라도 졸업요건 조회 자체가 실패하면(프로필 미완성 등) 자동편성
+        // 본연의 기능은 항상 성공해야 한다 — 예외를 삼키고 빈 집합으로 대체한다.
+        SectionReference scheduled = reference("004803");
+        when(sectionQueryRepository.findBySemesterId(SEMESTER_ID)).thenReturn(Map.of(
+                scheduled, section(scheduled, "현장실습I", List.of(new AcademicMeeting(
+                        DayOfWeek.MONDAY, LocalTime.of(9, 0), LocalTime.of(10, 0))))));
+        when(graduationService.evaluate(userId, SEMESTER_ID))
+                .thenThrow(new InvalidAcademicQueryException("학생 프로필이 완성되지 않았습니다."));
+
+        var response = service.createJob(userId, requestWithGraduationPriority(List.of()));
+
+        assertThat(response.id()).isEqualTo(42L);
+        verify(lifecycleService).createPendingJobAndPublish(
+                any(), any(), any(), any(),
+                argThat((OptimizationConstraints constraints) ->
+                        constraints.graduationPriorityCourseCodes().isEmpty()));
+    }
+
+    private OptimizationCreateRequest requestWithGraduationPriority(
+            List<CourseCandidateRequest> candidates) {
+        OptimizationCreateRequest request = request(candidates);
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                request, "prioritizeGraduationRequirements", true);
+        return request;
+    }
+
+    private Evaluation evaluationWithPriorityCourses(
+            List<String> requiredCourseCodes, List<String> recommendedCourseCodes) {
+        return evaluationWithPriorityCourses(requiredCourseCodes, recommendedCourseCodes, null);
+    }
+
+    private Evaluation evaluationWithPriorityCourses(
+            List<String> requiredCourseCodes,
+            List<String> recommendedCourseCodes,
+            SecondaryMajorEvaluation secondaryMajor) {
+        return new Evaluation(
+                SEMESTER_ID,
+                null,
+                null,
+                List.of(),
+                List.of(),
+                requiredCourseCodes.stream().map(this::requiredCourseGap).toList(),
+                recommendedCourseCodes.stream().map(this::recommendation).toList(),
+                false,
+                List.of(),
+                List.of(),
+                List.of(),
+                secondaryMajor);
+    }
+
+    private SecondaryMajorEvaluation secondaryEvaluationWithPriorityCourses(
+            List<String> requiredCourseCodes, List<String> recommendedCourseCodes) {
+        return new SecondaryMajorEvaluation(
+                null,
+                List.of(),
+                requiredCourseCodes.stream().map(this::requiredCourseGap).toList(),
+                recommendedCourseCodes.stream().map(this::recommendation).toList(),
+                false,
+                List.of(),
+                List.of(),
+                List.of());
+    }
+
+    private RequiredCourseGap requiredCourseGap(String courseCode) {
+        return new RequiredCourseGap(new RequiredCourse(
+                "MAJOR_REQUIRED", courseCode, "테스트필수과목",
+                List.of(), BigDecimal.valueOf(3), null, null));
+    }
+
+    private Recommendation recommendation(String courseCode) {
+        return new Recommendation(
+                SEMESTER_ID, courseCode, "테스트추천과목", "전공필수",
+                BigDecimal.valueOf(3), 1, List.of());
     }
 
     /**

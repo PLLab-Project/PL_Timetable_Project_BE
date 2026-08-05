@@ -24,6 +24,8 @@ public class ScheduleScorer {
     private static final double SAME_MAJOR_BONUS = 5.0;
     /** ScheduleSearchService.SEQUENCE_BONUS와 반드시 같은 값으로 맞춘다. */
     private static final double SEQUENCE_BONUS = 5.0;
+    /** ScheduleSearchService.GRADUATION_PRIORITY_BONUS와 반드시 같은 값으로 맞춘다. */
+    private static final double GRADUATION_PRIORITY_BONUS = 8.0;
 
     public ScoredCombination score(
             ScheduleCombination combination, OptimizationConstraints constraints) {
@@ -44,6 +46,12 @@ public class ScheduleScorer {
                 .filter(course -> !course.required())
                 .filter(course -> matchesSequenceBonus(course, constraints))
                 .count();
+        long graduationPriorityOptionalCourseCount = combination.courses().stream()
+                .filter(course -> !course.required())
+                .filter(course -> matchesGraduationPriority(course, constraints))
+                .map(course -> course.section().getCourseCode())
+                .distinct()
+                .count();
 
         double score = 0.0;
         score += (DAYS_IN_WEEK - attendanceDays) * ATTENDANCE_BONUS_PER_DAY;
@@ -54,6 +62,7 @@ public class ScheduleScorer {
         score -= dailyOverMinutes * DAILY_OVERLOAD_PENALTY_PER_MINUTE;
         score += sameMajorOptionalCount * SAME_MAJOR_BONUS;
         score += sequenceBonusOptionalCount * SEQUENCE_BONUS;
+        score += graduationPriorityOptionalCourseCount * GRADUATION_PRIORITY_BONUS;
         return new ScoredCombination(combination, score, attendanceDays, totalFreeMinutes);
     }
 
@@ -85,6 +94,16 @@ public class ScheduleScorer {
         }
         return course.prerequisiteCourseCodes().stream()
                 .anyMatch(constraints.completedCourseCodes()::contains);
+    }
+
+    /**
+     * ScheduleSearchService.matchesGraduationPriority()와 동일한 판정이다.
+     * 과목 단위 distinct는 호출부(score())에서 처리한다.
+     */
+    private boolean matchesGraduationPriority(
+            CandidateCourse course, OptimizationConstraints constraints) {
+        return constraints.graduationPriorityCourseCodes()
+                .contains(course.section().getCourseCode());
     }
 
     private Map<DayOfWeek, List<CourseTimeSlot>> groupSlotsByDay(
