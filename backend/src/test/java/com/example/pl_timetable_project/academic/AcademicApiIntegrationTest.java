@@ -135,6 +135,62 @@ class AcademicApiIntegrationTest {
     }
 
     @Test
+    void searchesCoursesByCourseCodeSectionCodeNameAndProfessorViaFreeTextQuery()
+            throws Exception {
+        // 과목코드만(922601류)은 기존에도 됐지만, 과목코드-분반코드(922601-01류)는
+        // courses 테이블에 section_code가 없어 course_code LIKE 매칭이 그대로는
+        // 안 됐다. sections를 course_code || '-' || section_code로 조합해 매칭하는
+        // EXISTS 절을 추가로 확인한다.
+        mockMvc.perform(get("/api/v1/courses")
+                        .param("semesterId", "2026-1")
+                        .param("query", "CSE100-01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE100"));
+
+        // 다른 과목의 분반코드와 조합했을 때 잘못 매칭되지 않는지도 함께 확인한다
+        // (CSE200도 section_code '01'을 갖고 있어 course_code를 무시하고
+        // section_code만 보면 오매칭될 수 있는 시나리오).
+        mockMvc.perform(get("/api/v1/courses")
+                        .param("semesterId", "2026-1")
+                        .param("query", "CSE200-01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE200"));
+
+        // 존재하지 않는 분반 조합은 여전히 0건이어야 한다.
+        mockMvc.perform(get("/api/v1/courses")
+                        .param("semesterId", "2026-1")
+                        .param("query", "CSE100-99"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(0));
+
+        // 기존처럼 과목코드만으로도 여전히 검색된다(회귀 없음).
+        mockMvc.perform(get("/api/v1/courses")
+                        .param("semesterId", "2026-1")
+                        .param("query", "CSE100"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE100"));
+
+        // 과목명 검색도 회귀 없다.
+        mockMvc.perform(get("/api/v1/courses")
+                        .param("semesterId", "2026-1")
+                        .param("query", "자료구조"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE100"));
+
+        // 담당교수 자유검색(query)도 회귀 없다.
+        mockMvc.perform(get("/api/v1/courses")
+                        .param("semesterId", "2026-1")
+                        .param("query", "홍길동"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.items[0].courseCode").value("CSE100"));
+    }
+
+    @Test
     void supportsRatingAndPopularitySorts() throws Exception {
         mockMvc.perform(get("/api/v1/courses")
                         .param("semesterId", "2026-1")
