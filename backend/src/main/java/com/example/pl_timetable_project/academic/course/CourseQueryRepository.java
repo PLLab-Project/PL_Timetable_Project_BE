@@ -47,6 +47,16 @@ public class CourseQueryRepository {
                            AND lower(coalesce(query_section.professor, ''))
                                LIKE '%' || lower(CAST(:query AS text)) || '%'
                     )
+                    OR EXISTS (
+                        SELECT 1
+                          FROM sections query_section_code
+                         WHERE query_section_code.semester_id = c.semester_id
+                           AND query_section_code.course_code = c.course_code
+                           AND lower(
+                                   query_section_code.course_code || '-'
+                                       || query_section_code.section_code
+                               ) LIKE '%' || lower(CAST(:query AS text)) || '%'
+                    )
                )
                AND (
                     CAST(:categoriesEmpty AS boolean) = true
