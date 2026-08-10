@@ -10,6 +10,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +40,16 @@ public class Timetable {
 
     @Column(name = "is_favorite", nullable = false)
     private boolean favorite;
+
+    /**
+     * 낙관적 잠금 버전. timetableCourses 컬렉션 변경(추가/삭제/전체 교체)도 이
+     * 버전을 증가시킨다 — Timetable과 그 분반 목록을 하나의 집합체로 보호해,
+     * 같은 시간표를 동시에 수정하는 두 요청 중 하나가 ObjectOptimisticLockingFailureException으로
+     * 감지되도록 한다(GlobalExceptionHandler가 409로 응답).
+     */
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     @OneToMany(mappedBy = "timetable", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TimetableCourse> timetableCourses = new ArrayList<>();
