@@ -549,6 +549,108 @@ class AcademicApiIntegrationTest {
     }
 
     @Test
+    void sortsSectionsByPreferredAcademicUnitAndGradeMatchWithinTheSameCourse()
+            throws Exception {
+        // preferredSection CASE WHEN은 course.course_code ASC보다 뒤에 있어
+        // "같은 과목의 여러 분반 중에서" 우선순위를 매길 뿐, 과목 자체의 순서를
+        // 바꾸지는 않는다 — 그래서 한 과목에 분반 4개를 두고 검증한다.
+        // 소스 페이지/행 번호는 01<02<03<04 순으로 넣어, 부스트가 없을 때의
+        // 자연스러운 순서도 01,02,03,04임을 전제로 한다.
+        jdbcTemplate.execute("""
+                INSERT INTO courses (
+                    semester_id, course_code, name, category, credits,
+                    lecture_hours, practice_hours
+                ) VALUES (
+                    '2026-1', 'CSE800', '전공심화', '전공선택', 3.00, 3.00, 0.00
+                );
+
+                INSERT INTO sections (
+                    semester_id, course_code, section_code, professor,
+                    raw_lecture_time, time_to_be_announced, warning_codes
+                ) VALUES
+                    (
+                        '2026-1', 'CSE800', '01', '오교수',
+                        '월5-6', false, '[]'::jsonb
+                    ),
+                    (
+                        '2026-1', 'CSE800', '02', '오교수',
+                        '화5-6', false, '[]'::jsonb
+                    ),
+                    (
+                        '2026-1', 'CSE800', '03', '오교수',
+                        '수5-6', false, '[]'::jsonb
+                    ),
+                    (
+                        '2026-1', 'CSE800', '04', '오교수',
+                        '목5-6', false, '[]'::jsonb
+                    );
+
+                UPDATE sections
+                   SET notes = NULL, source_page = 200, source_row = 1
+                 WHERE semester_id = '2026-1' AND course_code = 'CSE800'
+                   AND section_code = '01';
+
+                UPDATE sections
+                   -- 학과만 일치(학년 표기 없음) — 1순위(학과+학년)에는 못 들지만
+                   -- 2순위(학과만 일치)에는 든다.
+                   SET notes = '컴퓨터공학과 우선', source_page = 200, source_row = 2
+                 WHERE semester_id = '2026-1' AND course_code = 'CSE800'
+                   AND section_code = '02';
+
+                UPDATE sections
+                   -- 학과+학년 둘 다 일치 — 1순위.
+                   SET notes = '컴퓨터공학과2학년만신청가능',
+                       source_page = 200, source_row = 3
+                 WHERE semester_id = '2026-1' AND course_code = 'CSE800'
+                   AND section_code = '03';
+
+                UPDATE sections
+                   -- "우선수강"이라는 단어가 있어도 학과명 자체가 없으므로 오탐 방지
+                   -- 회귀 테스트 — 3순위(기존 순서)에 그대로 남아야 한다.
+                   SET notes = '타과생우선수강/3일차해제',
+                       source_page = 200, source_row = 4
+                 WHERE semester_id = '2026-1' AND course_code = 'CSE800'
+                   AND section_code = '04';
+                """);
+
+        mockMvc.perform(get("/api/v1/sections")
+                        .param("semesterId", "2026-1")
+                        .param("query", "전공심화")
+                        .param("preferredAcademicUnitCode", "D1")
+                        .param("preferredGrade", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(4))
+                .andExpect(jsonPath("$.data.items[0].sectionCode").value("03"))
+                .andExpect(jsonPath("$.data.items[1].sectionCode").value("02"))
+                .andExpect(jsonPath("$.data.items[2].sectionCode").value("01"))
+                .andExpect(jsonPath("$.data.items[3].sectionCode").value("04"));
+
+        // 학과만 맞고 preferredGrade를 아예 안 보내면(학년 정보 없음) 학과 일치
+        // 분반들(02, 03) 중에서는 원래 순서(source_row)가 유지되고, 그래도
+        // 학과 무관 분반(01, 04)보다는 앞에 온다.
+        mockMvc.perform(get("/api/v1/sections")
+                        .param("semesterId", "2026-1")
+                        .param("query", "전공심화")
+                        .param("preferredAcademicUnitCode", "D1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].sectionCode").value("02"))
+                .andExpect(jsonPath("$.data.items[1].sectionCode").value("03"))
+                .andExpect(jsonPath("$.data.items[2].sectionCode").value("01"))
+                .andExpect(jsonPath("$.data.items[3].sectionCode").value("04"));
+
+        // preferredAcademicUnitCode 자체를 안 보내면 부스트가 전혀 적용되지 않고
+        // source_page/row 순서(01,02,03,04) 그대로 나온다 — 회귀 없음 확인.
+        mockMvc.perform(get("/api/v1/sections")
+                        .param("semesterId", "2026-1")
+                        .param("query", "전공심화"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].sectionCode").value("01"))
+                .andExpect(jsonPath("$.data.items[1].sectionCode").value("02"))
+                .andExpect(jsonPath("$.data.items[2].sectionCode").value("03"))
+                .andExpect(jsonPath("$.data.items[3].sectionCode").value("04"));
+    }
+
+    @Test
     void searchesHistoricalAndCurrentOfferingsThroughOneSectionApi() throws Exception {
         jdbcTemplate.execute("""
                 INSERT INTO historical_term_datasets (

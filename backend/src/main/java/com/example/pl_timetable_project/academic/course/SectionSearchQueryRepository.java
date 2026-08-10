@@ -144,6 +144,34 @@ public class SectionSearchQueryRepository {
                )
             """;
 
+    /**
+     * notes에 preferred_unit(사용자 본인 학과, 복수전공 포함)의 이름/별칭이 부분
+     * 포함되면 그 분반을 "본인 학과" 분반으로 본다. 하드 배제용
+     * AcademicSectionQueryRepository.HARD_RESTRICTION_*_SQL과 달리 end-anchor나
+     * 예외 키워드 제외가 없다 — 여기서는 완전 배제가 아니라 정렬 우선순위일
+     * 뿐이라 "우선신청/우선수강" 같은 표현(대부분 뒤에 "/설명"이 붙어 end-anchor
+     * 방식으로는 못 잡음)까지 폭넓게 잡아도 안전하다.
+     */
+    private static final String PREFERRED_DEPARTMENT_MATCH_SQL = """
+            EXISTS (
+                SELECT 1
+                  FROM academic_units preferred_unit
+                 WHERE preferred_unit.code IN (:preferredAcademicUnitCodes)
+                   AND (
+                        coalesce(section.notes, '') ILIKE
+                            '%' || preferred_unit.name || '%'
+                        OR EXISTS (
+                            SELECT 1
+                              FROM academic_unit_aliases preferred_alias
+                             WHERE preferred_alias.academic_unit_code =
+                                       preferred_unit.code
+                               AND coalesce(section.notes, '') ILIKE
+                                   '%' || preferred_alias.alias || '%'
+                        )
+                   )
+            )
+            """;
+
     private static final String BAYESIAN_RATING = """
             CASE
                 WHEN coalesce(review.review_count, 0) = 0 THEN NULL
@@ -413,32 +441,30 @@ public class SectionSearchQueryRepository {
                 .addValue(
                         "preferredAcademicUnitCodes",
                         placeholder(condition.preferredAcademicUnitCodes()))
+                .addValue("preferredGrade", condition.preferredGrade())
                 .addValue("professor", condition.professor())
                 .addValue("credits", condition.credits())
                 .addValue("dayCode", condition.dayCode());
     }
 
     private String orderBy(SectionSearchCondition condition, CourseSort sort) {
+        // 3단계 우선순위: 0=본인 학과+학년 둘 다 일치, 1=학과만 일치, 2=나머지(기존과 동일).
+        // 학년은 target_grade 컬럼을 신뢰할 수 없어(실측상 절반가량 NULL) notes
+        // 원문에서 정규식으로 직접 뽑는다 — "학년도"처럼 오탐될 만한 표현은 실제
+        // 데이터에 없음을 확인했다.
         String preferredSection = !condition.preferredAcademicUnitCodes().isEmpty()
-                ? """
-                  CASE WHEN EXISTS (
-                      SELECT 1
-                        FROM academic_units preferred_unit
-                       WHERE preferred_unit.code IN (:preferredAcademicUnitCodes)
-                         AND (
-                              coalesce(section.notes, '') ILIKE
-                                  '%' || preferred_unit.name || '%'
-                              OR EXISTS (
-                                  SELECT 1
-                                    FROM academic_unit_aliases preferred_alias
-                                   WHERE preferred_alias.academic_unit_code =
-                                             preferred_unit.code
-                                     AND coalesce(section.notes, '') ILIKE
-                                         '%' || preferred_alias.alias || '%'
-                              )
-                         )
-                  ) THEN 0 ELSE 1 END,
-                  """
+                ? ("""
+                  CASE
+                      WHEN %1$s
+                           AND CAST(:preferredGrade AS text) IS NOT NULL
+                           AND substring(
+                                   coalesce(section.notes, '') FROM '([1-4])학년'
+                               ) = CAST(:preferredGrade AS text)
+                          THEN 0
+                      WHEN %1$s THEN 1
+                      ELSE 2
+                  END,
+                  """).formatted(PREFERRED_DEPARTMENT_MATCH_SQL)
                 : "";
         return switch (sort) {
             case DEFAULT ->
