@@ -10,6 +10,7 @@ import com.example.pl_timetable_project.academic.course.dto.SectionSearchRespons
 import com.example.pl_timetable_project.academic.course.dto.SectionSummaryResponse;
 import com.example.pl_timetable_project.exception.AcademicResourceNotFoundException;
 import com.example.pl_timetable_project.exception.InvalidAcademicQueryException;
+import com.example.pl_timetable_project.user.entity.StudentProfile;
 import com.example.pl_timetable_project.user.repository.StudentAcademicProgramRepository;
 import com.example.pl_timetable_project.user.repository.StudentProfileRepository;
 import java.math.BigDecimal;
@@ -97,6 +98,7 @@ public class CourseService {
             List<String> completionCategories,
             List<String> targetGrades,
             List<String> preferredAcademicUnitCodes,
+            String preferredGrade,
             String professor,
             BigDecimal credits,
             String day,
@@ -114,6 +116,7 @@ public class CourseService {
                 normalizeValues(completionCategories, this::normalizeCompletionCategory),
                 normalizeValues(targetGrades, this::parseTargetGrade),
                 resolvePreferredAcademicUnitCodes(userId, preferredAcademicUnitCodes),
+                resolvePreferredGrade(userId, preferredGrade),
                 TextQuery.optional(professor),
                 validateCredits(credits),
                 parseDay(day));
@@ -245,6 +248,32 @@ public class CourseService {
                         ? List.<String>of()
                         : List.of(profile.academicUnitCode()))
                 .orElseGet(List::of);
+    }
+
+    /**
+     * "본인 학과+학년" 우선정렬(SectionSearchQueryRepository.orderBy())에 쓸 학년
+     * 숫자 하나("1"~"4")를 만든다. 명시적으로 요청 파라미터가 오면 그걸 쓰고,
+     * 없으면 resolvePreferredAcademicUnitCodes()와 같은 방식으로 로그인 사용자의
+     * StudentProfile.grade()를 조회해 대체한다 — 이 값은 학생이 직접 입력한
+     * 값이라 복학/휴학 등으로 실제와 다를 수 있다는 한계가 있다.
+     */
+    private String resolvePreferredGrade(UUID userId, String requestedGrade) {
+        String normalized = TextQuery.optional(requestedGrade);
+        if (normalized != null) {
+            return gradeDigit(parseTargetGrade(normalized));
+        }
+        if (userId == null) {
+            return null;
+        }
+        return studentProfileRepository.findById(userId)
+                .map(StudentProfile::grade)
+                .filter(grade -> grade >= 1 && grade <= 4)
+                .map(String::valueOf)
+                .orElse(null);
+    }
+
+    private String gradeDigit(String normalizedGrade) {
+        return normalizedGrade == null ? null : normalizedGrade.substring(0, 1);
     }
 
     private List<String> normalizeValues(
