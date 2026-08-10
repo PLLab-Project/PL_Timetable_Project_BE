@@ -116,7 +116,7 @@ class PlTimetableProjectApplicationTests {
                 """, Integer.class);
 
         assertThat(version).startsWith("18.4");
-        assertThat(successfulMigrations).isEqualTo(18);
+        assertThat(successfulMigrations).isEqualTo(19);
         assertThat(graduationProfiles).isEqualTo("graduation_credit_profiles");
         assertThat(socialIdentities).isEqualTo("social_identities");
         assertThat(academicUnits).isEqualTo("academic_units");

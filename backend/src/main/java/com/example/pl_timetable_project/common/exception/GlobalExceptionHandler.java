@@ -10,6 +10,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import com.example.pl_timetable_project.completedcourse.CompletedCourseErrorCode;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -78,6 +79,19 @@ public class GlobalExceptionHandler {
             NoResourceFoundException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error(CommonErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    /**
+     * @Version을 건 엔티티(예: Timetable)를 두 요청이 동시에 수정하면 발생한다.
+     * 예전에는 범용 500(Exception.class)으로 떨어졌지만, 이건 서버 오류가 아니라
+     * "다른 요청이 먼저 저장했다"는 예상 가능한 충돌이라 409로 명확히 응답한다.
+     */
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ApiResponse<Void>> handleOptimisticLockingFailure(
+            ObjectOptimisticLockingFailureException exception) {
+        ErrorCode errorCode = CommonErrorCode.CONCURRENT_MODIFICATION_CONFLICT;
+        return ResponseEntity.status(errorCode.status())
+                .body(ApiResponse.error(errorCode));
     }
 
     @ExceptionHandler(Exception.class)

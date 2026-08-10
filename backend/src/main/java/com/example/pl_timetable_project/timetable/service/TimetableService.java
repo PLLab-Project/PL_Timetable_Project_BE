@@ -19,6 +19,9 @@ import com.example.pl_timetable_project.timetable.entity.Timetable;
 import com.example.pl_timetable_project.timetable.entity.TimetableCourse;
 import com.example.pl_timetable_project.timetable.entity.TimetableMeeting;
 import com.example.pl_timetable_project.timetable.repository.TimetableRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.PersistenceContext;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
@@ -40,6 +43,9 @@ public class TimetableService {
 
     private final TimetableRepository timetableRepository;
     private final AcademicSectionQueryRepository sectionQueryRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public TimetableService(
             TimetableRepository timetableRepository,
@@ -117,6 +123,17 @@ public class TimetableService {
                 timetable.getSemesterId(), List.of(request)).get(0);
         timetable.getTimetableCourses().forEach(existing -> validateNoConflict(existing, newCourse));
         timetable.addCourse(newCourse);
+        /*
+         * mappedBy 컬렉션(timetableCourses)에 대한 단순 add()는 Hibernate가 부모
+         * (Timetable)의 @Version을 자동으로 증가시키지 않는다 — FK를 자식 엔티티가
+         * 소유하는 구조라 컬렉션 변경만으로는 부모가 dirty로 표시되지 않기 때문이다.
+         * 그대로 두면 서로 다른 분반을 동시에 추가하는 두 요청이 각자 자신이 읽은
+         * (상대의 추가 전) 스냅샷으로 충돌 검사를 하고도 버전 충돌 없이 둘 다
+         * 성공해버릴 수 있다. OPTIMISTIC_FORCE_INCREMENT로 버전 체크+증가를 명시
+         * 요청해, 같은 시간표를 동시에 add하는 요청 중 늦게 flush되는 쪽이
+         * ObjectOptimisticLockingFailureException으로 감지되도록 한다.
+         */
+        entityManager.lock(timetable, LockModeType.OPTIMISTIC_FORCE_INCREMENT);
         timetableRepository.flush();
         return toResponse(timetable);
     }
