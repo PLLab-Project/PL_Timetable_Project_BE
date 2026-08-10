@@ -16,5 +16,11 @@ public record RecognizedCourseMeetingResponse(
         LocalTime endTime,
 
         @Schema(description = "이미지에 표시된 강의실", example = "공다A 411")
-        String room) {
+        String room,
+
+        @Schema(
+                description = "강의실 텍스트에 온라인·원격·사이버·비대면·e-learning 같은 "
+                        + "표현이 있으면 true. 판단할 수 없으면 기본값 false",
+                example = "false")
+        boolean online) {
 }

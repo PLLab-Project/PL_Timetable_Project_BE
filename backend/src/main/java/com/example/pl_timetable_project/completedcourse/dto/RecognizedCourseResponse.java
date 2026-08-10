@@ -41,6 +41,14 @@ public record RecognizedCourseResponse(
         @Schema(description = "이미지에서 인식한 요일·시간·강의실 목록")
         List<RecognizedCourseMeetingResponse> meetings,
 
+        @Schema(
+                description = "시간표 이미지인데 이 과목의 요일·시간을 하나도 인식하지 "
+                        + "못했을 때 true. 온라인 강의처럼 그리드 밖 별도 목록으로 표시돼 "
+                        + "시간을 못 읽었을 수 있으니, 사용자가 직접 확인해야 한다는 신호다. "
+                        + "성적표 등 애초에 시간 정보가 없는 문서에서는 항상 false다",
+                example = "false")
+        boolean needsTimeConfirmation,
+
         @Schema(description = "실제 강의 DB 분반 매칭 상태", example = "MATCHED")
         OcrCourseMatchStatus matchStatus,
 
@@ -87,6 +95,7 @@ public record RecognizedCourseResponse(
                 confidence,
                 professor,
                 meetings,
+                needsTimeConfirmation,
                 status,
                 matched,
                 candidates);
