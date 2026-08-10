@@ -88,8 +88,15 @@ public class CompletedCourseOcrService {
             Extract one item per visible course. In a timetable grid, merge repeated blocks for
             the same course into one item and derive each meeting's day and start/end time from
             the weekday column and time axis. Preserve the visible room and professor text.
-            For TIMETABLE documents, include only courses that occupy an actual timetable grid
-            block and have at least one meeting. Ignore course names shown only in footer text.
+            For TIMETABLE documents, include courses that occupy an actual timetable grid block,
+            AND ALSO include online, remote, or cyber-format courses even when they are listed
+            separately from the grid instead of occupying a grid cell (for example, in a text
+            list below or beside the grid, sometimes labeled 온라인, 원격, 사이버, 비대면, or
+            e-learning). For such courses, still extract any day and time shown near the course
+            and any location text such as 온라인 or e-learning into meetings/room. If no day or
+            time is shown at all for an online course, return that course with an empty meetings
+            array rather than inventing one. Still ignore text that is clearly unrelated to any
+            specific course, such as navigation menus, page titles, or general notices.
             Valid dayOfWeek values are MONDAY through SUNDAY.
             Use PASS_FAIL only when P/N, P/F, pass/fail, or equivalent grading is visible.
             Use LETTER only when a letter grade is visible. Otherwise gradingBasis is null.
@@ -104,6 +111,10 @@ public class CompletedCourseOcrService {
             "image/webp",
             "image/heic",
             "image/heif");
+    private static final java.util.regex.Pattern ONLINE_KEYWORD_PATTERN =
+            java.util.regex.Pattern.compile(
+                    "온라인|원격|사이버|비대면|e[- ]?learning",
+                    java.util.regex.Pattern.CASE_INSENSITIVE);
 
     private final boolean enabled;
     private final long maxFileSizeBytes;
@@ -332,6 +343,15 @@ public class CompletedCourseOcrService {
                 if (courseSemester == null) {
                     courseSemester = recognizedSemester;
                 }
+                List<RecognizedCourseMeetingResponse> parsedMeetings =
+                        meetings(extractedText, courseNode.path("meetings"));
+                // 시간표 이미지인데 요일·시간을 하나도 못 읽었으면(흔히 온라인 강의가
+                // 그리드 밖 별도 목록으로 표시돼 있을 때) 예전에는 결과에서 조용히
+                // 지웠다. 이제는 지우지 않고 needsTimeConfirmation=true로 남겨
+                // 사용자가 직접 확인하게 한다. 성적표 등 원래 시간 정보가 없는
+                // 문서에서는 항상 false다.
+                boolean needsTimeConfirmation = documentType == OcrDocumentType.TIMETABLE
+                        && parsedMeetings.isEmpty();
                 RecognizedCourseResponse parsed = new RecognizedCourseResponse(
                         courseName,
                         decimalOrNull(courseNode.path("credits")),
@@ -341,14 +361,11 @@ public class CompletedCourseOcrService {
                         courseSemester,
                         confidenceOrNull(courseNode.path("confidence")),
                         visibleTextOrNull(extractedText, courseNode.path("professor")),
-                        meetings(extractedText, courseNode.path("meetings")),
+                        parsedMeetings,
+                        needsTimeConfirmation,
                         OcrCourseMatchStatus.UNMATCHED,
                         null,
                         List.of());
-                if (documentType == OcrDocumentType.TIMETABLE
-                        && parsed.meetings().isEmpty()) {
-                    continue;
-                }
                 courses.merge(
                         normalizedCourseName,
                         parsed,
@@ -383,12 +400,22 @@ public class CompletedCourseOcrService {
             }
             RecognizedCourseMeetingResponse meeting =
                     new RecognizedCourseMeetingResponse(
-                            dayOfWeek, startTime, endTime, room);
+                            dayOfWeek, startTime, endTime, room, isOnlineLocation(room));
             if (!meetings.contains(meeting)) {
                 meetings.add(meeting);
             }
         }
         return List.copyOf(meetings);
+    }
+
+    /**
+     * room에 온라인·원격·사이버·비대면·e-learning 같은 표현이 있으면 온라인 강의로
+     * 본다. 실제 카탈로그 데이터를 확인해 보면 온라인 분반 대부분이 요일·시간은
+     * 정상적으로 있고(예: "금20:30-21:20") 강의실 텍스트에만("e-learning(온라인)1")
+     * 온라인임이 드러나므로, 시간 유무가 아니라 이 텍스트로 판정한다.
+     */
+    private static boolean isOnlineLocation(String room) {
+        return room != null && ONLINE_KEYWORD_PATTERN.matcher(room).find();
     }
 
     private static java.time.DayOfWeek dayOfWeekOrNull(JsonNode node) {
@@ -457,6 +484,10 @@ public class CompletedCourseOcrService {
         second.meetings().stream()
                 .filter(meeting -> !mergedMeetings.contains(meeting))
                 .forEach(mergedMeetings::add);
+        // 합친 뒤에도 요일·시간이 여전히 하나도 없을 때만 확인이 필요하다 — 둘 중
+        // 하나라도 시간을 갖고 있었다면 merge로 이미 채워졌으므로 더 이상 아니다.
+        boolean needsTimeConfirmation = mergedMeetings.isEmpty()
+                && (first.needsTimeConfirmation() || second.needsTimeConfirmation());
         return new RecognizedCourseResponse(
                 first.courseName(),
                 first.credits() != null ? first.credits() : second.credits(),
@@ -469,6 +500,7 @@ public class CompletedCourseOcrService {
                 max(first.confidence(), second.confidence()),
                 first.professor() != null ? first.professor() : second.professor(),
                 List.copyOf(mergedMeetings),
+                needsTimeConfirmation,
                 OcrCourseMatchStatus.UNMATCHED,
                 null,
                 List.of());

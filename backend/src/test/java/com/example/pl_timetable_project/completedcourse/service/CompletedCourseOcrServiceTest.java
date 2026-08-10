@@ -148,6 +148,128 @@ class CompletedCourseOcrServiceTest {
     }
 
     @Test
+    void keepsTimetableCourseWithoutMeetingsAndFlagsItForTimeConfirmation() {
+        // 예전에는 TIMETABLE 문서에서 meetings가 비면 조용히 삭제했다. 온라인
+        // 강의처럼 그리드 밖 별도 목록으로 표시돼 요일·시간을 못 읽은 경우가 이
+        // 케이스에 해당하는데, 이제는 지우지 않고 needsTimeConfirmation=true로
+        // 남겨 사용자가 직접 확인하게 한다.
+        CompletedCourseOcrService service = service(
+                true,
+                10_000,
+                (project, location, model, tokens, bytes, contentType) ->
+                        "2026년 1학기 온라인강의 자기주도학습",
+                (project, location, model, tokens, bytes, contentType, transcription) -> """
+                        {
+                          "documentType": "TIMETABLE",
+                          "semester": "2026년 1학기",
+                          "recognizedCourses": [
+                            {
+                              "courseName": "온라인강의",
+                              "professor": null,
+                              "credits": null,
+                              "gradingBasis": null,
+                              "category": null,
+                              "area": null,
+                              "semester": null,
+                              "meetings": [],
+                              "confidence": 0.7
+                            }
+                          ]
+                        }
+                        """);
+
+        var response = service.recognize(image("image/png", new byte[] {1}));
+
+        assertThat(response.recognizedCourses()).singleElement().satisfies(course -> {
+            assertThat(course.courseName()).isEqualTo("온라인강의");
+            assertThat(course.meetings()).isEmpty();
+            assertThat(course.needsTimeConfirmation()).isTrue();
+        });
+    }
+
+    @Test
+    void marksMeetingAsOnlineWhenRoomTextContainsOnlineKeyword() {
+        CompletedCourseOcrService service = service(
+                true,
+                10_000,
+                (project, location, model, tokens, bytes, contentType) ->
+                        "2026년 1학기 회계원리 장석진 월17:30-18:25 e-learning(온라인)1",
+                (project, location, model, tokens, bytes, contentType, transcription) -> """
+                        {
+                          "documentType": "TIMETABLE",
+                          "semester": "2026년 1학기",
+                          "recognizedCourses": [
+                            {
+                              "courseName": "회계원리",
+                              "professor": "장석진",
+                              "credits": 3.0,
+                              "gradingBasis": null,
+                              "category": null,
+                              "area": null,
+                              "semester": null,
+                              "meetings": [
+                                {
+                                  "dayOfWeek": "MONDAY",
+                                  "startTime": "17:30",
+                                  "endTime": "18:25",
+                                  "room": "e-learning(온라인)1"
+                                }
+                              ],
+                              "confidence": 0.9
+                            }
+                          ]
+                        }
+                        """);
+
+        var response = service.recognize(image("image/png", new byte[] {1}));
+
+        assertThat(response.recognizedCourses()).singleElement().satisfies(course -> {
+            // 요일·시간이 정상적으로 있으므로 확인이 더 필요하진 않다.
+            assertThat(course.needsTimeConfirmation()).isFalse();
+            assertThat(course.meetings()).singleElement().satisfies(meeting -> {
+                assertThat(meeting.room()).isEqualTo("e-learning(온라인)1");
+                assertThat(meeting.online()).isTrue();
+            });
+        });
+    }
+
+    @Test
+    void doesNotFlagTranscriptCourseWithoutMeetingsForTimeConfirmation() {
+        // 성적표는 애초에 요일·시간 정보가 없는 문서라, meetings가 비어도
+        // needsTimeConfirmation은 항상 false여야 한다(TIMETABLE 전용 신호).
+        CompletedCourseOcrService service = service(
+                true,
+                10_000,
+                (project, location, model, tokens, bytes, contentType) -> "자료구조 3학점 A+",
+                (project, location, model, tokens, bytes, contentType, transcription) -> """
+                        {
+                          "documentType": "TRANSCRIPT",
+                          "semester": null,
+                          "recognizedCourses": [
+                            {
+                              "courseName": "자료구조",
+                              "professor": null,
+                              "credits": 3.0,
+                              "gradingBasis": "LETTER",
+                              "category": null,
+                              "area": null,
+                              "semester": null,
+                              "meetings": [],
+                              "confidence": 0.8
+                            }
+                          ]
+                        }
+                        """);
+
+        var response = service.recognize(image("image/png", new byte[] {1}));
+
+        assertThat(response.recognizedCourses()).singleElement().satisfies(course -> {
+            assertThat(course.meetings()).isEmpty();
+            assertThat(course.needsTimeConfirmation()).isFalse();
+        });
+    }
+
+    @Test
     void keepsTranscriptionWhenStructuredExtractionFails() {
         CompletedCourseOcrService service = service(
                 true,

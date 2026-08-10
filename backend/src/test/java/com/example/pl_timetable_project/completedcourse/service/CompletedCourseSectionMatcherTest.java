@@ -450,6 +450,7 @@ class CompletedCourseSectionMatcherTest {
                 BigDecimal.valueOf(0.95),
                 professor,
                 List.of(meetings),
+                false,
                 OcrCourseMatchStatus.UNMATCHED,
                 null,
                 List.of());
@@ -470,6 +471,7 @@ class CompletedCourseSectionMatcherTest {
                 course.confidence(),
                 course.professor(),
                 course.meetings(),
+                course.needsTimeConfirmation(),
                 course.matchStatus(),
                 course.matchedSection(),
                 course.matchCandidates());
@@ -525,7 +527,7 @@ class CompletedCourseSectionMatcherTest {
     private static RecognizedCourseMeetingResponse meeting(
             DayOfWeek day, String start, String end, String room) {
         return new RecognizedCourseMeetingResponse(
-                day, LocalTime.parse(start), LocalTime.parse(end), room);
+                day, LocalTime.parse(start), LocalTime.parse(end), room, false);
     }
 
     private static CourseSessionResponse session(
