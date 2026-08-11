@@ -1,5 +1,6 @@
 package com.example.pl_timetable_project.completedcourse.service;
 
+import com.example.pl_timetable_project.academic.common.LiberalAreaCode;
 import com.example.pl_timetable_project.common.exception.BusinessException;
 import com.example.pl_timetable_project.completedcourse.CompletedCourseErrorCode;
 import com.example.pl_timetable_project.completedcourse.CompletedCourseInputSource;
@@ -68,7 +69,7 @@ public class CompletedCourseService {
                         : canonicalCategory(
                                 catalogOffering.completionCategory(),
                                 request.category()),
-                normalizeOptional(request.area()),
+                canonicalArea(request.area()),
                 catalogOffering == null
                         ? normalizeOptional(request.semester())
                         : catalogOffering.semesterId(),
@@ -121,7 +122,7 @@ public class CompletedCourseService {
                         request.gradingBasis() == null
                                 ? course.getGradingBasis() : request.gradingBasis()),
                 normalizeRequiredUpdate(request.category()),
-                normalizeOptionalUpdate(request.area()),
+                canonicalArea(request.area()),
                 normalizeOptionalUpdate(request.semester()),
                 request.status());
         return CompletedCourseResponse.from(course);
@@ -308,6 +309,22 @@ public class CompletedCourseService {
 
     private String normalizeOptional(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    /**
+     * 프론트가 교양선택 세부 영역을 표시용 이름("과학과 기술")으로 보내든 이미
+     * 내부 코드("제3영역:과학과기술")로 보내든 내부 코드로 저장해, 졸업요건
+     * 계산(GraduationProgressCalculator.areaGaps)이 graduation_liberal_area_
+     * requirements.area와 문자열로 비교할 때 항상 맞도록 한다. "전공심화"처럼
+     * 교양 영역이 아닌 값은 매핑되는 코드가 없어(null 반환) 원본 그대로 저장한다.
+     */
+    private String canonicalArea(String value) {
+        String normalized = normalizeOptional(value);
+        if (normalized == null) {
+            return null;
+        }
+        String code = LiberalAreaCode.fromDisplayLabel(normalized);
+        return code != null ? code : normalized;
     }
 
     private String normalizeOptionalUpdate(String value) {

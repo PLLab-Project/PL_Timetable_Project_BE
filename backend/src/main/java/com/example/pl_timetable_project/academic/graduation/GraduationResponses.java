@@ -46,7 +46,8 @@ public final class GraduationResponses {
     }
 
     public record AreaRequirement(
-            String area,
+            String areaCode,
+            String areaLabel,
             int minimumCourses,
             Integer minimumCredits) {
     }
@@ -128,7 +129,8 @@ public final class GraduationResponses {
     }
 
     public record AreaGap(
-            String area,
+            String areaCode,
+            String areaLabel,
             int requiredCourses,
             int completedCourses,
             int missingCourses,

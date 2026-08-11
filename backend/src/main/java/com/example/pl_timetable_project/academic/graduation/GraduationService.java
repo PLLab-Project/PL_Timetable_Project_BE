@@ -229,7 +229,7 @@ public class GraduationService {
             Rule rule, List<AreaGap> areaGaps, Set<String> offeredLiberalAreas) {
         List<Warning> warnings = new ArrayList<>(rule.warnings());
         List<String> areasWithoutOfferings = areaGaps.stream()
-                .map(AreaGap::area)
+                .map(AreaGap::areaCode)
                 .filter(area -> !offeredLiberalAreas.contains(area))
                 .toList();
         if (!areasWithoutOfferings.isEmpty()) {
