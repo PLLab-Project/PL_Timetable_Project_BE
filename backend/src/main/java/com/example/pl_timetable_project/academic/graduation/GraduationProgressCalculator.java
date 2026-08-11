@@ -95,7 +95,7 @@ public class GraduationProgressCalculator {
         List<AreaGap> result = new ArrayList<>();
         for (AreaRequirement area : rule.liberalAreas()) {
             AreaProgress current = progress.getOrDefault(
-                    normalizeKey(area.area()), new AreaProgress(0, ZERO));
+                    normalizeKey(area.areaCode()), new AreaProgress(0, ZERO));
             int missingCourses = Math.max(
                     area.minimumCourses() - current.courseCount(), 0);
             BigDecimal requiredCredits = area.minimumCredits() == null
@@ -105,7 +105,8 @@ public class GraduationProgressCalculator {
                     current.credits()).max(ZERO);
             if (missingCourses > 0 || missingCredits.signum() > 0) {
                 result.add(new AreaGap(
-                        area.area(),
+                        area.areaCode(),
+                        area.areaLabel(),
                         area.minimumCourses(),
                         current.courseCount(),
                         missingCourses,

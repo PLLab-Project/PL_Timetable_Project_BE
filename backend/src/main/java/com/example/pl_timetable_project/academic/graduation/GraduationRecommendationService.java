@@ -44,7 +44,7 @@ public class GraduationRecommendationService {
                 .map(CreditGap::code)
                 .collect(Collectors.toSet());
         Set<String> missingAreas = areaGaps.stream()
-                .map(AreaGap::area)
+                .map(AreaGap::areaCode)
                 .collect(Collectors.toSet());
         List<Recommendation> result = new ArrayList<>();
         for (OfferedCourse course : repository.findOfferedCourses(

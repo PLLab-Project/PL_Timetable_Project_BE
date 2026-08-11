@@ -1,12 +1,15 @@
 package com.example.pl_timetable_project.academic.graduation;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 import com.example.pl_timetable_project.auth.security.AuthenticatedUser;
+import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -45,6 +49,9 @@ class GraduationApiIntegrationTest {
     @Autowired
     JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    EntityManager entityManager;
+
     MockMvc mockMvc;
 
     @BeforeEach
@@ -68,7 +75,7 @@ class GraduationApiIntegrationTest {
                 .andExpect(jsonPath("$.data.academicUnitCode").value("D1"))
                 .andExpect(jsonPath("$.data.credits.total").value(20))
                 .andExpect(jsonPath("$.data.liberalArts.totalMinimum").value(7))
-                .andExpect(jsonPath("$.data.liberalAreas[0].area").value("소통"))
+                .andExpect(jsonPath("$.data.liberalAreas[0].areaCode").value("소통"))
                 .andExpect(jsonPath("$.data.requiredCourses.length()").value(4))
                 .andExpect(jsonPath("$.data.sourceRefs[0]").value("official-credit-table.pdf#p=3"))
                 .andExpect(jsonPath("$.data.warnings[0].code").value("SOURCE_TOTAL_MISMATCH"))
@@ -92,7 +99,7 @@ class GraduationApiIntegrationTest {
                 .andExpect(jsonPath("$.data.automaticRequirementsSatisfied").value(false))
                 .andExpect(jsonPath("$.data.creditGaps[?(@.code == 'TOTAL')].missing")
                         .value(9.0))
-                .andExpect(jsonPath("$.data.areaGaps[0].area").value("소통"))
+                .andExpect(jsonPath("$.data.areaGaps[0].areaCode").value("소통"))
                 .andExpect(jsonPath("$.data.areaGaps[0].missingCourses").value(1))
                 .andExpect(jsonPath("$.data.areaGaps[0].missingCredits").value(1))
                 .andExpect(jsonPath("$.data.requiredCourseGaps.length()").value(2))
@@ -165,14 +172,14 @@ class GraduationApiIntegrationTest {
                 .andExpect(status().isOk())
                 // 주전공(D1) 판정은 단일전공 테스트와 동일한 흐름으로 그대로 계산된다.
                 .andExpect(jsonPath("$.data.completedCredits.total").value(11))
-                .andExpect(jsonPath("$.data.areaGaps[0].area").value("소통"))
+                .andExpect(jsonPath("$.data.areaGaps[0].areaCode").value("소통"))
                 // 복수전공(D2) 섹션이 별도로 채워진다.
                 .andExpect(jsonPath("$.data.secondaryMajor").exists())
                 .andExpect(jsonPath("$.data.secondaryMajor.rule.academicUnitCode")
                         .value("D2"))
                 // 영역 요건은 전공 귀속과 무관하게(같은 이수과목 풀로) 자동 판정된다 —
                 // 주전공과 같은 교양 영역 부족분이 그대로 반영된다.
-                .andExpect(jsonPath("$.data.secondaryMajor.areaGaps[0].area")
+                .andExpect(jsonPath("$.data.secondaryMajor.areaGaps[0].areaCode")
                         .value("소통"))
                 .andExpect(jsonPath("$.data.secondaryMajor.areaGaps[0].missingCourses")
                         .value(1))
@@ -211,7 +218,7 @@ class GraduationApiIntegrationTest {
                 // 제2영역:역사와철학 부족분에는 실제로 개설된 HIS201이 추천되고,
                 // 이미 수강 중인(IN_PROGRESS) HIS301은 추천에서 빠진다.
                 .andExpect(jsonPath(
-                        "$.data.areaGaps[?(@.area == '제2영역:역사와철학')]").exists())
+                        "$.data.areaGaps[?(@.areaCode == '제2영역:역사와철학')]").exists())
                 .andExpect(jsonPath(
                         "$.data.recommendations[?(@.courseCode == 'HIS201')].fills")
                         .value(org.hamcrest.Matchers.hasItem(
@@ -232,6 +239,63 @@ class GraduationApiIntegrationTest {
                                 org.hamcrest.Matchers.containsString("제3영역:과학과기술"))));
     }
 
+    /**
+     * 프론트가 완료 과목을 등록할 때 실제로 보내는 형식("과학과 기술", 표시용
+     * 이름)으로 POST /completed-courses를 호출한 뒤, 그 이수과목이 졸업요건
+     * areaGaps 계산에 반영되는지 확인한다. CompletedCourseService가 저장 시
+     * 내부 코드("제3영역:과학과기술")로 정규화하지 않으면 areaGaps가
+     * graduation_liberal_area_requirements.area와 문자열로 비교할 때 어긋나
+     * 실제로는 이수했는데도 계속 부족하다고 나온다(수정 전 재현되던 버그).
+     */
+    @Test
+    void countsCompletedCourseTowardAreaGapWhenAreaSentAsDisplayLabel()
+            throws Exception {
+        insertLiberalAreaMatchingFixture();
+
+        mockMvc.perform(get("/api/v1/graduation/evaluation")
+                        .with(authenticated())
+                        .param("semesterId", "2026-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(
+                        "$.data.areaGaps[?(@.areaCode == '제3영역:과학과기술')]")
+                        .exists());
+
+        mockMvc.perform(post("/api/v1/completed-courses")
+                        .with(authenticated())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "courseName": "물리학과 세상보기",
+                                  "credits": 2.00,
+                                  "category": "교양선택",
+                                  "area": "과학과 기술",
+                                  "semester": "2026-1",
+                                  "status": "COMPLETED"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.area").value("제3영역:과학과기술"));
+
+        /*
+         * CompletedCourseService.create()는 JPA(Hibernate)로 저장하지만,
+         * GraduationQueryRepository.findCompletedCourses()는 같은 트랜잭션 안에서도
+         * JdbcTemplate로 직접 조회한다 — Hibernate는 ORM 쿼리 앞에서만 자동 flush하므로
+         * raw JDBC 조회 전에는 아직 DB에 INSERT가 나가지 않았을 수 있다. 프로덕션에서는
+         * 두 호출이 서로 다른 최상위 트랜잭션(요청)이라 문제되지 않지만, 이 테스트는
+         * @Transactional로 한 트랜잭션에 묶여 있어 명시적으로 flush해야 한다.
+         */
+        entityManager.flush();
+
+        mockMvc.perform(get("/api/v1/graduation/evaluation")
+                        .with(authenticated())
+                        .param("semesterId", "2026-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(
+                        "$.data.areaGaps[?(@.areaCode == '제3영역:과학과기술')]")
+                        .doesNotExist());
+    }
+
     @Test
     void rejectsEvaluationWhenGraduationProfileScopeIsIncomplete()
             throws Exception {
@@ -247,6 +311,44 @@ class GraduationApiIntegrationTest {
                         .param("semesterId", "2026-1"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_ACADEMIC_QUERY"));
+    }
+
+    /**
+     * 2026-08-03(c7cca2b) 전에 가입해서 이후 한 번도 /users/me를 PATCH하지 않은
+     * 계정은 student_type이 NULL로 남아 졸업요건 판정이 400(INVALID_ACADEMIC_QUERY)
+     * 이었다. V2026_08_11_019 마이그레이션과 같은 형태의 UPDATE로 그런 레거시 행을
+     * 채우면 같은 요청이 더 이상 400이 아니라 정상 응답해야 한다 — 마이그레이션이
+     * 하는 일과 그게 실제로 문제를 없앤다는 것을 함께 검증한다. 이 fixture의
+     * graduation_credit_profiles 규칙은 student_type='REGULAR'로 등록돼 있어(다른
+     * 테스트들과 동일) 여기서도 그 값으로 채운다 — 채워 넣는 구체적인 문자열값
+     * 자체(마이그레이션은 'DOMESTIC')보다 "NULL이 아니면 판정이 다시 가능해진다"가
+     * 검증 대상이다.
+     */
+    @Test
+    void legacyNullStudentTypeNoLongerBlocksEvaluationAfterBackfill()
+            throws Exception {
+        jdbcTemplate.update("""
+                UPDATE student_profiles
+                SET student_type = NULL
+                WHERE user_id = ?
+                """, USER_ID);
+
+        mockMvc.perform(get("/api/v1/graduation/evaluation")
+                        .with(authenticated())
+                        .param("semesterId", "2026-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_ACADEMIC_QUERY"));
+
+        jdbcTemplate.update("""
+                UPDATE student_profiles
+                SET student_type = 'REGULAR'
+                WHERE student_type IS NULL
+                """);
+
+        mockMvc.perform(get("/api/v1/graduation/evaluation")
+                        .with(authenticated())
+                        .param("semesterId", "2026-1"))
+                .andExpect(status().isOk());
     }
 
     @Test

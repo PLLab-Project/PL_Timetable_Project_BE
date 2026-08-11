@@ -333,6 +333,53 @@ class CompletedCourseApiIntegrationTest {
                         .value("VALIDATION_ERROR"));
     }
 
+    /**
+     * 프론트는 교양선택 세부 영역을 "과학과 기술"(표시용 이름, 띄어쓰기 있음,
+     * 영역 번호 없음) 형식으로 보낸다. 백엔드는 이걸 졸업요건 계산이 쓰는 내부
+     * 코드 "제3영역:과학과기술"로 정규화해 저장해야 한다 — 그래야
+     * GraduationProgressCalculator.areaGaps()가 graduation_liberal_area_
+     * requirements.area와 문자열로 비교할 때 맞는다. 이미 코드 형식으로 온
+     * 값은 그대로 유지되고(멱등), "전공심화"처럼 교양 영역이 아닌 값은 원본
+     * 그대로 저장된다(회귀 없음, supportsAuthenticatedCrudAndEnforcesOwnership에서
+     * 이미 확인).
+     */
+    @Test
+    void normalizesLiberalAreaDisplayLabelToInternalCode() throws Exception {
+        String createdBody = mockMvc.perform(post("/api/v1/completed-courses")
+                        .with(authenticatedAs(USER_ONE))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "courseName": "물리학과 세상보기",
+                                  "credits": 3.00,
+                                  "category": "교양선택",
+                                  "area": "과학과 기술",
+                                  "semester": "2026-1",
+                                  "status": "COMPLETED"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.area").value("제3영역:과학과기술"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        UUID completedCourseId = UUID.fromString(JsonPath.read(createdBody, "$.data.id"));
+
+        mockMvc.perform(patch("/api/v1/completed-courses/{id}", completedCourseId)
+                        .with(authenticatedAs(USER_ONE))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "area": "제5영역:융합과혁신"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.area").value("제5영역:융합과혁신"));
+    }
+
     private RequestPostProcessor authenticatedAs(UUID userId) {
         AuthenticatedUser principal = new AuthenticatedUser(userId, "20260001");
         UsernamePasswordAuthenticationToken authentication =

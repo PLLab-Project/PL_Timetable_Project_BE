@@ -1,5 +1,6 @@
 package com.example.pl_timetable_project.academic.graduation;
 
+import com.example.pl_timetable_project.academic.common.LiberalAreaCode;
 import com.example.pl_timetable_project.academic.graduation.GraduationQueryRepository.ManualRule;
 import com.example.pl_timetable_project.academic.graduation.GraduationQueryRepository.RequiredCourseRule;
 import com.example.pl_timetable_project.academic.graduation.GraduationQueryRepository.RuleProfile;
@@ -30,7 +31,10 @@ public class GraduationRuleAssembler {
                 .findAreaRules(profile.liberalRequirementSetId())
                 .stream()
                 .map(rule -> new AreaRequirement(
-                        rule.area(), rule.minCourses(), rule.minCredits()))
+                        rule.area(),
+                        LiberalAreaCode.toDisplayLabel(rule.area()),
+                        rule.minCourses(),
+                        rule.minCredits()))
                 .toList();
         List<RequiredCourse> requiredCourses = repository
                 .findRequiredCourses(profile)
